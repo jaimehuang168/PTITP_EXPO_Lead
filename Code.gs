@@ -14,7 +14,9 @@
 const CONFIG = {
   SHEET_LEADS: 'Leads',
   SHEET_REPORTES: 'Reportes',
-  // 每日報告收件人，留空字串則不寄信（可填多個，逗號分隔）
+  SHEET_CONFIG: 'Config',
+  // 備用收件人：正常情況請改用 Sheet 的「Config」分頁 B1 儲存格填寫（可多個，逗號分隔），
+  // 那裡改完立即生效，不需要重新部署
   REPORT_EMAIL: '',
   // 預設展會名稱（前端也可覆寫）
   EVENTO_DEFAULT: 'Expo Paraguay 2026',
@@ -50,6 +52,12 @@ function setup() {
     rep.getRange(1, 1, 1, 7)
       .setFontWeight('bold').setBackground('#0F4C46').setFontColor('#FFFFFF');
     rep.setFrozenRows(1);
+  }
+  let cfg = ss.getSheetByName(CONFIG.SHEET_CONFIG);
+  if (!cfg) cfg = ss.insertSheet(CONFIG.SHEET_CONFIG);
+  if (cfg.getLastRow() === 0) {
+    cfg.appendRow(['Emails para reporte automático (19:30)', '', '← escriba en la celda B1 uno o varios emails separados por coma; se aplica de inmediato']);
+    cfg.getRange(1, 1).setFontWeight('bold');
   }
   Logger.log('✅ 初始化完成');
 }
@@ -117,10 +125,53 @@ function doGet(e) {
     return _htmlReporte(_construirReporteExpo().texto, 'Reporte acumulado del evento');
   }
 
+  // 日期範圍報告檢視：?action=reporteRango&desde=2026-07-06&hasta=2026-07-09
+  if (action === 'reporteRango') {
+    const desde = e.parameter.desde, hasta = e.parameter.hasta;
+    if (!_fechaValida(desde) || !_fechaValida(hasta) || desde > hasta)
+      return _json({ ok: false, error: 'Rango de fechas inválido' });
+    return _htmlReporte(_construirReporteRango(desde, hasta).texto, `Reporte ${desde} → ${hasta}`);
+  }
+
+  // 業務人員自訂寄送：?action=enviarReporteA&tipo=dia|rango|expo&emails=a@x,b@y[&desde&hasta]
+  if (action === 'enviarReporteA') {
+    try {
+      const emails = _validarEmails(e.parameter.emails || '');
+      if (!emails) return _json({ ok: false, error: 'Emails inválidos o vacíos' });
+      const tipo = e.parameter.tipo || 'dia';
+      let rpt, titulo;
+
+      if (tipo === 'expo') {
+        rpt = _construirReporteExpo();
+        titulo = 'acumulado del evento';
+      } else if (tipo === 'rango') {
+        const desde = e.parameter.desde, hasta = e.parameter.hasta;
+        if (!_fechaValida(desde) || !_fechaValida(hasta) || desde > hasta)
+          return _json({ ok: false, error: 'Rango de fechas inválido' });
+        rpt = _construirReporteRango(desde, hasta);
+        titulo = `del ${desde} al ${hasta}`;
+      } else {
+        const f = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+        rpt = _construirReporte(f);
+        titulo = 'diario ' + f;
+      }
+
+      MailApp.sendEmail({
+        to: emails,
+        subject: `[PTITP] Reporte ${titulo} — ${rpt.total} visitantes, ${rpt.nA} leads A`,
+        body: rpt.texto,
+      });
+      return _json({ ok: true, enviado: 'a ' + emails, total: rpt.total });
+    } catch (err) {
+      return _json({ ok: false, error: String(err) });
+    }
+  }
+
   if (action === 'enviarReporte') {
     try {
       generarReporteDiario();
-      return _json({ ok: true, email: CONFIG.REPORT_EMAIL ? 'enviado a ' + CONFIG.REPORT_EMAIL : 'no configurado (solo guardado en la hoja Reportes)' });
+      const dest = _getReportEmails();
+      return _json({ ok: true, email: dest ? 'enviado a ' + dest : 'no configurado (solo guardado en la hoja Reportes; configure emails en la hoja "Config" celda B1)' });
     } catch (err) {
       return _json({ ok: false, error: String(err) });
     }
@@ -145,15 +196,45 @@ function generarReporteDiario() {
   const rep = ss.getSheetByName(CONFIG.SHEET_REPORTES) || ss.insertSheet(CONFIG.SHEET_REPORTES);
   rep.appendRow([fecha, rpt.evento, rpt.total, rpt.nA, rpt.nB, rpt.nC, rpt.texto]);
 
-  if (CONFIG.REPORT_EMAIL) {
+  const dest = _getReportEmails();
+  if (dest) {
     MailApp.sendEmail({
-      to: CONFIG.REPORT_EMAIL,
+      to: dest,
       subject: `[PTITP] Reporte diario de promoción — ${fecha} (${rpt.total} visitantes, ${rpt.nA} leads A)`,
       body: rpt.texto,
     });
   }
   Logger.log(rpt.texto);
   return rpt.texto;
+}
+
+// ══════════ 收件人工具 ══════════
+// 自動報告收件人：優先讀 Sheet「Config」分頁 B1（改完立即生效），否則用 CONFIG.REPORT_EMAIL
+function _getReportEmails() {
+  try {
+    const cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_CONFIG);
+    let raw = '';
+    if (cfg) {
+      const vals = cfg.getDataRange().getValues();
+      const row = vals.find(r => String(r[0]).toLowerCase().indexOf('email') === 0);
+      raw = row ? String(row[1] || '') : '';
+    }
+    if (!String(raw).trim()) raw = CONFIG.REPORT_EMAIL;
+    return _validarEmails(raw);
+  } catch (err) {
+    return _validarEmails(CONFIG.REPORT_EMAIL);
+  }
+}
+
+// 驗證並清洗 email 清單（逗號/分號/空白分隔，上限 10 個）
+function _validarEmails(raw) {
+  return String(raw).split(/[,;\s]+/)
+    .filter(e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))
+    .slice(0, 10).join(',');
+}
+
+function _fechaValida(f) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(f || '');
 }
 
 // ══════════ 報告產生核心 ══════════
@@ -235,14 +316,23 @@ Generado automáticamente — Sistema de Captación PTITP
   return { texto, total: rows.length, nA: byCal.A.length, nB: byCal.B.length, nC: byCal.C.length, evento };
 }
 
-// ══════════ 整個展期累計報告 ══════════
-function _construirReporteExpo() {
+// ══════════ 彙總報告：全展期或指定日期範圍 ══════════
+function _construirReporteExpo() { return _construirReporteAgregado(null, null); }
+function _construirReporteRango(desde, hasta) { return _construirReporteAgregado(desde, hasta); }
+
+function _construirReporteAgregado(desde, hasta) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
   const data = sh.getDataRange().getValues();
   const H = {};
   data[0].forEach((h, i) => H[h] = i);
-  const rows = data.slice(1);
+  let rows = data.slice(1);
+  if (desde && hasta) {
+    rows = rows.filter(r => {
+      const f = String(r[H['Fecha']]).slice(0, 10);
+      return f >= desde && f <= hasta;
+    });
+  }
 
   const evento = rows.length ? rows[0][H['Evento']] : CONFIG.EVENTO_DEFAULT;
   const byCal = { A: [], B: [], C: [] };
@@ -274,16 +364,20 @@ function _construirReporteExpo() {
 
   const pendA = byCal.A.filter(r => (r[H['Estado']] || 'Pendiente') === 'Pendiente').length;
 
+  const encabezado = (desde && hasta)
+    ? ` REPORTE POR RANGO DE FECHAS (${desde} → ${hasta})`
+    : ' REPORTE ACUMULADO DEL EVENTO (hasta la fecha)';
+
   const texto =
 `══════════════════════════════════════════════════
  PTITP — PARQUE TECNOLÓGICO INTELIGENTE TAIWÁN-PARAGUAY
- REPORTE ACUMULADO DEL EVENTO (hasta la fecha)
+${encabezado}
 ══════════════════════════════════════════════════
 Evento: ${evento}
 Días con registros: ${Object.keys(byDia).length}
 Generado: ${Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd HH:mm:ss')}
 
-1. TOTALES DEL EVENTO
+1. TOTALES${desde ? ' DEL PERÍODO' : ' DEL EVENTO'}
   • Visitantes registrados: ${rows.length}
   • Leads A (calientes): ${byCal.A.length}  (${pendA} aún pendientes de seguimiento)
   • Leads B (tibios):    ${byCal.B.length}
