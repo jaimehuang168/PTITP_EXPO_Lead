@@ -5,101 +5,132 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PTITP — Registro de Visitantes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --verde:#0F4C46; --verde-osc:#0A332F; --rojo:#CE1126; --azul:#0038A8;
-    --fondo:#EEF2F0; --carta:#FFFFFF; --tinta:#1C2826; --gris:#5B6B73;
-    --linea:#D6DEDB; --amarillo:#D99A2B; --naranja:#D3452B;
-    --radio:10px;
+    /* 由 PTITP logo 取色：像素樹青綠 + 字標深藍 */
+    --verde:#009C81; --verde-osc:#007A65; --verde-claro:#E1F3EE;
+    --azul:#14588F; --azul-osc:#0E3F66;
+    --fondo:#F2F6F5; --carta:#FFFFFF; --tinta:#152730; --gris:#5E7079;
+    --linea:#DCE7E3; --amarillo:#D99A2B; --naranja:#D3452B; --rojo:#CE1126;
+    --radio:12px;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'IBM Plex Sans',system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Archivo',system-ui,sans-serif;background:var(--fondo);color:var(--tinta);
+  body{font-family:var(--body);background:var(--fondo);color:var(--tinta);
        font-size:16px;line-height:1.45;padding-bottom:4rem}
 
-  /* 頂部：巴拉圭三色細條 + 標題 */
-  .bandera{height:6px;display:flex}
+  /* 頂部：巴拉圭三色細條 */
+  .bandera{height:5px;display:flex}
   .bandera span{flex:1}
-  .bandera .r{background:var(--rojo)}.bandera .b{background:#fff}.bandera .a{background:var(--azul)}
-  header{background:var(--verde);color:#fff;padding:1.1rem 1.2rem}
-  header h1{font-size:1.05rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-  header p{font-size:.8rem;opacity:.85;margin-top:.15rem}
-  #estado-red{font-size:.72rem;margin-top:.4rem;display:inline-block;padding:.15rem .5rem;
-              border-radius:99px;background:rgba(255,255,255,.15)}
+  .bandera .r{background:var(--rojo)}.bandera .b{background:#fff}.bandera .a{background:#0038A8}
 
-  main{max-width:640px;margin:0 auto;padding:1rem}
+  /* 白底表頭 + logo */
+  header{background:var(--carta);padding:1rem 1.2rem .9rem;
+         display:flex;align-items:center;gap:.9rem}
+  header img{width:56px;height:auto;flex:none}
+  .h-tit h1{font-family:var(--disp);font-size:1.02rem;font-weight:700;
+            letter-spacing:.05em;color:var(--azul);text-transform:uppercase;line-height:1.2}
+  .h-tit p{font-size:.74rem;color:var(--gris);margin-top:.15rem}
+  #estado-red{font-family:var(--disp);font-size:.7rem;font-weight:600;margin-top:.4rem;
+              display:inline-block;padding:.18rem .6rem;border-radius:99px;
+              background:var(--verde-claro);color:var(--tinta)}
+
+  /* 像素分隔線：呼應 logo 的像素樹 */
+  .pixel-div{display:flex;gap:3px;padding:0 1.2rem;background:var(--carta);padding-bottom:.7rem}
+  .pixel-div i{width:7px;height:7px;background:var(--verde)}
+  .pixel-div i:nth-child(3n){opacity:.55}
+  .pixel-div i:nth-child(4n){opacity:.3}
+  .pixel-div i:nth-child(7n){background:var(--azul);opacity:.75}
+
+  main{max-width:640px;margin:0 auto;padding:1.1rem 1rem}
   fieldset{border:1px solid var(--linea);background:var(--carta);border-radius:var(--radio);
-           padding:1rem;margin-bottom:1rem}
-  legend{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
-         color:var(--verde);padding:0 .4rem}
-  label{display:block;font-size:.82rem;font-weight:600;margin:.7rem 0 .25rem;color:var(--tinta)}
+           padding:1.05rem 1rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(20,88,143,.05)}
+  legend{font-family:var(--disp);font-size:.72rem;font-weight:700;letter-spacing:.14em;
+         text-transform:uppercase;color:var(--azul);padding:0 .5rem;
+         display:flex;align-items:center;gap:.45rem}
+  legend::before{content:'';width:8px;height:8px;background:var(--verde);flex:none}
+  label{display:block;font-size:.82rem;font-weight:600;margin:.75rem 0 .28rem;color:var(--tinta)}
   label .op{color:var(--gris);font-weight:400}
   input[type=text],input[type=email],input[type=tel],input[type=number],input[type=date],
   select,textarea{
-    width:100%;padding:.65rem .7rem;border:1px solid var(--linea);border-radius:8px;
-    font:inherit;font-size:1rem;background:#FBFCFB;color:var(--tinta)}
-  input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);outline-offset:1px}
+    width:100%;padding:.68rem .75rem;border:1px solid var(--linea);border-radius:9px;
+    font:inherit;font-size:1rem;background:#FAFCFB;color:var(--tinta)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);outline-offset:1px;
+    border-color:var(--verde)}
   textarea{min-height:96px;resize:vertical}
   .fila{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
   @media(max-width:480px){.fila{grid-template-columns:1fr}}
 
   /* 勾選群組 */
   .chips{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.35rem}
-  .chips label{display:flex;align-items:center;gap:.4rem;margin:0;padding:.5rem .7rem;
-    border:1px solid var(--linea);border-radius:8px;background:#FBFCFB;font-weight:500;
+  .chips label{display:flex;align-items:center;gap:.4rem;margin:0;padding:.52rem .72rem;
+    border:1px solid var(--linea);border-radius:9px;background:#FAFCFB;font-weight:500;
     font-size:.85rem;cursor:pointer;user-select:none}
   .chips input{accent-color:var(--verde);width:1.05rem;height:1.05rem}
-  .chips label:has(input:checked){border-color:var(--verde);background:#E4EFEC;font-weight:600}
+  .chips label:has(input:checked){border-color:var(--verde);background:var(--verde-claro);
+    font-weight:600;color:var(--verde-osc)}
 
   /* 招牌元素：A/B/C 溫度選擇器 */
   .calif{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-top:.4rem}
   .calif label{margin:0;border:2px solid var(--linea);border-radius:var(--radio);
-    padding:.7rem .3rem;text-align:center;cursor:pointer;background:#FBFCFB}
+    padding:.7rem .3rem;text-align:center;cursor:pointer;background:#FAFCFB}
   .calif input{position:absolute;opacity:0}
-  .calif b{display:block;font-size:1.3rem;font-weight:800}
+  .calif b{display:block;font-family:var(--disp);font-size:1.4rem;font-weight:700}
   .calif small{font-size:.7rem;color:var(--gris)}
   .calif label:has(input:checked){color:#fff}
   .calif .cA:has(input:checked){background:var(--naranja);border-color:var(--naranja)}
   .calif .cB:has(input:checked){background:var(--amarillo);border-color:var(--amarillo)}
   .calif .cC:has(input:checked){background:var(--gris);border-color:var(--gris)}
-  .calif label:has(input:checked) small{color:rgba(255,255,255,.85)}
+  .calif label:has(input:checked) small{color:rgba(255,255,255,.88)}
+  .calif label:focus-within{outline:2px solid var(--azul);outline-offset:2px}
 
-  .ayuda{font-size:.74rem;color:var(--gris);margin-top:.3rem}
+  .ayuda{font-size:.74rem;color:var(--gris);margin-top:.35rem}
 
   button{font:inherit;cursor:pointer}
-  #enviar{width:100%;padding:1rem;background:var(--verde);color:#fff;border:0;
-    border-radius:var(--radio);font-size:1.05rem;font-weight:800;letter-spacing:.03em}
-  #enviar:active{background:var(--verde-osc)}
+  #enviar{width:100%;padding:1rem;border:0;border-radius:var(--radio);
+    font-family:var(--disp);font-size:1.05rem;font-weight:700;letter-spacing:.04em;
+    color:#fff;background:linear-gradient(120deg,var(--verde) 0%,var(--azul) 100%)}
+  #enviar:active{background:linear-gradient(120deg,var(--verde-osc) 0%,var(--azul-osc) 100%)}
   #enviar:disabled{opacity:.55}
   #pendientes-btn{width:100%;margin-top:.6rem;padding:.6rem;background:none;
-    border:1px dashed var(--gris);border-radius:8px;color:var(--gris);font-size:.82rem;display:none}
+    border:1px dashed var(--gris);border-radius:9px;color:var(--gris);font-size:.82rem;display:none}
 
   /* 報告區（主管用） */
   #reportes{margin-top:1.5rem}
   .rep-botones{display:grid;gap:.5rem;margin-top:.3rem}
-  .rep-botones button{padding:.75rem;border:1.5px solid var(--verde);border-radius:8px;
-    background:#fff;color:var(--verde);font-weight:600;font-size:.92rem;text-align:left}
-  .rep-botones button:active{background:#E4EFEC}
+  .rep-botones button{padding:.78rem .9rem;border:1.5px solid var(--verde);border-radius:9px;
+    background:#fff;color:var(--verde-osc);font-family:var(--disp);font-weight:600;
+    font-size:.9rem;text-align:left;letter-spacing:.01em}
+  .rep-botones button:active{background:var(--verde-claro)}
   #enviar-reporte{border-color:var(--azul);color:var(--azul)}
   #enviar-reporte:disabled{opacity:.55}
 
   #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
-    background:var(--verde-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
-    font-size:.88rem;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;
-    max-width:90vw;text-align:center}
+    background:var(--azul-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
+    font-family:var(--disp);font-size:.88rem;font-weight:600;opacity:0;pointer-events:none;
+    transition:opacity .25s;max-width:90vw;text-align:center}
   #aviso.ver{opacity:1}
   #aviso.err{background:var(--naranja)}
   @media(prefers-reduced-motion:reduce){#aviso{transition:none}}
 </style>
+
 </head>
 <body>
 
 <div class="bandera"><span class="r"></span><span class="b"></span><span class="a"></span></div>
 <header>
-  <h1>PTITP · Registro de Visitantes</h1>
-  <p>Parque Tecnológico Inteligente Taiwán-Paraguay — Promoción y Captación</p>
-  <span id="estado-red">● Conectado</span>
+  <img src="PTITP_LOGO.png" alt="PTITP" onerror="this.style.display='none'">
+  <div class="h-tit">
+    <h1>PTITP · Registro de Visitantes</h1>
+    <p>Parque Tecnológico Inteligente Taiwán-Paraguay — Promoción y Captación</p>
+    <span id="estado-red">● Conectado</span>
+  </div>
 </header>
+<div class="pixel-div" aria-hidden="true">
+  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+</div>
 
 <main>
 <form id="f" novalidate>
@@ -401,8 +432,13 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 /* 連線狀態指示 + 恢復連線自動重送 */
 function estadoRed(){
   const s = $('estado-red');
-  if(navigator.onLine){ s.textContent='● Conectado'; s.style.background='rgba(255,255,255,.15)'; reintentar(); }
-  else{ s.textContent='● Sin conexión — los registros se guardan localmente'; s.style.background='rgba(206,17,38,.55)'; }
+  if(navigator.onLine){
+    s.innerHTML='<span style="color:#009C81">●</span> Conectado';
+    s.style.background='var(--verde-claro)'; s.style.color='var(--tinta)'; reintentar();
+  }else{
+    s.innerHTML='<span style="color:#C62828">●</span> Sin conexión — los registros se guardan localmente';
+    s.style.background='#FBE4E4'; s.style.color='#7A1F1F';
+  }
 }
 window.addEventListener('online', estadoRed);
 window.addEventListener('offline', estadoRed);
