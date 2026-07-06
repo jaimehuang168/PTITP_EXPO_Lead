@@ -100,19 +100,40 @@ function doPost(e) {
   }
 }
 
-// ══════════ 網頁查看報告：<WebAppURL>?action=reporte&fecha=2026-07-06 ══════════
+// ══════════ 網頁查看報告 ══════════
+//   <WebAppURL>?action=reporte              當日報告（可加 &fecha=2026-07-08）
+//   <WebAppURL>?action=reporteExpo          整個展期累計報告
+//   <WebAppURL>?action=enviarReporte        手動觸發：寫入 Reportes 分頁 + 寄 Email
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
+
   if (action === 'reporte') {
     const fecha = (e.parameter.fecha) ||
       Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-    const rpt = _construirReporte(fecha);
-    return HtmlService.createHtmlOutput(
-      '<pre style="font-family:monospace;white-space:pre-wrap;max-width:800px;margin:2rem auto;line-height:1.5">'
-      + rpt.texto.replace(/</g, '&lt;') + '</pre>'
-    ).setTitle('Reporte PTITP ' + fecha);
+    return _htmlReporte(_construirReporte(fecha).texto, 'Reporte diario ' + fecha);
   }
+
+  if (action === 'reporteExpo') {
+    return _htmlReporte(_construirReporteExpo().texto, 'Reporte acumulado del evento');
+  }
+
+  if (action === 'enviarReporte') {
+    try {
+      generarReporteDiario();
+      return _json({ ok: true, email: CONFIG.REPORT_EMAIL ? 'enviado a ' + CONFIG.REPORT_EMAIL : 'no configurado (solo guardado en la hoja Reportes)' });
+    } catch (err) {
+      return _json({ ok: false, error: String(err) });
+    }
+  }
+
   return _json({ ok: true, servicio: 'PTITP Expo API', hora: new Date().toISOString() });
+}
+
+function _htmlReporte(texto, titulo) {
+  return HtmlService.createHtmlOutput(
+    '<pre style="font-family:monospace;white-space:pre-wrap;max-width:800px;margin:2rem auto;line-height:1.5">'
+    + texto.replace(/</g, '&lt;') + '</pre>'
+  ).setTitle('PTITP — ' + titulo);
 }
 
 // ══════════ 每日報告（可手動執行，或由觸發器每晚自動執行） ══════════
@@ -207,6 +228,84 @@ ${byCal.B.map(fmtLead).join('\n\n') || '  (ninguno hoy)'}
   • Enviar material prometido a todos los leads A antes del mediodía.
   • Confirmar visitas al parque agendadas.
   • Reponer folletos / verificar material del stand.
+
+Generado automáticamente — Sistema de Captación PTITP
+══════════════════════════════════════════════════`;
+
+  return { texto, total: rows.length, nA: byCal.A.length, nB: byCal.B.length, nC: byCal.C.length, evento };
+}
+
+// ══════════ 整個展期累計報告 ══════════
+function _construirReporteExpo() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
+  const data = sh.getDataRange().getValues();
+  const H = {};
+  data[0].forEach((h, i) => H[h] = i);
+  const rows = data.slice(1);
+
+  const evento = rows.length ? rows[0][H['Evento']] : CONFIG.EVENTO_DEFAULT;
+  const byCal = { A: [], B: [], C: [] };
+  const byPais = {}, byInteres = {}, byPromotor = {}, byDia = {};
+
+  rows.forEach(r => {
+    const cal = String(r[H['Calificación']]).charAt(0).toUpperCase() || 'C';
+    (byCal[cal] || byCal.C).push(r);
+    const p = r[H['País']] || 'N/D';
+    byPais[p] = (byPais[p] || 0) + 1;
+    String(r[H['Intereses']]).split(',').map(s => s.trim()).filter(Boolean)
+      .forEach(i => byInteres[i] = (byInteres[i] || 0) + 1);
+    const pr = r[H['Promotor']] || 'N/D';
+    byPromotor[pr] = (byPromotor[pr] || 0) + 1;
+    const d = String(r[H['Fecha']]).slice(0, 10) || 'N/D';
+    byDia[d] = (byDia[d] || 0) + 1;
+  });
+
+  const fmtTop = obj => Object.entries(obj).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `  • ${k}: ${v}`).join('\n') || '  • (sin datos)';
+  const fmtDias = () => Object.entries(byDia).sort()
+    .map(([k, v]) => `  • ${k}: ${v} visitantes`).join('\n') || '  • (sin datos)';
+
+  const fmtLeadCorto = r =>
+    `  ▸ ${r[H['Nombre']]} — ${r[H['Empresa']] || 's/empresa'} (${r[H['País']] || 'N/D'}) | ` +
+    `${r[H['Intereses']] || 'N/D'} | ${r[H['Plazo']] || 'N/D'}` +
+    (r[H['Superficie (m²)']] ? ` | ${r[H['Superficie (m²)']]} m²` : '') +
+    ` | Estado: ${r[H['Estado']] || 'Pendiente'} — Resp.: ${r[H['Responsable seguimiento']] || 'N/D'}`;
+
+  const pendA = byCal.A.filter(r => (r[H['Estado']] || 'Pendiente') === 'Pendiente').length;
+
+  const texto =
+`══════════════════════════════════════════════════
+ PTITP — PARQUE TECNOLÓGICO INTELIGENTE TAIWÁN-PARAGUAY
+ REPORTE ACUMULADO DEL EVENTO (hasta la fecha)
+══════════════════════════════════════════════════
+Evento: ${evento}
+Días con registros: ${Object.keys(byDia).length}
+Generado: ${Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd HH:mm:ss')}
+
+1. TOTALES DEL EVENTO
+  • Visitantes registrados: ${rows.length}
+  • Leads A (calientes): ${byCal.A.length}  (${pendA} aún pendientes de seguimiento)
+  • Leads B (tibios):    ${byCal.B.length}
+  • Leads C (fríos):     ${byCal.C.length}
+
+2. VISITANTES POR DÍA
+${fmtDias()}
+
+3. VISITANTES POR PAÍS
+${fmtTop(byPais)}
+
+4. INTERESES MÁS CONSULTADOS
+${fmtTop(byInteres)}
+
+5. REGISTROS POR PROMOTOR
+${fmtTop(byPromotor)}
+
+6. TODOS LOS LEADS A DEL EVENTO
+${byCal.A.map(fmtLeadCorto).join('\n') || '  (ninguno)'}
+
+7. TODOS LOS LEADS B DEL EVENTO
+${byCal.B.map(fmtLeadCorto).join('\n') || '  (ninguno)'}
 
 Generado automáticamente — Sistema de Captación PTITP
 ══════════════════════════════════════════════════`;

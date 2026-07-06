@@ -10,7 +10,7 @@ const fs = require('fs');
 const { JSDOM } = require('jsdom');
 
 const html = fs.readFileSync('index.html','utf8')
-  .replace("PEGAR_AQUI_LA_URL_DEL_WEB_APP", "https://script.google.com/macros/s/TEST/exec");
+  /* URL 已內建 */;
 
 const dom = new JSDOM(html, { runScripts:'dangerously', url:'https://jaimehuang168.github.io/ptitp-expo-leads/', pretendToBeVisual:true });
 const { window } = dom;

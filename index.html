@@ -74,6 +74,15 @@
   #pendientes-btn{width:100%;margin-top:.6rem;padding:.6rem;background:none;
     border:1px dashed var(--gris);border-radius:8px;color:var(--gris);font-size:.82rem;display:none}
 
+  /* 報告區（主管用） */
+  #reportes{margin-top:1.5rem}
+  .rep-botones{display:grid;gap:.5rem;margin-top:.3rem}
+  .rep-botones button{padding:.75rem;border:1.5px solid var(--verde);border-radius:8px;
+    background:#fff;color:var(--verde);font-weight:600;font-size:.92rem;text-align:left}
+  .rep-botones button:active{background:#E4EFEC}
+  #enviar-reporte{border-color:var(--azul);color:var(--azul)}
+  #enviar-reporte:disabled{opacity:.55}
+
   #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
     background:var(--verde-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
     font-size:.88rem;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;
@@ -246,13 +255,23 @@
   <button type="submit" id="enviar">Registrar visitante</button>
   <button type="button" id="pendientes-btn"></button>
 </form>
+
+<fieldset id="reportes">
+  <legend>Reportes (supervisión)</legend>
+  <div class="rep-botones">
+    <button type="button" id="ver-hoy">📄 Ver reporte de hoy</button>
+    <button type="button" id="ver-expo">📊 Ver reporte acumulado del evento</button>
+    <button type="button" id="enviar-reporte">✉️ Enviar reporte de hoy ahora</button>
+  </div>
+  <p class="ayuda">El reporte diario también se genera y envía automáticamente cada día a las 19:30.</p>
+</fieldset>
 </main>
 
 <div id="aviso" role="status"></div>
 
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
-const API_URL = 'PEGAR_AQUI_LA_URL_DEL_WEB_APP';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
 
 const $ = id => document.getElementById(id);
 const f = $('f');
@@ -356,6 +375,28 @@ function limpiar(){
   f.reset();
   $('evento').value = ev; $('promotor').value = pr;
 }
+
+/* 報告按鈕（主管用） */
+document.getElementById('ver-hoy').addEventListener('click', ()=>{
+  window.open(API_URL + '?action=reporte', '_blank');
+});
+document.getElementById('ver-expo').addEventListener('click', ()=>{
+  window.open(API_URL + '?action=reporteExpo', '_blank');
+});
+document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
+  if(!window.confirm('¿Generar y enviar el reporte de hoy ahora?\n(Se guardará en la hoja "Reportes" y se enviará por email si está configurado.)')) return;
+  const b = document.getElementById('enviar-reporte');
+  b.disabled = true; b.textContent = '✉️ Enviando…';
+  try{
+    const r = await fetch(API_URL + '?action=enviarReporte');
+    const j = await r.json();
+    aviso(j.ok ? ('Reporte generado ✔ Email: ' + j.email) : ('Error: ' + j.error), !j.ok);
+  }catch(e){
+    aviso('Sin conexión: no se pudo enviar el reporte', true);
+  }finally{
+    b.disabled = false; b.textContent = '✉️ Enviar reporte de hoy ahora';
+  }
+});
 
 /* 連線狀態指示 + 恢復連線自動重送 */
 function estadoRed(){
