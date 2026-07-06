@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTITP — Registro de Visitantes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde:#0F4C46; --verde-osc:#0A332F; --rojo:#CE1126; --azul:#0038A8;
+    --fondo:#EEF2F0; --carta:#FFFFFF; --tinta:#1C2826; --gris:#5B6B73;
+    --linea:#D6DEDB; --amarillo:#D99A2B; --naranja:#D3452B;
+    --radio:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Archivo',system-ui,sans-serif;background:var(--fondo);color:var(--tinta);
+       font-size:16px;line-height:1.45;padding-bottom:4rem}
+
+  /* 頂部：巴拉圭三色細條 + 標題 */
+  .bandera{height:6px;display:flex}
+  .bandera span{flex:1}
+  .bandera .r{background:var(--rojo)}.bandera .b{background:#fff}.bandera .a{background:var(--azul)}
+  header{background:var(--verde);color:#fff;padding:1.1rem 1.2rem}
+  header h1{font-size:1.05rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+  header p{font-size:.8rem;opacity:.85;margin-top:.15rem}
+  #estado-red{font-size:.72rem;margin-top:.4rem;display:inline-block;padding:.15rem .5rem;
+              border-radius:99px;background:rgba(255,255,255,.15)}
+
+  main{max-width:640px;margin:0 auto;padding:1rem}
+  fieldset{border:1px solid var(--linea);background:var(--carta);border-radius:var(--radio);
+           padding:1rem;margin-bottom:1rem}
+  legend{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+         color:var(--verde);padding:0 .4rem}
+  label{display:block;font-size:.82rem;font-weight:600;margin:.7rem 0 .25rem;color:var(--tinta)}
+  label .op{color:var(--gris);font-weight:400}
+  input[type=text],input[type=email],input[type=tel],input[type=number],input[type=date],
+  select,textarea{
+    width:100%;padding:.65rem .7rem;border:1px solid var(--linea);border-radius:8px;
+    font:inherit;font-size:1rem;background:#FBFCFB;color:var(--tinta)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);outline-offset:1px}
+  textarea{min-height:96px;resize:vertical}
+  .fila{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+  @media(max-width:480px){.fila{grid-template-columns:1fr}}
+
+  /* 勾選群組 */
+  .chips{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.35rem}
+  .chips label{display:flex;align-items:center;gap:.4rem;margin:0;padding:.5rem .7rem;
+    border:1px solid var(--linea);border-radius:8px;background:#FBFCFB;font-weight:500;
+    font-size:.85rem;cursor:pointer;user-select:none}
+  .chips input{accent-color:var(--verde);width:1.05rem;height:1.05rem}
+  .chips label:has(input:checked){border-color:var(--verde);background:#E4EFEC;font-weight:600}
+
+  /* 招牌元素：A/B/C 溫度選擇器 */
+  .calif{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-top:.4rem}
+  .calif label{margin:0;border:2px solid var(--linea);border-radius:var(--radio);
+    padding:.7rem .3rem;text-align:center;cursor:pointer;background:#FBFCFB}
+  .calif input{position:absolute;opacity:0}
+  .calif b{display:block;font-size:1.3rem;font-weight:800}
+  .calif small{font-size:.7rem;color:var(--gris)}
+  .calif label:has(input:checked){color:#fff}
+  .calif .cA:has(input:checked){background:var(--naranja);border-color:var(--naranja)}
+  .calif .cB:has(input:checked){background:var(--amarillo);border-color:var(--amarillo)}
+  .calif .cC:has(input:checked){background:var(--gris);border-color:var(--gris)}
+  .calif label:has(input:checked) small{color:rgba(255,255,255,.85)}
+
+  .ayuda{font-size:.74rem;color:var(--gris);margin-top:.3rem}
+
+  button{font:inherit;cursor:pointer}
+  #enviar{width:100%;padding:1rem;background:var(--verde);color:#fff;border:0;
+    border-radius:var(--radio);font-size:1.05rem;font-weight:800;letter-spacing:.03em}
+  #enviar:active{background:var(--verde-osc)}
+  #enviar:disabled{opacity:.55}
+  #pendientes-btn{width:100%;margin-top:.6rem;padding:.6rem;background:none;
+    border:1px dashed var(--gris);border-radius:8px;color:var(--gris);font-size:.82rem;display:none}
+
+  #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
+    background:var(--verde-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
+    font-size:.88rem;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;
+    max-width:90vw;text-align:center}
+  #aviso.ver{opacity:1}
+  #aviso.err{background:var(--naranja)}
+  @media(prefers-reduced-motion:reduce){#aviso{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="bandera"><span class="r"></span><span class="b"></span><span class="a"></span></div>
+<header>
+  <h1>PTITP · Registro de Visitantes</h1>
+  <p>Parque Tecnológico Inteligente Taiwán-Paraguay — Promoción y Captación</p>
+  <span id="estado-red">● Conectado</span>
+</header>
+
+<main>
+<form id="f" novalidate>
+
+  <fieldset>
+    <legend>Evento y promotor</legend>
+    <div class="fila">
+      <div>
+        <label for="evento">Nombre del evento</label>
+        <input type="text" id="evento" placeholder="Expo Paraguay 2026" required>
+      </div>
+      <div>
+        <label for="promotor">Promotor que registra</label>
+        <input type="text" id="promotor" placeholder="Su nombre" required>
+      </div>
+    </div>
+    <p class="ayuda">Estos dos campos se guardan en el dispositivo: se completan una sola vez por día.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Datos del visitante</legend>
+    <label for="nombre">Nombre y apellido *</label>
+    <input type="text" id="nombre" required>
+    <div class="fila">
+      <div>
+        <label for="empresa">Empresa / Institución</label>
+        <input type="text" id="empresa">
+      </div>
+      <div>
+        <label for="cargo">Cargo</label>
+        <input type="text" id="cargo" placeholder="Gerente, Director, Dueño…">
+      </div>
+    </div>
+    <div class="fila">
+      <div>
+        <label for="pais">País</label>
+        <select id="pais">
+          <option value="">Seleccionar…</option>
+          <option>Paraguay</option><option>Brasil</option><option>Argentina</option>
+          <option>Taiwán</option><option>Chile</option><option>Bolivia</option>
+          <option>Uruguay</option><option>EE.UU.</option><option>China</option>
+          <option>Japón</option><option>Corea del Sur</option><option>Europa</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div>
+        <label for="telefono">Teléfono / WhatsApp</label>
+        <input type="tel" id="telefono" placeholder="+595 …">
+      </div>
+    </div>
+    <label for="email">Email</label>
+    <input type="email" id="email">
+  </fieldset>
+
+  <fieldset>
+    <legend>Perfil e interés</legend>
+    <label>Tipo de organización</label>
+    <div class="chips" id="tipoOrg">
+      <label><input type="radio" name="tipoOrg" value="Manufactura">Manufactura</label>
+      <label><input type="radio" name="tipoOrg" value="Inversionista">Inversionista</label>
+      <label><input type="radio" name="tipoOrg" value="Logística/Comercio">Logística / Comercio</label>
+      <label><input type="radio" name="tipoOrg" value="Gobierno/Institución">Gobierno / Institución</label>
+      <label><input type="radio" name="tipoOrg" value="Cámara/Asociación">Cámara / Asociación</label>
+      <label><input type="radio" name="tipoOrg" value="Medios">Medios</label>
+      <label><input type="radio" name="tipoOrg" value="Académico">Académico</label>
+      <label><input type="radio" name="tipoOrg" value="Otro">Otro</label>
+    </div>
+
+    <label for="sector">Sector / Rubro <span class="op">(ej.: electrónica, textil, alimentos)</span></label>
+    <input type="text" id="sector">
+
+    <label>Interés principal <span class="op">(puede marcar varios)</span></label>
+    <div class="chips" id="intereses">
+      <label><input type="checkbox" value="Alquiler de lote / nave industrial">Alquiler de lote / nave</label>
+      <label><input type="checkbox" value="Instalación de planta">Instalación de planta</label>
+      <label><input type="checkbox" value="Inversión">Inversión</label>
+      <label><input type="checkbox" value="Servicios del parque">Servicios del parque</label>
+      <label><input type="checkbox" value="Cooperación institucional">Cooperación institucional</label>
+      <label><input type="checkbox" value="Ser proveedor">Ser proveedor</label>
+      <label><input type="checkbox" value="Información general">Información general</label>
+    </div>
+
+    <label>Plazo estimado de decisión</label>
+    <div class="chips" id="plazo">
+      <label><input type="radio" name="plazo" value="Inmediato (0-6 meses)">Inmediato (0-6 m)</label>
+      <label><input type="radio" name="plazo" value="6-12 meses">6-12 meses</label>
+      <label><input type="radio" name="plazo" value="Más de 1 año">+1 año</label>
+      <label><input type="radio" name="plazo" value="Solo explorando">Solo explorando</label>
+    </div>
+
+    <div class="fila">
+      <div>
+        <label for="superficie">Superficie requerida (m²) <span class="op">(si aplica)</span></label>
+        <input type="number" id="superficie" min="0">
+      </div>
+      <div>
+        <label for="empleos">Empleos estimados <span class="op">(si aplica)</span></label>
+        <input type="number" id="empleos" min="0">
+      </div>
+    </div>
+
+    <label for="comoNosConocio">¿Cómo conoció el PTITP?</label>
+    <select id="comoNosConocio">
+      <option value="">Seleccionar…</option>
+      <option>Pasó por el stand</option>
+      <option>Prensa / Medios</option>
+      <option>Redes sociales</option>
+      <option>Recomendación / Contacto</option>
+      <option>Gobierno / Embajada</option>
+      <option>Cámara o gremio</option>
+      <option>Ya nos conocía</option>
+    </select>
+  </fieldset>
+
+  <fieldset>
+    <legend>Evaluación del promotor</legend>
+    <label>Calificación del lead *</label>
+    <div class="calif">
+      <label class="cA"><input type="radio" name="calif" value="A - Caliente" required>
+        <b>A</b><small>Caliente: proyecto concreto y poder de decisión</small></label>
+      <label class="cB"><input type="radio" name="calif" value="B - Tibio">
+        <b>B</b><small>Tibio: interés real, sin plazo definido</small></label>
+      <label class="cC"><input type="radio" name="calif" value="C - Frío">
+        <b>C</b><small>Frío: curiosidad o información general</small></label>
+    </div>
+
+    <label for="observaciones">Observaciones</label>
+    <textarea id="observaciones"
+      placeholder="¿Tiene poder de decisión? ¿Mencionó presupuesto, competidores u otros parques? ¿Qué le preocupa (logística, impuestos, mano de obra)? ¿Nivel de interés real?"></textarea>
+
+    <label>Próximos pasos <span class="op">(puede marcar varios)</span></label>
+    <div class="chips" id="proximosPasos">
+      <label><input type="checkbox" value="Enviar brochure/dossier">Enviar brochure</label>
+      <label><input type="checkbox" value="Agendar visita al parque">Agendar visita al parque</label>
+      <label><input type="checkbox" value="Reunión de seguimiento">Reunión de seguimiento</label>
+      <label><input type="checkbox" value="Enviar propuesta/cotización">Enviar propuesta</label>
+      <label><input type="checkbox" value="Presentar a dirección">Presentar a dirección</label>
+      <label><input type="checkbox" value="Agregar a newsletter">Agregar a newsletter</label>
+    </div>
+
+    <div class="fila">
+      <div>
+        <label for="fechaSeguimiento">Fecha límite de seguimiento</label>
+        <input type="date" id="fechaSeguimiento">
+      </div>
+      <div>
+        <label for="responsable">Responsable del seguimiento</label>
+        <input type="text" id="responsable" placeholder="Si es otro que el promotor">
+      </div>
+    </div>
+  </fieldset>
+
+  <button type="submit" id="enviar">Registrar visitante</button>
+  <button type="button" id="pendientes-btn"></button>
+</form>
+</main>
+
+<div id="aviso" role="status"></div>
+
+<script>
+/* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
+const API_URL = 'PEGAR_AQUI_LA_URL_DEL_WEB_APP';
+
+const $ = id => document.getElementById(id);
+const f = $('f');
+
+/* 展會名與推廣員存在裝置上，一天只需填一次 */
+['evento','promotor'].forEach(k=>{
+  $(k).value = localStorage.getItem('ptitp_'+k) || '';
+  $(k).addEventListener('change', ()=>localStorage.setItem('ptitp_'+k, $(k).value));
+});
+
+function datos(){
+  return {
+    evento: $('evento').value.trim(),
+    promotor: $('promotor').value.trim(),
+    nombre: $('nombre').value.trim(),
+    empresa: $('empresa').value.trim(),
+    cargo: $('cargo').value.trim(),
+    pais: $('pais').value,
+    telefono: $('telefono').value.trim(),
+    email: $('email').value.trim(),
+    tipoOrg: (f.querySelector('input[name=tipoOrg]:checked')||{}).value || '',
+    sector: $('sector').value.trim(),
+    intereses: [...document.querySelectorAll('#intereses input:checked')].map(c=>c.value),
+    plazo: (f.querySelector('input[name=plazo]:checked')||{}).value || '',
+    superficie: $('superficie').value,
+    empleos: $('empleos').value,
+    comoNosConocio: $('comoNosConocio').value,
+    calificacion: (f.querySelector('input[name=calif]:checked')||{}).value || '',
+    observaciones: $('observaciones').value.trim(),
+    proximosPasos: [...document.querySelectorAll('#proximosPasos input:checked')].map(c=>c.value),
+    fechaSeguimiento: $('fechaSeguimiento').value,
+    responsable: $('responsable').value.trim(),
+  };
+}
+
+function aviso(msg, err){
+  const a = $('aviso');
+  a.textContent = msg; a.className = 'ver' + (err ? ' err' : '');
+  setTimeout(()=>a.className='', 3500);
+}
+
+/* 送出：Content-Type 用 text/plain 避開 CORS preflight（GAS 標準做法） */
+async function enviar(payload){
+  const r = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload),
+  });
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'Error del servidor');
+}
+
+/* 離線佇列：展場網路不穩時先存手機，恢復後重送 */
+const COLA = 'ptitp_cola';
+const getCola = ()=>JSON.parse(localStorage.getItem(COLA)||'[]');
+const setCola = c=>{ localStorage.setItem(COLA, JSON.stringify(c)); pintarCola(); };
+
+function pintarCola(){
+  const n = getCola().length, b = $('pendientes-btn');
+  b.style.display = n ? 'block' : 'none';
+  b.textContent = `⟳ Reenviar ${n} registro(s) pendiente(s)`;
+}
+
+async function reintentar(){
+  let cola = getCola();
+  if(!cola.length) return;
+  const resto = [];
+  for(const p of cola){
+    try{ await enviar(p); }catch(e){ resto.push(p); }
+  }
+  setCola(resto);
+  aviso(resto.length ? `Quedan ${resto.length} pendientes` : 'Pendientes enviados ✔', resto.length>0);
+}
+$('pendientes-btn').addEventListener('click', reintentar);
+
+f.addEventListener('submit', async e=>{
+  e.preventDefault();
+  if(!$('nombre').value.trim()) return aviso('Falta el nombre del visitante', true);
+  if(!f.querySelector('input[name=calif]:checked')) return aviso('Falta la calificación A/B/C', true);
+  if(!$('evento').value.trim() || !$('promotor').value.trim())
+    return aviso('Complete evento y promotor', true);
+
+  const p = datos();
+  $('enviar').disabled = true; $('enviar').textContent = 'Enviando…';
+  try{
+    await enviar(p);
+    aviso(`Registrado ✔ ${p.nombre} (${p.calificacion.charAt(0)})`);
+    limpiar();
+  }catch(err){
+    setCola([...getCola(), p]);
+    aviso('Sin conexión: guardado en el dispositivo', true);
+    limpiar();
+  }finally{
+    $('enviar').disabled = false; $('enviar').textContent = 'Registrar visitante';
+    window.scrollTo({top:0});
+  }
+});
+
+function limpiar(){
+  const ev = $('evento').value, pr = $('promotor').value;
+  f.reset();
+  $('evento').value = ev; $('promotor').value = pr;
+}
+
+/* 連線狀態指示 + 恢復連線自動重送 */
+function estadoRed(){
+  const s = $('estado-red');
+  if(navigator.onLine){ s.textContent='● Conectado'; s.style.background='rgba(255,255,255,.15)'; reintentar(); }
+  else{ s.textContent='● Sin conexión — los registros se guardan localmente'; s.style.background='rgba(206,17,38,.55)'; }
+}
+window.addEventListener('online', estadoRed);
+window.addEventListener('offline', estadoRed);
+estadoRed(); pintarCola();
+</script>
+</body>
+</html>
