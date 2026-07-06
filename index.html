@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PTITP — Registro de Visitantes</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="theme-color" content="#009C81">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -114,6 +118,41 @@
   #aviso.ver{opacity:1}
   #aviso.err{background:var(--naranja)}
   @media(prefers-reduced-motion:reduce){#aviso{transition:none}}
+
+  /* ── 分頁列 ── */
+  .tabs{display:flex;gap:.4rem;max-width:640px;margin:0 auto;padding:.9rem 1rem 0}
+  .tabs button{flex:1;padding:.6rem .3rem;font-family:var(--disp);font-weight:600;
+    font-size:.86rem;letter-spacing:.02em;color:var(--gris);background:none;
+    border:0;border-bottom:3px solid transparent}
+  .tabs button.activa{color:var(--azul);border-bottom-color:var(--verde)}
+  .tab{display:none}
+  .tab.activa{display:block}
+
+  /* ── QR 分頁 ── */
+  .qr-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+  @media(max-width:480px){.qr-grid{grid-template-columns:1fr}}
+  .qr-card{background:var(--carta);border:1px solid var(--linea);border-radius:var(--radio);
+    overflow:hidden;box-shadow:0 1px 3px rgba(20,88,143,.05)}
+  .qr-card .barra{height:6px}
+  .qr-card .cuerpo{padding:.8rem .9rem 1rem;text-align:center}
+  .qr-card .eti{font-family:var(--disp);font-size:.66rem;font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--gris)}
+  .qr-card h3{font-family:var(--disp);font-size:.95rem;font-weight:600;margin:.2rem 0 .5rem}
+  .qr-card img{width:100%;max-width:230px;height:auto;display:block;margin:0 auto}
+  .qr-card a{display:inline-block;margin-top:.5rem;font-size:.8rem;font-weight:600;
+    color:var(--azul);text-decoration:none;border-bottom:1px solid currentColor}
+
+  /* ── 地圖分頁 ── */
+  .mapa-card{background:var(--carta);border:1px solid var(--linea);border-radius:var(--radio);
+    overflow:hidden;margin-bottom:1rem;box-shadow:0 1px 3px rgba(20,88,143,.05)}
+  .mapa-card .cab{padding:.85rem 1rem .6rem}
+  .mapa-card h3{font-family:var(--disp);font-size:.98rem;font-weight:600;color:var(--azul)}
+  .mapa-card p{font-size:.78rem;color:var(--gris);margin-top:.15rem}
+  .mapa-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .mapa-scroll img{display:block;min-width:700px;width:100%;height:auto}
+  .mapa-card .pie{padding:.6rem 1rem .85rem;font-size:.8rem}
+  .mapa-card .pie a{color:var(--azul);font-weight:600;text-decoration:none;
+    border-bottom:1px solid currentColor;margin-right:1rem}
 </style>
 
 </head>
@@ -132,7 +171,14 @@
   <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
 </div>
 
+<nav class="tabs" role="tablist">
+  <button type="button" class="activa" data-tab="tab-registro">📝 Registro</button>
+  <button type="button" data-tab="tab-qr">🔗 Códigos QR</button>
+  <button type="button" data-tab="tab-mapas">🗺️ Mapas</button>
+</nav>
+
 <main>
+<section id="tab-registro" class="tab activa">
 <form id="f" novalidate>
 
   <fieldset>
@@ -296,6 +342,71 @@
   </div>
   <p class="ayuda">El reporte diario también se genera y envía automáticamente cada día a las 19:30.</p>
 </fieldset>
+</section>
+
+<section id="tab-qr" class="tab">
+  <div class="qr-grid">
+    <div class="qr-card">
+      <div class="barra" style="background:#009C81"></div>
+      <div class="cuerpo">
+        <div class="eti">English</div>
+        <h3>Inquiry</h3>
+        <img src="qr_en.png" alt="QR Inquiry English" loading="lazy">
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSdbepX8UFjYc_srHAcwEZ1cXdW4xQVx0deeO2oFphVSBEnqpA/viewform?usp=header" target="_blank" rel="noopener">Abrir enlace →</a>
+      </div>
+    </div>
+    <div class="qr-card">
+      <div class="barra" style="background:#14588F"></div>
+      <div class="cuerpo">
+        <div class="eti">Español</div>
+        <h3>Consulta</h3>
+        <img src="qr_es.png" alt="QR Consulta Español" loading="lazy">
+        <a href="https://qrgo.is/b6dbd0c7" target="_blank" rel="noopener">Abrir enlace →</a>
+      </div>
+    </div>
+    <div class="qr-card">
+      <div class="barra" style="background:#D99A2B"></div>
+      <div class="cuerpo">
+        <div class="eti">Português</div>
+        <h3>Consulta em Português</h3>
+        <img src="qr_pt.png" alt="QR Consulta Português" loading="lazy">
+        <a href="https://qrgo.is/21490c08" target="_blank" rel="noopener">Abrir enlace →</a>
+      </div>
+    </div>
+    <div class="qr-card">
+      <div class="barra" style="background:#CE1126"></div>
+      <div class="cuerpo">
+        <div class="eti">EN / ES / PT</div>
+        <h3>Brochure / Tríptico / Folheto</h3>
+        <img src="qr_brochure.png" alt="QR Brochure" loading="lazy">
+        <a href="https://drive.google.com/file/d/1anVMXMkn8U-Rwqm8UEzfTV4hntBLnRCs/view?usp=drive_link" target="_blank" rel="noopener">Abrir enlace →</a>
+      </div>
+    </div>
+  </div>
+  <p class="ayuda" style="margin-top:.8rem">Muestre el código al visitante para que lo escanee con su teléfono.</p>
+</section>
+
+<section id="tab-mapas" class="tab">
+  <div class="mapa-card">
+    <div class="cab">
+      <h3>Vista satelital del parque</h3>
+      <p>PTITP — Hernandarias, Alto Paraná. Deslice horizontalmente para recorrer.</p>
+    </div>
+    <div class="mapa-scroll"><img src="mapa_satelital.jpg" alt="Vista satelital PTITP" loading="lazy"></div>
+    <div class="pie"><a href="mapa_satelital.jpg" target="_blank" rel="noopener">Ver en pantalla completa →</a></div>
+  </div>
+  <div class="mapa-card">
+    <div class="cab">
+      <h3>Plano de loteamiento</h3>
+      <p>Lotes, superficies y áreas disponibles. Deslice horizontalmente para recorrer.</p>
+    </div>
+    <div class="mapa-scroll"><img src="plano_loteamiento.jpg" alt="Plano de loteamiento PTITP" loading="lazy"></div>
+    <div class="pie">
+      <a href="plano_loteamiento.jpg" target="_blank" rel="noopener">Ver en pantalla completa →</a>
+      <a href="plano_loteamiento.pdf" target="_blank" rel="noopener">Descargar PDF →</a>
+    </div>
+  </div>
+</section>
 </main>
 
 <div id="aviso" role="status"></div>
@@ -406,6 +517,17 @@ function limpiar(){
   f.reset();
   $('evento').value = ev; $('promotor').value = pr;
 }
+
+/* 分頁切換 */
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('activa'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('activa'));
+    b.classList.add('activa');
+    document.getElementById(b.dataset.tab).classList.add('activa');
+    window.scrollTo({top:0});
+  });
+});
 
 /* 報告按鈕（主管用） */
 document.getElementById('ver-hoy').addEventListener('click', ()=>{
