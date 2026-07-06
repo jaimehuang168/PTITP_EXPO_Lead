@@ -108,7 +108,10 @@
     background:#fff;color:var(--verde-osc);font-family:var(--disp);font-weight:600;
     font-size:.9rem;text-align:left;letter-spacing:.01em}
   .rep-botones button:active{background:var(--verde-claro)}
-  #enviar-reporte{border-color:var(--azul);color:var(--azul)}
+  #enviar-reporte{width:100%;margin-top:.9rem;padding:.85rem;border:0;border-radius:9px;
+    font-family:var(--disp);font-weight:700;font-size:.95rem;letter-spacing:.03em;
+    color:#fff;background:var(--azul)}
+  #enviar-reporte:active{background:var(--azul-osc)}
   #enviar-reporte:disabled{opacity:.55}
 
   #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
@@ -338,9 +341,32 @@
   <div class="rep-botones">
     <button type="button" id="ver-hoy">📄 Ver reporte de hoy</button>
     <button type="button" id="ver-expo">📊 Ver reporte acumulado del evento</button>
-    <button type="button" id="enviar-reporte">✉️ Enviar reporte de hoy ahora</button>
   </div>
-  <p class="ayuda">El reporte diario también se genera y envía automáticamente cada día a las 19:30.</p>
+
+  <label for="rep-emails">Enviar por email a <span class="op">(uno o varios, separados por coma)</span></label>
+  <input type="text" id="rep-emails" inputmode="email" autocomplete="email"
+         placeholder="gerencia@ptitp.com.py, direccion@ejemplo.com">
+
+  <label>Tipo de reporte</label>
+  <div class="chips" id="rep-tipo">
+    <label><input type="radio" name="repTipo" value="dia" checked>Hoy</label>
+    <label><input type="radio" name="repTipo" value="rango">Rango de fechas</label>
+    <label><input type="radio" name="repTipo" value="expo">Todo el evento</label>
+  </div>
+
+  <div class="fila" id="rep-rango" style="display:none">
+    <div>
+      <label for="rep-desde">Desde</label>
+      <input type="date" id="rep-desde">
+    </div>
+    <div>
+      <label for="rep-hasta">Hasta</label>
+      <input type="date" id="rep-hasta">
+    </div>
+  </div>
+
+  <button type="button" id="enviar-reporte">✉️ Enviar reporte</button>
+  <p class="ayuda">El reporte diario también se envía automáticamente cada día a las 19:30 a los emails configurados en la hoja "Config" (celda B1).</p>
 </fieldset>
 </section>
 
@@ -351,7 +377,7 @@
       <div class="cuerpo">
         <div class="eti">English</div>
         <h3>Inquiry</h3>
-        <img src="qr_en.png" alt="QR Inquiry English" loading="lazy">
+        <img src="qr_en.png" alt="QR Inquiry English">
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSdbepX8UFjYc_srHAcwEZ1cXdW4xQVx0deeO2oFphVSBEnqpA/viewform?usp=header" target="_blank" rel="noopener">Abrir enlace →</a>
       </div>
     </div>
@@ -360,7 +386,7 @@
       <div class="cuerpo">
         <div class="eti">Español</div>
         <h3>Consulta</h3>
-        <img src="qr_es.png" alt="QR Consulta Español" loading="lazy">
+        <img src="qr_es.png" alt="QR Consulta Español">
         <a href="https://qrgo.is/b6dbd0c7" target="_blank" rel="noopener">Abrir enlace →</a>
       </div>
     </div>
@@ -369,7 +395,7 @@
       <div class="cuerpo">
         <div class="eti">Português</div>
         <h3>Consulta em Português</h3>
-        <img src="qr_pt.png" alt="QR Consulta Português" loading="lazy">
+        <img src="qr_pt.png" alt="QR Consulta Português">
         <a href="https://qrgo.is/21490c08" target="_blank" rel="noopener">Abrir enlace →</a>
       </div>
     </div>
@@ -378,7 +404,7 @@
       <div class="cuerpo">
         <div class="eti">EN / ES / PT</div>
         <h3>Brochure / Tríptico / Folheto</h3>
-        <img src="qr_brochure.png" alt="QR Brochure" loading="lazy">
+        <img src="qr_brochure.png" alt="QR Brochure">
         <a href="https://drive.google.com/file/d/1anVMXMkn8U-Rwqm8UEzfTV4hntBLnRCs/view?usp=drive_link" target="_blank" rel="noopener">Abrir enlace →</a>
       </div>
     </div>
@@ -536,18 +562,45 @@ document.getElementById('ver-hoy').addEventListener('click', ()=>{
 document.getElementById('ver-expo').addEventListener('click', ()=>{
   window.open(API_URL + '?action=reporteExpo', '_blank');
 });
+
+/* 寄送報告：收件人存在裝置上，可寄 當日/日期範圍/全展期 */
+const RE_MAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+$('rep-emails').value = localStorage.getItem('ptitp_rep_emails') || '';
+$('rep-emails').addEventListener('change', ()=>localStorage.setItem('ptitp_rep_emails', $('rep-emails').value));
+
+document.querySelectorAll('input[name=repTipo]').forEach(r=>r.addEventListener('change', ()=>{
+  document.getElementById('rep-rango').style.display =
+    document.querySelector('input[name=repTipo]:checked').value === 'rango' ? 'grid' : 'none';
+}));
+
 document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
-  if(!window.confirm('¿Generar y enviar el reporte de hoy ahora?\n(Se guardará en la hoja "Reportes" y se enviará por email si está configurado.)')) return;
+  const emails = $('rep-emails').value.split(/[,;\s]+/).filter(Boolean);
+  if(!emails.length || emails.some(e=>!RE_MAIL.test(e)))
+    return aviso('Ingrese uno o más emails válidos, separados por coma', true);
+
+  const tipo = document.querySelector('input[name=repTipo]:checked').value;
+  let qs = '?action=enviarReporteA&tipo=' + tipo + '&emails=' + encodeURIComponent(emails.join(','));
+  let desc = 'de hoy';
+  if(tipo === 'rango'){
+    const d = $('rep-desde').value, h = $('rep-hasta').value;
+    if(!d || !h) return aviso('Complete las fechas Desde y Hasta', true);
+    if(d > h) return aviso('"Desde" no puede ser posterior a "Hasta"', true);
+    qs += '&desde=' + d + '&hasta=' + h;
+    desc = `del ${d} al ${h}`;
+  } else if(tipo === 'expo'){ desc = 'de todo el evento'; }
+
+  if(!window.confirm(`¿Enviar el reporte ${desc} a:\n${emails.join('\n')}?`)) return;
+
   const b = document.getElementById('enviar-reporte');
   b.disabled = true; b.textContent = '✉️ Enviando…';
   try{
-    const r = await fetch(API_URL + '?action=enviarReporte');
+    const r = await fetch(API_URL + qs);
     const j = await r.json();
-    aviso(j.ok ? ('Reporte generado ✔ Email: ' + j.email) : ('Error: ' + j.error), !j.ok);
+    aviso(j.ok ? ('Reporte enviado ✔ ' + j.enviado) : ('Error: ' + j.error), !j.ok);
   }catch(e){
     aviso('Sin conexión: no se pudo enviar el reporte', true);
   }finally{
-    b.disabled = false; b.textContent = '✉️ Enviar reporte de hoy ahora';
+    b.disabled = false; b.textContent = '✉️ Enviar reporte';
   }
 });
 
