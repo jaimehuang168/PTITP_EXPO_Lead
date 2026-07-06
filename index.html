@@ -113,6 +113,10 @@
     color:#fff;background:var(--azul)}
   #enviar-reporte:active{background:var(--azul-osc)}
   #enviar-reporte:disabled{opacity:.55}
+  #pdf-reporte{width:100%;margin-top:.5rem;padding:.8rem;border:1.5px solid var(--verde);
+    border-radius:9px;background:#fff;color:var(--verde-osc);
+    font-family:var(--disp);font-weight:600;font-size:.92rem}
+  #pdf-reporte:active{background:var(--verde-claro)}
 
   #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
     background:var(--azul-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
@@ -366,6 +370,7 @@
   </div>
 
   <button type="button" id="enviar-reporte">✉️ Enviar reporte</button>
+  <button type="button" id="pdf-reporte">📥 Descargar PDF</button>
   <p class="ayuda">El reporte diario también se envía automáticamente cada día a las 19:30 a los emails configurados en la hoja "Config" (celda B1).</p>
 </fieldset>
 </section>
@@ -573,23 +578,36 @@ document.querySelectorAll('input[name=repTipo]').forEach(r=>r.addEventListener('
     document.querySelector('input[name=repTipo]:checked').value === 'rango' ? 'grid' : 'none';
 }));
 
+/* 依目前選擇的類型/日期組出查詢字串；無效回 null 並顯示提示 */
+function qsTipoReporte(){
+  const tipo = document.querySelector('input[name=repTipo]:checked').value;
+  let qs = '&tipo=' + tipo, desc = 'de hoy';
+  if(tipo === 'rango'){
+    const d = $('rep-desde').value, h = $('rep-hasta').value;
+    if(!d || !h){ aviso('Complete las fechas Desde y Hasta', true); return null; }
+    if(d > h){ aviso('"Desde" no puede ser posterior a "Hasta"', true); return null; }
+    qs += '&desde=' + d + '&hasta=' + h;
+    desc = `del ${d} al ${h}`;
+  } else if(tipo === 'expo'){ desc = 'de todo el evento'; }
+  return { qs, desc };
+}
+
+document.getElementById('pdf-reporte').addEventListener('click', ()=>{
+  const t = qsTipoReporte();
+  if(!t) return;
+  window.open(API_URL + '?action=reportePdf' + t.qs, '_blank');
+});
+
 document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
   const emails = $('rep-emails').value.split(/[,;\s]+/).filter(Boolean);
   if(!emails.length || emails.some(e=>!RE_MAIL.test(e)))
     return aviso('Ingrese uno o más emails válidos, separados por coma', true);
 
-  const tipo = document.querySelector('input[name=repTipo]:checked').value;
-  let qs = '?action=enviarReporteA&tipo=' + tipo + '&emails=' + encodeURIComponent(emails.join(','));
-  let desc = 'de hoy';
-  if(tipo === 'rango'){
-    const d = $('rep-desde').value, h = $('rep-hasta').value;
-    if(!d || !h) return aviso('Complete las fechas Desde y Hasta', true);
-    if(d > h) return aviso('"Desde" no puede ser posterior a "Hasta"', true);
-    qs += '&desde=' + d + '&hasta=' + h;
-    desc = `del ${d} al ${h}`;
-  } else if(tipo === 'expo'){ desc = 'de todo el evento'; }
+  const t = qsTipoReporte();
+  if(!t) return;
+  const qs = '?action=enviarReporteA' + t.qs + '&emails=' + encodeURIComponent(emails.join(','));
 
-  if(!window.confirm(`¿Enviar el reporte ${desc} a:\n${emails.join('\n')}?`)) return;
+  if(!window.confirm(`¿Enviar el reporte ${t.desc} (con PDF adjunto) a:\n${emails.join('\n')}?`)) return;
 
   const b = document.getElementById('enviar-reporte');
   b.disabled = true; b.textContent = '✉️ Enviando…';
