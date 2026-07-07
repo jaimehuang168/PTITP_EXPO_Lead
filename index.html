@@ -128,6 +128,13 @@
   #tarjeta-thumb{display:block;margin-top:.5rem;max-height:72px;border-radius:6px;
     border:1px solid var(--linea)}
 
+  /* 版本更新橫幅 */
+  #act-banner{position:fixed;top:0;left:0;right:0;z-index:99;cursor:pointer;
+    background:var(--azul);color:#fff;text-align:center;padding:.7rem 1rem;
+    font-family:var(--disp);font-weight:600;font-size:.88rem;
+    box-shadow:0 2px 8px rgba(14,63,102,.35)}
+  .ver-pie{text-align:center;font-size:.7rem;color:var(--gris);margin:1.4rem 0 .4rem}
+
   #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
     background:var(--azul-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
     font-family:var(--disp);font-size:.88rem;font-weight:600;opacity:0;pointer-events:none;
@@ -175,6 +182,7 @@
 </head>
 <body>
 
+<div id="act-banner" hidden>⬆️ Nueva versión disponible — tocar para actualizar</div>
 <div class="bandera"><span class="r"></span><span class="b"></span><span class="a"></span></div>
 <header>
   <img src="PTITP_LOGO.png" alt="PTITP" onerror="this.style.display='none'">
@@ -454,6 +462,7 @@
     </div>
   </div>
 </section>
+<p class="ver-pie">Sistema de Captación PTITP · <span id="ver-num"></span></p>
 </main>
 
 <div id="aviso" role="status"></div>
@@ -716,6 +725,26 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
     b.disabled = false; b.textContent = '✉️ Enviar reporte';
   }
 });
+
+/* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
+const APP_VERSION = '1.8.0';
+document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
+
+async function verificarVersion(){
+  try{
+    const r = await fetch('version.json?t=' + Date.now(), { cache:'no-store' });
+    if(!r.ok) return;
+    const j = await r.json();
+    if(j.v && j.v !== APP_VERSION) document.getElementById('act-banner').hidden = false;
+  }catch(e){ /* 離線或本機直開時安靜略過 */ }
+}
+document.getElementById('act-banner').addEventListener('click', ()=>{
+  location.href = location.pathname + '?v=' + Date.now(); // 帶參數強制抓新 HTML
+});
+setInterval(verificarVersion, 3*60*1000);        // 每 3 分鐘
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) verificarVersion(); }); // 回到前景時
+verificarVersion();
+if(location.search.indexOf('v=') !== -1) history.replaceState(null, '', location.pathname); // 清掉網址參數
 
 /* 連線狀態指示 + 恢復連線自動重送 */
 function estadoRed(){
