@@ -3,7 +3,7 @@ const fs=require('fs');
 class MockSheet{constructor(n){this.name=n;this.rows=[]}getLastRow(){return this.rows.length}appendRow(r){this.rows.push(r);return this}getRange(){return{setValue(){},getValue:()=>'',setFontWeight:()=>({setBackground:()=>({setFontColor:()=>({})})})}}setFrozenRows(){}getDataRange(){return{getValues:()=>this.rows}}}
 const sheets={};const ss={getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new MockSheet(n))};
 global.SpreadsheetApp={getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
-global.Utilities={formatDate:(d,tz,fmt)=>{const t=new Date(d.getTime()-4*3600*1000);const p=n=>String(n).padStart(2,'0');const s=`${t.getUTCFullYear()}-${p(t.getUTCMonth()+1)}-${p(t.getUTCDate())}`;return fmt.includes('HH')?`${s} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:${p(t.getUTCSeconds())}`:s}};
+global.Utilities={newBlob:(h,m,n)=>({getAs:mt=>({_html:h,_name:n,setName(x){this._name=x;return this},getBytes:()=>[1,2,3],getName(){return this._name}})}),base64Encode:b=>'B64DATA',formatDate:(d,tz,fmt)=>{const t=new Date(d.getTime()-4*3600*1000);const p=n=>String(n).padStart(2,'0');const s=`${t.getUTCFullYear()}-${p(t.getUTCMonth()+1)}-${p(t.getUTCDate())}`;return fmt.includes('HH')?`${s} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:${p(t.getUTCSeconds())}`:s}};
 global.LockService={getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})};
 global.ContentService={MimeType:{JSON:'json'},createTextOutput:t=>({_text:t,setMimeType(){return this}})};
 global.HtmlService={createHtmlOutput:h=>({_html:h,setTitle(t){return this}})};
@@ -60,6 +60,17 @@ r=doGet({parameter:{action:'enviarReporteA',tipo:'rango',desde:'2026-07-09',hast
 check(JSON.parse(r._text).ok===false,'C6 desde>hasta 拒寄');
 r=doGet({parameter:{action:'reporteRango',desde:'2026-07-05',hasta:'2026-07-07'}});
 check(r._html&&r._html.includes('RANGO'),'C6 reporteRango 檢視正常');
+
+// C7: PDF 功能
+r=doGet({parameter:{action:'reportePdf',tipo:'expo'}});
+check(r._html&&r._html.includes('B64DATA')&&r._html.includes('PTITP_Reporte_evento.pdf'),'C7 reportePdf 回傳下載頁（含 base64 與檔名）');
+r=doGet({parameter:{action:'reportePdf',tipo:'rango',desde:'2026-07-05',hasta:'2026-07-06'}});
+check(r._html&&r._html.includes('PTITP_Reporte_2026-07-05_a_2026-07-06.pdf'),'C7 範圍 PDF 檔名正確');
+r=doGet({parameter:{action:'reportePdf',tipo:'rango',desde:'2026-07-09',hasta:'2026-07-05'}});
+check(JSON.parse(r._text).ok===false,'C7 無效範圍 PDF 拒絕');
+r=doGet({parameter:{action:'enviarReporteA',tipo:'expo',emails:'pdf@x.com'}});
+const m=mails[mails.length-1];
+check(m.attachments&&m.attachments.length===1&&m.attachments[0].getName()==='PTITP_Reporte_evento.pdf','C7 寄送報告夾帶 PDF 附件');
 
 console.log(`\n═══ 收件人/範圍功能測試: ${pass} 通過 / ${fail} 失敗 ═══`);
 process.exit(fail?1:0);

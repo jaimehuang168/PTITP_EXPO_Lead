@@ -53,6 +53,18 @@ const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
   await clickEnviar();
   check(fetched.length===3&&fetched[2].includes('tipo=expo'),'R5 全展期報告呼叫正確');
 
+  // PDF 下載按鈕
+  document.querySelector('input[name=repTipo][value=dia]').checked=true;
+  $('pdf-reporte').click();
+  check(opened.length===3&&opened[2].includes('action=reportePdf')&&opened[2].includes('tipo=dia'),'R7 PDF 按鈕開啟下載頁（dia）');
+  document.querySelector('input[name=repTipo][value=rango]').checked=true;
+  $('rep-desde').value='';$('rep-hasta').value='';
+  $('pdf-reporte').click();
+  check(opened.length===3,'R7 範圍缺日期不開下載頁');
+  $('rep-desde').value='2026-07-05';$('rep-hasta').value='2026-07-08';
+  $('pdf-reporte').click();
+  check(opened.length===4&&opened[3].includes('tipo=rango')&&opened[3].includes('desde=2026-07-05'),'R7 範圍 PDF 參數正確');
+
   // 取消確認
   confirmAns=false;
   await clickEnviar();

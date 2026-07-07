@@ -21,6 +21,10 @@ const CONFIG = {
   // 預設展會名稱（前端也可覆寫）
   EVENTO_DEFAULT: 'Expo Paraguay 2026',
   ZONA_HORARIA: 'America/Asuncion',
+  // 名片掃描設定
+  OCR_MODEL: 'claude-haiku-4-5',
+  OCR_LIMITE_DIARIO: 300,          // 每日辨識上限（防止公開端點被刷 API 額度）
+  CARPETA_TARJETAS: 'PTITP_Tarjetas', // 名片影像存放的 Drive 資料夾
 };
 
 const HEADERS = [
@@ -30,6 +34,7 @@ const HEADERS = [
   'Superficie (m²)', 'Empleos est.', 'Cómo nos conoció',
   'Calificación', 'Observaciones', 'Próximos pasos',
   'Fecha límite seguimiento', 'Responsable seguimiento', 'Estado',
+  'Tarjeta (imagen)', 'LeadID',
 ];
 
 // ══════════ 初始化：第一次執行 setup() 建立表頭 ══════════
@@ -43,6 +48,15 @@ function setup() {
     sh.getRange(1, 1, 1, HEADERS.length)
       .setFontWeight('bold').setBackground('#0F4C46').setFontColor('#FFFFFF');
     sh.setFrozenRows(1);
+  } else {
+    // 遷移：舊表補上新增欄標頭
+    let hdr = sh.getDataRange().getValues()[0];
+    ['Tarjeta (imagen)', 'LeadID'].forEach(col => {
+      if (hdr.indexOf(col) === -1) {
+        sh.getRange(1, hdr.length + 1).setValue(col);
+        hdr = hdr.concat([col]);
+      }
+    });
   }
 
   let rep = ss.getSheetByName(CONFIG.SHEET_REPORTES);
@@ -62,12 +76,21 @@ function setup() {
   Logger.log('✅ 初始化完成');
 }
 
-// ══════════ 接收前端問卷 ══════════
+// ══════════ 接收前端請求（問卷 / 名片辨識） ══════════
 function doPost(e) {
+  let d;
+  try {
+    d = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return _json({ ok: false, error: String(err) });
+  }
+
+  // 名片辨識分支（不佔用問卷寫入的鎖）
+  if (d.accion === 'ocrTarjeta') return _ocrTarjeta(d);
+
   const lock = LockService.getScriptLock();
   lock.tryLock(10000); // 防止多人同時送出造成競態
   try {
-    const d = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sh = ss.getSheetByName(CONFIG.SHEET_LEADS) || ss.insertSheet(CONFIG.SHEET_LEADS);
 
@@ -98,6 +121,8 @@ function doPost(e) {
       d.fechaSeguimiento || '',
       d.responsable || d.promotor || '',
       'Pendiente', // 追蹤狀態欄，後續人工更新：Pendiente / En proceso / Cerrado
+      d.tarjetaUrl || '', // 名片影像的 Drive 連結
+      _nuevoLeadID(), // 與 CRM 追蹤系統的關聯鍵
     ]);
 
     return _json({ ok: true, msg: 'Lead registrado' });
@@ -106,6 +131,79 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ══════════ 名片辨識：存 Drive + Claude 視覺辨識 → 結構化欄位 ══════════
+function _ocrTarjeta(d) {
+  try {
+    if (!d.imagen) return _json({ ok: false, error: 'Falta la imagen' });
+
+    const props = PropertiesService.getScriptProperties();
+
+    // 每日用量閘門
+    const hoy = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+    const kCnt = 'ocr_' + hoy;
+    const usados = Number(props.getProperty(kCnt) || 0);
+    if (usados >= CONFIG.OCR_LIMITE_DIARIO)
+      return _json({ ok: false, error: 'Límite diario de escaneos alcanzado' });
+
+    const apiKey = props.getProperty('ANTHROPIC_API_KEY');
+    if (!apiKey)
+      return _json({ ok: false, error: 'API key no configurada (Script Properties → ANTHROPIC_API_KEY)' });
+
+    // 1. 影像留存到 Drive
+    const mime = d.mime || 'image/jpeg';
+    const nombreArchivo = 'Tarjeta_' +
+      Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyyMMdd_HHmmss') +
+      (d.promotor ? '_' + String(d.promotor).replace(/[^\w\u00C0-\u017F]/g, '') : '') + '.jpg';
+    const blob = Utilities.newBlob(Utilities.base64Decode(d.imagen), mime, nombreArchivo);
+    const urlImagen = _carpetaTarjetas().createFile(blob).getUrl();
+
+    // 2. Claude 視覺辨識 → 嚴格 JSON
+    const prompt =
+      'Extraé los datos de esta tarjeta de presentación (puede estar en español, inglés o chino, y tener texto en varias direcciones). ' +
+      'Respondé SOLO con un objeto JSON válido, sin markdown ni explicaciones, con exactamente estas claves ' +
+      '(usá null si el dato no figura): ' +
+      '{"nombre": "nombre completo de la persona", "empresa": "nombre de la empresa u organización", ' +
+      '"cargo": "puesto o título", "telefono": "teléfono con código de país si figura, preferí el móvil/WhatsApp", ' +
+      '"email": "correo electrónico", "pais": "país inferido por la dirección o el código telefónico"}';
+
+    const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify({
+        model: CONFIG.OCR_MODEL,
+        max_tokens: 500,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mime, data: d.imagen } },
+            { type: 'text', text: prompt },
+          ],
+        }],
+      }),
+      muteHttpExceptions: true,
+    });
+
+    if (resp.getResponseCode() !== 200)
+      return _json({ ok: false, error: 'Servicio de análisis no disponible (' + resp.getResponseCode() + ')', imagen: urlImagen });
+
+    const data = JSON.parse(resp.getContentText());
+    let txt = ((data.content || []).filter(c => c.type === 'text').map(c => c.text).join('')) || '';
+    txt = txt.replace(/```json|```/g, '').trim();
+    const datos = JSON.parse(txt);
+
+    props.setProperty(kCnt, String(usados + 1));
+    return _json({ ok: true, datos: datos, imagen: urlImagen });
+  } catch (err) {
+    return _json({ ok: false, error: String(err) });
+  }
+}
+
+function _carpetaTarjetas() {
+  const it = DriveApp.getFoldersByName(CONFIG.CARPETA_TARJETAS);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(CONFIG.CARPETA_TARJETAS);
 }
 
 // ══════════ 網頁查看報告 ══════════
@@ -133,35 +231,42 @@ function doGet(e) {
     return _htmlReporte(_construirReporteRango(desde, hasta).texto, `Reporte ${desde} → ${hasta}`);
   }
 
+  // PDF 下載：?action=reportePdf&tipo=dia|rango|expo[&desde&hasta]
+  if (action === 'reportePdf') {
+    try {
+      const sel = _reporteSegunTipo(e.parameter);
+      if (sel.error) return _json({ ok: false, error: sel.error });
+      const pdf = _pdfDeReporte(sel.rpt, sel.titulo, sel.archivo);
+      const b64 = Utilities.base64Encode(pdf.getBytes());
+      const pagina =
+        '<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:3rem auto;text-align:center">' +
+        '<p style="color:#152730">Su PDF est&aacute; listo:</p>' +
+        '<a id="d" download="' + sel.archivo + '.pdf" href="data:application/pdf;base64,' + b64 + '"' +
+        ' style="display:inline-block;padding:.9rem 1.4rem;background:#009C81;color:#fff;' +
+        'border-radius:10px;text-decoration:none;font-weight:bold">&#128229; Descargar ' + sel.archivo + '.pdf</a>' +
+        '<p style="color:#5E7079;font-size:.8rem;margin-top:1rem">Si la descarga no inicia autom&aacute;ticamente, toque el bot&oacute;n.</p></div>' +
+        '<script>try{document.getElementById("d").click();}catch(e){}</script>';
+      return HtmlService.createHtmlOutput(pagina).setTitle('PTITP — PDF');
+    } catch (err) {
+      return _json({ ok: false, error: String(err) });
+    }
+  }
+
   // 業務人員自訂寄送：?action=enviarReporteA&tipo=dia|rango|expo&emails=a@x,b@y[&desde&hasta]
   if (action === 'enviarReporteA') {
     try {
       const emails = _validarEmails(e.parameter.emails || '');
       if (!emails) return _json({ ok: false, error: 'Emails inválidos o vacíos' });
-      const tipo = e.parameter.tipo || 'dia';
-      let rpt, titulo;
-
-      if (tipo === 'expo') {
-        rpt = _construirReporteExpo();
-        titulo = 'acumulado del evento';
-      } else if (tipo === 'rango') {
-        const desde = e.parameter.desde, hasta = e.parameter.hasta;
-        if (!_fechaValida(desde) || !_fechaValida(hasta) || desde > hasta)
-          return _json({ ok: false, error: 'Rango de fechas inválido' });
-        rpt = _construirReporteRango(desde, hasta);
-        titulo = `del ${desde} al ${hasta}`;
-      } else {
-        const f = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-        rpt = _construirReporte(f);
-        titulo = 'diario ' + f;
-      }
+      const sel = _reporteSegunTipo(e.parameter);
+      if (sel.error) return _json({ ok: false, error: sel.error });
 
       MailApp.sendEmail({
         to: emails,
-        subject: `[PTITP] Reporte ${titulo} — ${rpt.total} visitantes, ${rpt.nA} leads A`,
-        body: rpt.texto,
+        subject: `[PTITP] Reporte ${sel.titulo} — ${sel.rpt.total} visitantes, ${sel.rpt.nA} leads A`,
+        body: sel.rpt.texto,
+        attachments: [_pdfDeReporte(sel.rpt, sel.titulo, sel.archivo)],
       });
-      return _json({ ok: true, enviado: 'a ' + emails, total: rpt.total });
+      return _json({ ok: true, enviado: 'a ' + emails, total: sel.rpt.total });
     } catch (err) {
       return _json({ ok: false, error: String(err) });
     }
@@ -202,6 +307,7 @@ function generarReporteDiario() {
       to: dest,
       subject: `[PTITP] Reporte diario de promoción — ${fecha} (${rpt.total} visitantes, ${rpt.nA} leads A)`,
       body: rpt.texto,
+      attachments: [_pdfDeReporte(rpt, 'diario ' + fecha, 'PTITP_Reporte_diario_' + fecha)],
     });
   }
   Logger.log(rpt.texto);
@@ -235,6 +341,137 @@ function _validarEmails(raw) {
 
 function _fechaValida(f) {
   return /^\d{4}-\d{2}-\d{2}$/.test(f || '');
+}
+
+// 產生 Lead 短 ID（CRM 追蹤系統的關聯鍵），如 L-MCK3A9F7-X2
+function _nuevoLeadID() {
+  return 'L-' + Date.now().toString(36).toUpperCase() + '-' +
+    Math.random().toString(36).slice(2, 4).toUpperCase();
+}
+
+// ══════════ PDF 工具 ══════════
+// 依 tipo 參數取得對應報告（dia / rango / expo），寄送與 PDF 下載共用
+function _reporteSegunTipo(p) {
+  const tipo = (p && p.tipo) || 'dia';
+  if (tipo === 'expo') {
+    return { rpt: _construirReporteExpo(), titulo: 'acumulado del evento', archivo: 'PTITP_Reporte_evento' };
+  }
+  if (tipo === 'rango') {
+    if (!_fechaValida(p.desde) || !_fechaValida(p.hasta) || p.desde > p.hasta)
+      return { error: 'Rango de fechas inválido' };
+    return { rpt: _construirReporteRango(p.desde, p.hasta), titulo: `del ${p.desde} al ${p.hasta}`,
+             archivo: `PTITP_Reporte_${p.desde}_a_${p.hasta}` };
+  }
+  const f = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+  return { rpt: _construirReporte(f), titulo: 'diario ' + f, archivo: 'PTITP_Reporte_diario_' + f };
+}
+
+// 品牌化 PDF：頁首色帶、統計卡、雙欄統計表、A/B 客戶卡片。
+// 注意：GAS 的 HTML→PDF 轉換不支援 flexbox/grid，排版一律用 table。
+function _pdfDeReporte(rpt, titulo, archivo) {
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const d = rpt.datos;
+
+  // 相容保護：若無結構化資料，退回純文字版
+  if (!d) {
+    const htmlSimple = '<html><head><meta charset="utf-8"></head><body><pre>' +
+      esc(rpt.texto || rpt) + '</pre></body></html>';
+    return Utilities.newBlob(htmlSimple, 'text/html', archivo + '.html')
+      .getAs('application/pdf').setName(archivo + '.pdf');
+  }
+
+  const C = { verde: '#009C81', azul: '#14588F', tinta: '#152730', gris: '#5E7079',
+              linea: '#DCE7E3', claro: '#F2F7F5', A: '#D3452B', B: '#D99A2B', Cc: '#5E7079' };
+
+  const statBox = (num, label, color) =>
+    `<td width="25%" style="border:1px solid ${C.linea};padding:10px 6px;text-align:center">` +
+    `<div style="font-size:22px;font-weight:bold;color:${color}">${num}</div>` +
+    `<div style="font-size:8.5px;color:${C.gris};text-transform:uppercase;letter-spacing:1px">${label}</div></td>`;
+
+  const seccion = t =>
+    `<div style="margin:16px 0 6px;border-left:5px solid ${C.verde};padding:2px 0 2px 8px;` +
+    `font-size:11px;font-weight:bold;color:${C.azul};text-transform:uppercase;letter-spacing:1.5px">${t}</div>`;
+
+  const tablaConteo = obj => {
+    const filas = Object.entries(obj || {}).sort((a, b) => b[1] - a[1])
+      .map(([k, v]) =>
+        `<tr><td style="padding:3px 6px;border-bottom:1px solid ${C.linea}">${esc(k)}</td>` +
+        `<td align="right" style="padding:3px 6px;border-bottom:1px solid ${C.linea};font-weight:bold;color:${C.azul}">${v}</td></tr>`)
+      .join('');
+    return `<table width="100%" style="border-collapse:collapse;font-size:9.5px">${filas ||
+      `<tr><td style="padding:3px 6px;color:${C.gris}">(sin datos)</td></tr>`}</table>`;
+  };
+
+  const tarjetaLead = (l, color) => {
+    const linea2 = [l.intereses, l.plazo, l.sup ? l.sup + ' m²' : ''].filter(Boolean).map(esc).join(' &nbsp;|&nbsp; ');
+    const contacto = [l.tel ? 'Tel: ' + esc(l.tel) : '', l.email ? 'Email: ' + esc(l.email) : ''].filter(Boolean).join(' &nbsp;&middot;&nbsp; ');
+    return `<div style="border:1px solid ${C.linea};border-left:5px solid ${color};padding:7px 10px;margin-top:7px">` +
+      `<div style="font-size:10.5px"><b>${esc(l.nombre)}</b> &mdash; ${esc(l.empresa) || 's/empresa'}` +
+      ` <span style="color:${C.gris}">(${[esc(l.cargo), esc(l.pais)].filter(Boolean).join(', ') || 'N/D'})</span></div>` +
+      (linea2 ? `<div style="font-size:9px;color:${C.gris};margin-top:2px">${linea2}</div>` : '') +
+      (contacto ? `<div style="font-size:9px;margin-top:2px">${contacto}</div>` : '') +
+      (l.obs ? `<div style="font-size:9px;font-style:italic;color:${C.tinta};margin-top:3px;` +
+               `background:${C.claro};padding:4px 6px">Obs.: ${esc(l.obs)}</div>` : '') +
+      `<div style="font-size:9px;margin-top:3px">&rarr; <b>${esc(l.pasos) || 'definir próximos pasos'}</b>` +
+      (l.fseg ? ` <span style="color:${C.A}">(antes del ${esc(l.fseg)})</span>` : '') +
+      ` &mdash; Resp.: ${esc(l.resp) || 'N/D'}` +
+      (d.byDia ? ` &nbsp;<span style="color:${C.gris}">[${esc(l.estado)}]</span>` : '') + `</div></div>`;
+  };
+
+  const bloqueLeads = (arr, color, vacio) =>
+    (arr && arr.length) ? arr.map(l => tarjetaLead(l, color)).join('') :
+    `<div style="font-size:9.5px;color:${C.gris};margin-top:4px">(${vacio})</div>`;
+
+  const generado = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd HH:mm');
+  const pendTxt = (d.pendA != null && rpt.nA > 0)
+    ? ` &nbsp;<span style="font-size:8.5px;color:${C.A}">(${d.pendA} pendientes de seguimiento)</span>` : '';
+
+  const html =
+`<html><head><meta charset="utf-8"><style>
+body{font-family:Helvetica,Arial,sans-serif;color:${C.tinta};margin:24px;font-size:10px}
+table{border-collapse:collapse}
+</style></head><body>
+
+<table width="100%"><tr>
+<td style="background:${C.verde};padding:13px 16px">
+  <div style="font-size:15px;font-weight:bold;color:#ffffff">PTITP &mdash; Parque Tecnol&oacute;gico Inteligente Taiw&aacute;n-Paraguay</div>
+  <div style="font-size:9.5px;color:#DFF3EE;margin-top:3px">Reporte ${esc(titulo)} &nbsp;&middot;&nbsp; Evento: ${esc(rpt.evento)} &nbsp;&middot;&nbsp; Generado: ${generado}</div>
+</td>
+<td width="6" style="background:${C.azul}"></td>
+</tr></table>
+
+${seccion('Resumen')}
+<table width="100%"><tr>
+${statBox(rpt.total, 'Visitantes', C.azul)}
+${statBox(rpt.nA, 'Leads A &middot; calientes', C.A)}
+${statBox(rpt.nB, 'Leads B &middot; tibios', C.B)}
+${statBox(rpt.nC, 'Leads C &middot; fr&iacute;os', C.Cc)}
+</tr></table>${pendTxt}
+
+${d.byDia ? seccion('Visitantes por d&iacute;a') + tablaConteo(d.byDia) : ''}
+
+<table width="100%"><tr>
+<td width="48%" valign="top">${seccion('Por pa&iacute;s')}${tablaConteo(d.byPais)}</td>
+<td width="4%"></td>
+<td width="48%" valign="top">${seccion('Intereses consultados')}${tablaConteo(d.byInteres)}</td>
+</tr></table>
+
+${seccion('Registros por promotor')}
+${tablaConteo(d.byPromotor)}
+
+${seccion('Leads prioritarios (A) &mdash; acci&oacute;n en 24-48 hs')}
+${bloqueLeads(d.leadsA, C.A, 'ninguno')}
+
+${seccion('Leads de seguimiento (B) &mdash; acci&oacute;n en 1 semana')}
+${bloqueLeads(d.leadsB, C.B, 'ninguno')}
+
+<div style="margin-top:20px;border-top:1px solid ${C.linea};padding-top:6px;font-size:8px;color:${C.gris}">
+Generado autom&aacute;ticamente &mdash; Sistema de Captaci&oacute;n PTITP &nbsp;&middot;&nbsp; Hernandarias, Alto Paran&aacute;, Paraguay</div>
+
+</body></html>`;
+
+  return Utilities.newBlob(html, 'text/html', archivo + '.html')
+    .getAs('application/pdf').setName(archivo + '.pdf');
 }
 
 // ══════════ 報告產生核心 ══════════
@@ -313,7 +550,17 @@ ${byCal.B.map(fmtLead).join('\n\n') || '  (ninguno hoy)'}
 Generado automáticamente — Sistema de Captación PTITP
 ══════════════════════════════════════════════════`;
 
-  return { texto, total: rows.length, nA: byCal.A.length, nB: byCal.B.length, nC: byCal.C.length, evento };
+  const aObj = r => ({
+    nombre: r[H['Nombre']], empresa: r[H['Empresa']], cargo: r[H['Cargo']], pais: r[H['País']],
+    tel: r[H['Teléfono/WhatsApp']], email: r[H['Email']], intereses: r[H['Intereses']],
+    plazo: r[H['Plazo']], sup: r[H['Superficie (m²)']], obs: r[H['Observaciones']],
+    pasos: r[H['Próximos pasos']], fseg: String(r[H['Fecha límite seguimiento']] || '').slice(0, 10),
+    resp: r[H['Responsable seguimiento']], estado: r[H['Estado']] || 'Pendiente',
+  });
+
+  return { texto, total: rows.length, nA: byCal.A.length, nB: byCal.B.length, nC: byCal.C.length, evento,
+           fecha, datos: { byPais, byInteres, byPromotor,
+                           leadsA: byCal.A.map(aObj), leadsB: byCal.B.map(aObj) } };
 }
 
 // ══════════ 彙總報告：全展期或指定日期範圍 ══════════
@@ -404,7 +651,17 @@ ${byCal.B.map(fmtLeadCorto).join('\n') || '  (ninguno)'}
 Generado automáticamente — Sistema de Captación PTITP
 ══════════════════════════════════════════════════`;
 
-  return { texto, total: rows.length, nA: byCal.A.length, nB: byCal.B.length, nC: byCal.C.length, evento };
+  const aObj = r => ({
+    nombre: r[H['Nombre']], empresa: r[H['Empresa']], cargo: r[H['Cargo']], pais: r[H['País']],
+    tel: r[H['Teléfono/WhatsApp']], email: r[H['Email']], intereses: r[H['Intereses']],
+    plazo: r[H['Plazo']], sup: r[H['Superficie (m²)']], obs: r[H['Observaciones']],
+    pasos: r[H['Próximos pasos']], fseg: String(r[H['Fecha límite seguimiento']] || '').slice(0, 10),
+    resp: r[H['Responsable seguimiento']], estado: r[H['Estado']] || 'Pendiente',
+  });
+
+  return { texto, total: rows.length, nA: byCal.A.length, nB: byCal.B.length, nC: byCal.C.length, evento,
+           datos: { byPais, byInteres, byPromotor, byDia, pendA,
+                    leadsA: byCal.A.map(aObj), leadsB: byCal.B.map(aObj) } };
 }
 
 // ══════════ 每晚 19:30 自動產生報告（執行一次即可安裝） ══════════
