@@ -118,6 +118,16 @@
     font-family:var(--disp);font-weight:600;font-size:.92rem}
   #pdf-reporte:active{background:var(--verde-claro)}
 
+  /* 名片掃描 */
+  .scan-fila{display:table;width:100%;margin-bottom:.3rem}
+  #scan-btn{display:table-cell;width:100%;padding:.7rem;border:1.5px dashed var(--azul);
+    border-radius:9px;background:#F6FAFD;color:var(--azul);
+    font-family:var(--disp);font-weight:600;font-size:.9rem}
+  #scan-btn:active{background:#E8F1F8}
+  #scan-btn:disabled{opacity:.6}
+  #tarjeta-thumb{display:block;margin-top:.5rem;max-height:72px;border-radius:6px;
+    border:1px solid var(--linea)}
+
   #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
     background:var(--azul-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
     font-family:var(--disp);font-size:.88rem;font-weight:600;opacity:0;pointer-events:none;
@@ -205,6 +215,12 @@
 
   <fieldset>
     <legend>Datos del visitante</legend>
+    <div class="scan-fila">
+      <button type="button" id="scan-btn">📷 Escanear tarjeta de presentación</button>
+      <input type="file" id="tarjeta-file" accept="image/*" capture="environment" hidden>
+      <img id="tarjeta-thumb" alt="Tarjeta" hidden>
+    </div>
+    <input type="hidden" id="tarjetaUrl">
     <label for="nombre">Nombre y apellido *</label>
     <input type="text" id="nombre" required>
     <div class="fila">
@@ -477,6 +493,7 @@ function datos(){
     proximosPasos: [...document.querySelectorAll('#proximosPasos input:checked')].map(c=>c.value),
     fechaSeguimiento: $('fechaSeguimiento').value,
     responsable: $('responsable').value.trim(),
+    tarjetaUrl: $('tarjetaUrl').value,
   };
 }
 
@@ -547,6 +564,84 @@ function limpiar(){
   const ev = $('evento').value, pr = $('promotor').value;
   f.reset();
   $('evento').value = ev; $('promotor').value = pr;
+  $('tarjetaUrl').value = ''; $('tarjeta-thumb').hidden = true; $('tarjeta-thumb').src = '';
+}
+
+/* ═══ 掃描名片：拍照/選圖 → 壓縮 → 後端辨識 → 自動填欄（推廣員核對後再送出） ═══ */
+$('scan-btn').addEventListener('click', ()=>$('tarjeta-file').click());
+$('tarjeta-file').addEventListener('change', escanearTarjeta);
+
+async function escanearTarjeta(){
+  const file = $('tarjeta-file').files[0];
+  if(!file) return;
+  const b = $('scan-btn');
+  b.disabled = true; b.textContent = '📷 Analizando tarjeta…';
+  try{
+    const {b64, thumb} = await comprimirImagen(file);
+    $('tarjeta-thumb').src = thumb; $('tarjeta-thumb').hidden = false;
+    const r = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ accion:'ocrTarjeta', imagen:b64, mime:'image/jpeg',
+                             promotor: $('promotor').value.trim() }),
+    });
+    const j = await r.json();
+    if(j.imagen) $('tarjetaUrl').value = j.imagen; // 影像已留存，辨識失敗也保留連結
+    if(!j.ok) throw new Error(j.error||'');
+    aplicarDatosTarjeta(j.datos || {});
+    aviso('Tarjeta analizada ✔ Verifique y complete los datos');
+  }catch(err){
+    aviso('No se pudo analizar la tarjeta — complete manualmente', true);
+  }finally{
+    b.disabled = false; b.textContent = '📷 Escanear tarjeta de presentación';
+    $('tarjeta-file').value = '';
+  }
+}
+
+function comprimirImagen(file){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const MAX = 1280;
+        const esc = Math.min(1, MAX / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width*esc); c.height = Math.round(img.height*esc);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const dataUrl = c.toDataURL('image/jpeg', .85);
+        res({ b64: dataUrl.split(',')[1], thumb: dataUrl });
+      };
+      img.onerror = rej; img.src = fr.result;
+    };
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+
+function aplicarDatosTarjeta(t){
+  [['nombre','nombre'],['empresa','empresa'],['cargo','cargo'],['telefono','telefono'],['email','email']]
+    .forEach(([k,id])=>{ if(t[k]){ $(id).value = t[k]; flashCampo($(id)); } });
+  if(t.pais){
+    const v = normalizarPais(t.pais), sel = $('pais');
+    if([...sel.options].some(o=>o.value===v)){ sel.value = v; flashCampo(sel); }
+  }
+}
+
+function normalizarPais(p){
+  p = String(p).toLowerCase();
+  const m = {'taiwán':'Taiwán','taiwan':'Taiwán','republic of china':'Taiwán','台灣':'Taiwán','台湾':'Taiwán',
+    'brasil':'Brasil','brazil':'Brasil','paraguay':'Paraguay','argentina':'Argentina',
+    'estados unidos':'EE.UU.','united states':'EE.UU.','usa':'EE.UU.','ee.uu':'EE.UU.',
+    'china':'China','japón':'Japón','japan':'Japón','japon':'Japón',
+    'corea':'Corea del Sur','korea':'Corea del Sur',
+    'chile':'Chile','uruguay':'Uruguay','bolivia':'Bolivia'};
+  for(const k in m) if(p.includes(k)) return m[k];
+  return 'Otro';
+}
+
+function flashCampo(el){
+  const orig = el.style.background;
+  el.style.background = '#C9EBE0';
+  setTimeout(()=>{ el.style.background = orig; }, 1600);
 }
 
 /* 分頁切換 */
