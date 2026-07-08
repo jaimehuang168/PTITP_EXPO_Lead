@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 0; }
+  body{font-family:Helvetica,Arial,sans-serif;color:#152730;margin:0;font-size:11px;line-height:1.5}
+  .pag{padding:46px 52px;page-break-after:always}
+  .pag:last-child{page-break-after:auto}
+  h1{color:#14588F;font-size:24px;margin:0 0 4px}
+  h2{color:#14588F;font-size:15px;margin:20px 0 6px;border-left:6px solid #009C81;padding-left:9px;text-transform:uppercase;letter-spacing:1px}
+  h3{color:#009C81;font-size:12px;margin:12px 0 4px}
+  p{margin:5px 0}
+  .banda{height:8px;background:#009C81;border-bottom:4px solid #14588F}
+  .cab{background:#009C81;color:#fff;padding:22px 52px}
+  .cab h1{color:#fff}
+  .cab p{color:#DFF3EE;font-size:11px}
+  table{border-collapse:collapse;width:100%;font-size:10.5px;margin:6px 0}
+  th{background:#14588F;color:#fff;padding:5px 8px;text-align:left}
+  td{border:1px solid #DCE7E3;padding:5px 8px;vertical-align:top}
+  .paso{border:1px solid #DCE7E3;border-left:5px solid #009C81;padding:8px 12px;margin:7px 0}
+  .paso b.n{display:inline-block;background:#009C81;color:#fff;border-radius:50%;width:18px;height:18px;text-align:center;line-height:18px;font-size:10px;margin-right:6px}
+  .aviso{background:#FFF6E5;border:1px solid #D99A2B;border-left:5px solid #D99A2B;padding:8px 12px;margin:8px 0}
+  .ok{background:#E1F3EE;border:1px solid #009C81;border-left:5px solid #009C81;padding:8px 12px;margin:8px 0}
+  .rojo{color:#D3452B;font-weight:bold}
+  .calA{color:#D3452B;font-weight:bold}.calB{color:#D99A2B;font-weight:bold}.calC{color:#5E7079;font-weight:bold}
+  img.flujo{width:100%;max-width:640px;display:block;margin:8px auto;border:1px solid #DCE7E3}
+  .pie{position:running(footer);}
+  .url{background:#F2F6F5;border:1px dashed #14588F;padding:8px 12px;font-family:monospace;font-size:11px;color:#14588F;text-align:center;margin:8px 0}
+  ul{margin:4px 0;padding-left:18px}
+  li{margin:3px 0}
+  .dos{width:100%}
+  .dos td{border:0;padding:0 8px 0 0;width:50%}
+</style></head><body>
+
+<!-- ═══ PORTADA ═══ -->
+<div class="cab">
+  <h1>Sistema de Captación de Visitantes</h1>
+  <p>Manual de uso para promotores · Versión 1.8 · Julio 2026</p>
+</div>
+<div class="banda"></div>
+<div class="pag">
+  <p style="margin-top:14px"><b>Parque Tecnológico Inteligente Taiwán-Paraguay (PTITP)</b><br>
+  Minga Guazú, Alto Paraná, Paraguay</p>
+
+  <h2>¿Qué es este sistema?</h2>
+  <p>Es una aplicación web para registrar a los visitantes del stand del PTITP en ferias y exposiciones.
+  Cada registro llega al instante a la base de datos central, y el sistema genera automáticamente el
+  reporte del día a las 19:30. Funciona en cualquier teléfono, tablet o computadora — no hay que instalar nada.</p>
+
+  <h2>Acceso</h2>
+  <div class="url">https://jaimehuang168.github.io/PTITP_EXPO_Lead/</div>
+  <div class="paso"><b class="n">1</b>Abra el enlace (o escanee el código QR del stand) en el navegador de su teléfono.</div>
+  <div class="paso"><b class="n">2</b><b>Recomendado:</b> agréguelo a la pantalla de inicio
+  (en iPhone: Compartir → «Agregar a inicio»; en Android: menú ⋮ → «Agregar a pantalla principal»).
+  Quedará como una app con el ícono del PTITP.</div>
+  <div class="paso"><b class="n">3</b>La primera vez, complete <b>«Nombre del evento»</b> y <b>«Promotor que registra»</b>
+  (su nombre). Se guardan en su teléfono: solo se completan una vez.</div>
+
+  <div class="ok"><b>Indicador de conexión:</b> arriba a la izquierda verá un punto
+  <span style="color:#009C81">●</span> verde (conectado) o <span style="color:#C62828">●</span> rojo (sin conexión).
+  Con punto rojo puede seguir trabajando: los registros se guardan en el teléfono y se envían solos al volver la señal.</div>
+
+  <div class="aviso"><b>Actualizaciones:</b> si aparece una franja azul arriba que dice
+  «Nueva versión disponible — tocar para actualizar», tóquela una vez. El número de versión figura al pie de la página.</div>
+
+  <h2>Las tres pestañas</h2>
+  <table>
+    <tr><th>Pestaña</th><th>Para qué sirve</th></tr>
+    <tr><td><b>📝 Registro</b></td><td>El formulario principal: registrar visitantes y enviar reportes. Aquí pasará el 95% del tiempo.</td></tr>
+    <tr><td><b>🔗 Códigos QR</b></td><td>Mostrar al visitante los códigos para que escanee: consulta en inglés, español o portugués, y el brochure del parque.</td></tr>
+    <tr><td><b>🗺️ Mapas</b></td><td>Vista satelital y plano de loteamiento del parque, para mostrar ubicación y lotes durante la conversación.</td></tr>
+  </table>
+</div>
+
+<!-- ═══ FLUJO ═══ -->
+<div class="pag">
+  <h2>Flujo de atención en el stand</h2>
+  <img class="flujo" src="flujo_stand.png" style="max-width:560px">
+</div>
+
+<!-- ═══ REGISTRO PASO A PASO ═══ -->
+<div class="pag">
+  <h2>Registrar un visitante, paso a paso</h2>
+
+  <h3>1. Escanear la tarjeta de presentación (recomendado)</h3>
+  <div class="paso"><b class="n">1</b>Toque el botón <b>«📷 Escanear tarjeta de presentación»</b> y saque la foto
+  (o elija una de la galería). Sostenga la tarjeta plana y con buena luz.</div>
+  <div class="paso"><b class="n">2</b>Espere unos segundos («Analizando tarjeta…»). El sistema completa solos:
+  nombre, empresa, cargo, teléfono, email y país. Los campos completados <b>parpadean en verde</b>.</div>
+  <div class="paso"><b class="n">3</b><span class="rojo">Siempre verifique y corrija</span> los datos antes de continuar.
+  La imagen de la tarjeta queda archivada automáticamente y vinculada al registro.</div>
+  <p>Si el visitante no tiene tarjeta o el escaneo falla, complete los campos a mano. Solo el
+  <b>nombre</b> es obligatorio; si consigue el <b>WhatsApp</b>, ya es un buen registro.</p>
+
+  <h3>2. Perfil e interés</h3>
+  <ul>
+    <li><b>Tipo de organización</b> y <b>sector</b>: manufactura, inversionista, logística, gobierno…</li>
+    <li><b>Interés principal</b> (puede marcar varios): alquiler de lote/nave, instalación de planta, inversión…</li>
+    <li><b>Plazo de decisión</b>: pregunte con naturalidad «¿para cuándo tienen pensado el proyecto?»</li>
+    <li><b>Superficie (m²) y empleos estimados</b>: si aplica — son los dos números más valiosos para el seguimiento.</li>
+  </ul>
+
+  <h3>3. Calificar el lead — la parte más importante</h3>
+  <table>
+    <tr><th style="width:12%">Nivel</th><th>Criterio</th><th>Qué pasa después</th></tr>
+    <tr><td class="calA">A · Caliente</td><td>Tiene un <b>proyecto concreto</b> Y <b>poder de decisión</b> (dueño, gerente, director).</td><td>El equipo lo contacta en 24–48 hs.</td></tr>
+    <tr><td class="calB">B · Tibio</td><td>Interés real pero sin plazo definido, o debe consultar con otros.</td><td>Seguimiento en la semana.</td></tr>
+    <tr><td class="calC">C · Frío</td><td>Curiosidad, información general, estudiantes, prensa.</td><td>Entra a la base y al newsletter.</td></tr>
+  </table>
+  <div class="aviso"><b>En caso de duda entre A y B, elija B.</b> Un A falso hace perder tiempo al equipo;
+  un B bien anotado se recupera en el seguimiento.</div>
+
+  <h3>4. Observaciones — qué anotar</h3>
+  <p>Escriba lo que <b>no</b> está en los otros campos. Las mejores observaciones responden a:</p>
+  <ul>
+    <li>¿Tiene poder de decisión o debe consultar? ¿Con quién?</li>
+    <li>¿Mencionó presupuesto, plazos u otros parques que está evaluando?</li>
+    <li>¿Qué le preocupa? (logística, energía, impuestos, mano de obra, aduana)</li>
+    <li>¿Qué nivel de interés real percibió usted?</li>
+  </ul>
+
+  <h3>5. Próximos pasos y envío</h3>
+  <div class="paso"><b class="n">1</b>Marque las acciones prometidas (enviar brochure, agendar visita al parque, enviar propuesta…).
+  <b>Solo prometa lo que se va a cumplir.</b></div>
+  <div class="paso"><b class="n">2</b>Si corresponde, fije la <b>fecha límite de seguimiento</b> y el responsable.</div>
+  <div class="paso"><b class="n">3</b>Toque <b>«Registrar visitante»</b>. Verá la confirmación verde
+  «Registrado ✔» y el formulario queda listo para el próximo visitante.</div>
+
+  <div class="ok"><b>Sin conexión:</b> si aparece «Sin conexión: guardado en el dispositivo», no se perdió nada.
+  El registro quedó en su teléfono y se enviará solo. Si ve el botón «⟳ Reenviar registros pendientes»,
+  puede tocarlo cuando vuelva la señal.</div>
+</div>
+
+<!-- ═══ REPORTES ═══ -->
+<div class="pag">
+  <h2>Reportes (sección «supervisión»)</h2>
+  <img class="flujo" src="flujo_reportes.png" style="max-width:600px">
+
+  <h3>Ver reportes en pantalla</h3>
+  <p><b>«Ver reporte de hoy»</b> abre el reporte del día; <b>«Ver reporte acumulado del evento»</b> abre el
+  consolidado de toda la expo (por día, por país, por promotor, con todos los leads A y B).</p>
+
+  <h3>Enviar reportes por email</h3>
+  <div class="paso"><b class="n">1</b>Escriba los destinatarios (uno o varios, separados por coma). Se recuerdan para la próxima vez.</div>
+  <div class="paso"><b class="n">2</b>Elija el tipo: <b>Hoy</b> · <b>Rango de fechas</b> (aparecen los campos Desde/Hasta) · <b>Todo el evento</b>.</div>
+  <div class="paso"><b class="n">3</b>Toque <b>«✉️ Enviar reporte»</b> y confirme. El email llega con el <b>PDF adjunto</b>.</div>
+  <p>Con <b>«📥 Descargar PDF»</b> obtiene el mismo reporte como archivo, sin enviar email.</p>
+
+  <div class="ok"><b>Automático:</b> todos los días a las <b>19:30</b> el reporte del día se genera y se envía solo
+  a la gerencia. El promotor no tiene que hacer nada.</div>
+
+  <h2>Códigos QR y Mapas</h2>
+  <p><b>Códigos QR:</b> muestre la pantalla al visitante para que escanee con su teléfono:
+  <b>Inquiry</b> (inglés), <b>Consulta</b> (español), <b>Consulta em Português</b>, o el <b>Brochure</b> trilingüe.</p>
+  <p><b>Mapas:</b> la vista satelital y el plano de loteamiento se deslizan horizontalmente;
+  «Ver en pantalla completa» los abre en grande y el plano puede descargarse en PDF para compartir.</p>
+
+  <h2>Problemas frecuentes</h2>
+  <table>
+    <tr><th style="width:42%">Síntoma</th><th>Solución</th></tr>
+    <tr><td>El punto de conexión está rojo</td><td>Siga trabajando normal; los registros se guardan y reenvían solos.</td></tr>
+    <tr><td>«No se pudo analizar la tarjeta»</td><td>Reintente con mejor luz y la tarjeta plana, o complete a mano. La foto igual queda archivada.</td></tr>
+    <tr><td>El escaneo dice «Límite diario alcanzado»</td><td>Se llegó al tope de seguridad del día; registre a mano y avise al administrador.</td></tr>
+    <tr><td>La app se ve «vieja» o falta un botón</td><td>Toque la franja azul de actualización si aparece, o cierre y vuelva a abrir la página.</td></tr>
+    <tr><td>Envié un registro con un error</td><td>No se puede editar desde la app: avise al administrador con el nombre del visitante para corregirlo en la base.</td></tr>
+  </table>
+
+  <p style="margin-top:18px;color:#5E7079;font-size:10px">Sistema de Captación PTITP · v1.8 ·
+  Soporte: administrador del sistema · Parque Tecnológico Inteligente Taiwán-Paraguay</p>
+</div>
+</body></html>

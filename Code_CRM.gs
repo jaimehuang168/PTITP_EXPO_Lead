@@ -296,12 +296,29 @@ ${visitasTxt}
 Pipeline abierto: ${abiertos.length} leads
 — Sistema de Seguimiento PTITP`;
 
+  // HTML 版任務信
+  const lineaHtml = r =>
+    '<b>' + _escHtml(r[HP['Nombre']]) + '</b> — ' + (_escHtml(r[HP['Empresa']]) || 's/empresa') +
+    ' <span style="color:#5E7079">[' + _escHtml(String(r[HP['Calificación']]).charAt(0) || '?') + ']</span><br>' +
+    _escHtml(r[HP['Próxima acción']] || 'definir acción') +
+    ' · vence <b style="color:#D3452B">' + _escHtml(String(r[HP['Fecha límite']]).slice(0, 10) || 'N/D') + '</b>' +
+    ' · Resp.: ' + (_escHtml(r[HP['Responsable']]) || 'N/D');
+  const visHtmlItems = visitasTxt === '  (ninguna)' ? [] :
+    visitasTxt.split('\n').map(v => _escHtml(v.replace(/^  ▸ /, '')));
+  const htmlCuerpo =
+    _seccionTareasHtml('⚠️ Vencidas (' + vencidas.length + ')', '#D3452B', vencidas.map(lineaHtml)) +
+    _seccionTareasHtml('📌 Vencen hoy (' + paraHoy.length + ')', '#D99A2B', paraHoy.map(lineaHtml)) +
+    _seccionTareasHtml('🔥 Leads A sin contacto hace +' + CRM.DIAS_ALERTA_A + ' días (' + aFrios.length + ')', '#CE1126', aFrios.map(lineaHtml)) +
+    _seccionTareasHtml('🏭 Visitas al parque hoy / mañana', '#009C81', visHtmlItems) +
+    '<div style="margin-top:12px;font-size:12px;color:#5E7079">Pipeline abierto: <b>' + abiertos.length + '</b> leads</div>';
+
   const dest = _validarEmailsCRM(_cfgCRM('Emails resumen diario'));
   if (dest) {
     MailApp.sendEmail({
       to: dest,
       subject: `[PTITP CRM] Tareas ${hoy} — ${vencidas.length} vencidas, ${paraHoy.length} hoy, ${aFrios.length} leads A fríos`,
-      body: cuerpo,
+      body: cuerpo, // 純文字 fallback
+      htmlBody: _envolturaHtml('Tareas de seguimiento', hoy + ' · PTITP CRM', htmlCuerpo),
     });
   }
   Logger.log(cuerpo);
@@ -568,7 +585,16 @@ function _enviarEmailVisita(clave, idioma, lead, fecha, hora, recepcion, conAdju
       });
     }
   }
-  const opciones = { to: lead.email, subject: _rellenar(pl.asunto, m), body: _rellenar(pl.cuerpo, m) };
+  const cuerpoTxt = _rellenar(pl.cuerpo, m);
+  const tituloMail = clave === 'recordatorio'
+    ? { ES: 'Recordatorio de visita', EN: 'Visit reminder', PT: 'Lembrete de visita' }[idioma] || 'Recordatorio de visita'
+    : { ES: 'Visita confirmada', EN: 'Visit confirmed', PT: 'Visita confirmada' }[idioma] || 'Visita confirmada';
+  const opciones = {
+    to: lead.email,
+    subject: _rellenar(pl.asunto, m),
+    body: cuerpoTxt, // 純文字 fallback
+    htmlBody: _envolturaHtml(tituloMail, 'PTITP · ' + fecha + (hora ? ' · ' + hora : ''), _textoAHtml(cuerpoTxt)),
+  };
   if (adjuntos.length) opciones.attachments = adjuntos;
   const cc = _validarEmailsCRM(_cfgCRM('Email copia visitas'));
   if (cc) opciones.cc = cc;
@@ -819,12 +845,46 @@ ${negociaciones.slice(0, 12).map(n =>
     MailApp.sendEmail({
       to: dest,
       subject: `[PTITP CRM] Pipeline semanal ${hoyStr} — ${fmt(m2Ponderado)} m² ponderados, ${visProx} visitas próximas`,
-      body: 'Adjunto el reporte semanal de pipeline del PTITP.\n\n— Sistema de Seguimiento PTITP',
+      body: 'Adjunto el reporte semanal de pipeline del PTITP.\n\n— Sistema de Seguimiento PTITP', // 純文字 fallback
+      htmlBody: html,
       attachments: [pdf],
     });
   }
   Logger.log('✅ 週報產生完成');
   return html;
+}
+
+// ══════════ Email HTML 工具 ══════════
+function _escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+// 品牌化信件外框（青綠頁首帶 + 內容 + 頁尾）
+function _envolturaHtml(titulo, subtitulo, contenido) {
+  return '<html><body style="margin:0;padding:0;background:#F2F6F5">' +
+    '<div style="max-width:640px;margin:0 auto;font-family:Helvetica,Arial,sans-serif;color:#152730">' +
+    '<table width="100%" style="border-collapse:collapse"><tr>' +
+    '<td style="background:#009C81;padding:14px 18px">' +
+    '<div style="font-size:16px;font-weight:bold;color:#ffffff">' + titulo + '</div>' +
+    (subtitulo ? '<div style="font-size:11px;color:#DFF3EE;margin-top:3px">' + subtitulo + '</div>' : '') +
+    '</td><td width="6" style="background:#14588F"></td></tr></table>' +
+    '<div style="background:#ffffff;padding:16px 18px;border:1px solid #DCE7E3;border-top:0">' + contenido + '</div>' +
+    '<div style="padding:10px 18px;font-size:10px;color:#5E7079">Sistema PTITP &mdash; Parque Tecnol&oacute;gico Inteligente Taiw&aacute;n-Paraguay</div>' +
+    '</div></body></html>';
+}
+// 純文字模板 → HTML（跳脫、換行、自動連結）
+function _textoAHtml(txt) {
+  return _escHtml(txt)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#14588F">$1</a>')
+    .replace(/\n/g, '<br>');
+}
+// 任務信的清單區塊
+function _seccionTareasHtml(titulo, color, items) {
+  return '<div style="margin:14px 0 6px;border-left:5px solid ' + color + ';padding-left:9px;' +
+    'font-weight:bold;color:#14588F;font-size:13px">' + titulo + '</div>' +
+    (items.length
+      ? items.map(i => '<div style="border:1px solid #DCE7E3;border-left:4px solid ' + color + ';' +
+          'padding:7px 10px;margin-top:5px;font-size:12px;line-height:1.45">' + i + '</div>').join('')
+      : '<div style="color:#5E7079;font-size:12px">(ninguna)</div>');
 }
 
 function _validarEmailsCRM(raw) {

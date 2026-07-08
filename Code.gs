@@ -263,7 +263,8 @@ function doGet(e) {
       MailApp.sendEmail({
         to: emails,
         subject: `[PTITP] Reporte ${sel.titulo} — ${sel.rpt.total} visitantes, ${sel.rpt.nA} leads A`,
-        body: sel.rpt.texto,
+        body: sel.rpt.texto, // 純文字 fallback
+        htmlBody: _htmlDeReporte(sel.rpt, sel.titulo),
         attachments: [_pdfDeReporte(sel.rpt, sel.titulo, sel.archivo)],
       });
       return _json({ ok: true, enviado: 'a ' + emails, total: sel.rpt.total });
@@ -306,7 +307,8 @@ function generarReporteDiario() {
     MailApp.sendEmail({
       to: dest,
       subject: `[PTITP] Reporte diario de promoción — ${fecha} (${rpt.total} visitantes, ${rpt.nA} leads A)`,
-      body: rpt.texto,
+      body: rpt.texto, // 純文字 fallback
+      htmlBody: _htmlDeReporte(rpt, 'diario ' + fecha),
       attachments: [_pdfDeReporte(rpt, 'diario ' + fecha, 'PTITP_Reporte_diario_' + fecha)],
     });
   }
@@ -369,15 +371,20 @@ function _reporteSegunTipo(p) {
 // 品牌化 PDF：頁首色帶、統計卡、雙欄統計表、A/B 客戶卡片。
 // 注意：GAS 的 HTML→PDF 轉換不支援 flexbox/grid，排版一律用 table。
 function _pdfDeReporte(rpt, titulo, archivo) {
+  const html = _htmlDeReporte(rpt, titulo);
+  return Utilities.newBlob(html, 'text/html', archivo + '.html')
+    .getAs('application/pdf').setName(archivo + '.pdf');
+}
+
+// 品牌化報告 HTML：同時用於 PDF 轉換與 email 的 htmlBody
+function _htmlDeReporte(rpt, titulo) {
   const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const d = rpt.datos;
 
   // 相容保護：若無結構化資料，退回純文字版
   if (!d) {
-    const htmlSimple = '<html><head><meta charset="utf-8"></head><body><pre>' +
+    return '<html><head><meta charset="utf-8"></head><body><pre>' +
       esc(rpt.texto || rpt) + '</pre></body></html>';
-    return Utilities.newBlob(htmlSimple, 'text/html', archivo + '.html')
-      .getAs('application/pdf').setName(archivo + '.pdf');
   }
 
   const C = { verde: '#009C81', azul: '#14588F', tinta: '#152730', gris: '#5E7079',
@@ -470,8 +477,7 @@ Generado autom&aacute;ticamente &mdash; Sistema de Captaci&oacute;n PTITP &nbsp;
 
 </body></html>`;
 
-  return Utilities.newBlob(html, 'text/html', archivo + '.html')
-    .getAs('application/pdf').setName(archivo + '.pdf');
+  return html;
 }
 
 // ══════════ 報告產生核心 ══════════
