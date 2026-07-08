@@ -1,3 +1,6 @@
 ﻿*.xlsx
 _crops/
 *_BACKUP*
+*.xlsx
+_crops/
+*_BACKUP*
