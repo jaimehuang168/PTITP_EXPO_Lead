@@ -70,9 +70,15 @@ function setup() {
   let cfg = ss.getSheetByName(CONFIG.SHEET_CONFIG);
   if (!cfg) cfg = ss.insertSheet(CONFIG.SHEET_CONFIG);
   if (cfg.getLastRow() === 0) {
-    cfg.appendRow(['Emails para reporte automático (19:30)', '', '← escriba en la celda B1 uno o varios emails separados por coma; se aplica de inmediato']);
+    cfg.appendRow(['Emails para reporte automático', '', '← uno o varios emails separados por coma; se aplica de inmediato']);
     cfg.getRange(1, 1).setFontWeight('bold');
   }
+  // 遷移：補排程參數列（起訖日期 + 寄送時鐘），已存在則略過
+  const cfgVals = cfg.getDataRange().getValues();
+  const tiene = p => cfgVals.some(r => String(r[0]).toLowerCase().indexOf(p) === 0);
+  if (!tiene('fecha inicio')) cfg.appendRow(['Fecha inicio reportes', '', 'yyyy-mm-dd · vacío = enviar todos los días']);
+  if (!tiene('fecha fin'))    cfg.appendRow(['Fecha fin reportes', '', 'yyyy-mm-dd · vacío = sin límite']);
+  if (!tiene('hora'))         cfg.appendRow(['Hora de envío (0-23)', 19, 'hora local Paraguay; se aplica de inmediato']);
   Logger.log('✅ 初始化完成');
 }
 
@@ -332,6 +338,46 @@ function _getReportEmails() {
   } catch (err) {
     return _validarEmails(CONFIG.REPORT_EMAIL);
   }
+}
+
+// 讀 Config 分頁參數：以標籤前綴比對（不分大小寫），日期儲存格自動正規化為 yyyy-MM-dd
+function _cfgExpo(prefijo) {
+  try {
+    const cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_CONFIG);
+    if (!cfg) return '';
+    const vals = cfg.getDataRange().getValues();
+    const row = vals.find(r => String(r[0]).toLowerCase().indexOf(prefijo) === 0);
+    if (!row) return '';
+    const v = row[1];
+    if (v instanceof Date) return Utilities.formatDate(v, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+    return String(v == null ? '' : v).trim();
+  } catch (err) { return ''; }
+}
+
+// ══════════ 排程守門：每小時被觸發器喚醒，只在展期內的指定時鐘寄送 ══════════
+// Config 三參數（改完即生效，不用重裝觸發器）：
+//   Fecha inicio/fin reportes：兩者可留空 = 不設限（每天寄）
+//   Hora de envío (0-23)：預設 19（觸發器整點喚醒，實際寄出在該時鐘的 0-59 分內）
+function reporteProgramado() {
+  const ahora = new Date();
+  const hoy = Utilities.formatDate(ahora, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+  const horaActual = Number(Utilities.formatDate(ahora, CONFIG.ZONA_HORARIA, 'H'));
+
+  const ini = _cfgExpo('fecha inicio');
+  const fin = _cfgExpo('fecha fin');
+  const horaCfg = _cfgExpo('hora') === '' ? 19 : Number(_cfgExpo('hora'));
+
+  if (_fechaValida(ini) && hoy < ini) { Logger.log('展期未開始，不寄'); return 'antes del rango'; }
+  if (_fechaValida(fin) && hoy > fin) { Logger.log('展期已結束，不寄'); return 'después del rango'; }
+  if (horaActual !== horaCfg) return 'hora distinta';
+
+  // 同日去重（觸發器每小時執行，一天只寄一次）
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('ultimo_reporte_auto') === hoy) return 'ya enviado hoy';
+
+  generarReporteDiario();
+  props.setProperty('ultimo_reporte_auto', hoy);
+  return 'enviado';
 }
 
 // 驗證並清洗 email 清單（逗號/分號/空白分隔，上限 10 個）
@@ -673,10 +719,10 @@ Generado automáticamente — Sistema de Captación PTITP
 // ══════════ 每晚 19:30 自動產生報告（執行一次即可安裝） ══════════
 function crearTriggerDiario() {
   ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === 'generarReporteDiario')
+    .filter(t => ['generarReporteDiario', 'reporteProgramado'].indexOf(t.getHandlerFunction()) !== -1)
     .forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('generarReporteDiario')
-    .timeBased().everyDays(1).atHour(19).nearMinute(30).create();
+  ScriptApp.newTrigger('reporteProgramado')
+    .timeBased().everyHours(1).create(); // 每小時醒來，由 Config 決定寄不寄
   Logger.log('✅ 已安裝每日 19:30 觸發器');
 }
 
@@ -684,7 +730,7 @@ function crearTriggerDiario() {
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('📋 PTITP Expo')
     .addItem('Generar reporte de hoy', 'generarReporteDiario')
-    .addItem('Instalar reporte automático (19:30)', 'crearTriggerDiario')
+    .addItem('Instalar reporte automático (según Config)', 'crearTriggerDiario')
     .addToUi();
 }
 

@@ -601,54 +601,48 @@ function _enviarEmailVisita(clave, idioma, lead, fecha, hora, recepcion, conAdju
   MailApp.sendEmail(opciones);
 }
 
-// ══════════ Fase 3：地籍與租用種子資料 ══════════
-// 來源：園區平面圖 PDF（AutoCAD Loteamiento）+ 衛星圖標註。
-// 面積為 PDF 所載；地塊編號與對應為推估，Notas 標「verificar」者請人工校正。
-// 座標格式 img:x%,y% = 衛星圖（mapa_satelital.jpg）上的相對位置，供 Fase 4 疊圖；
-// 取得 DWG 或任一 GPS 錨點後可批次換算 WGS84。
+// ══════════ Fase 3：地籍與租用種子資料（v2 — 校正版） ══════════
+// 來源：PTITP_Lotes_Ocupaciones_CORREGIDO（Jaime 依平面圖逐項校正，2026-07）。
+// 主要校正：Elon→ACELON(Block XI, 33.496m²)；Gauss→XII-05(1.618,85)；
+//   TELECEL 2.700→340（2.700 屬 Master Bus 租區）；Master Bus = XV+MB-B+MB-LEASE 三塊；
+//   K y K→VII-12、POLOS→X-02、Maruri→X-08、Cintas→VII-11；XIV 整塊為 PSC 用途。
+// 「Tipo de uso」只記物理用途；商業狀態一律由 Ocupaciones 推導（actualizarLotes）。
+// Block V/VI/VIII/IX/X/XII 其餘可租小地塊尚未逐筆建入，需要時依平面圖補列。
+// 座標格式 img:x%,y% = 衛星圖相對位置（Fase 4 疊圖用）。
 function _sembrarLotes(ss) {
   const shL = ss.getSheetByName(CRM.SH.LOTES);
   if (shL && shL.getLastRow() <= 1) {
     const L = [
-      // 北側工業帶（台東街–台灣大道間），Block XIII–XVII
-      ['XIII-05', 'XIII', 'industrial', 2320, '', '', '', '', 'numeración a verificar con CAD'],
-      ['XIII-06', 'XIII', 'industrial', 4524, '', '', '', '', 'verificar'],
-      ['XIII-09', 'XIII', 'industrial', 1160, '', '', '', '', 'verificar'],
-      ['XIV-05', 'XIV', 'industrial', 2120, '', '', '', '', 'verificar'],
-      ['XIV-06', 'XIV', 'industrial', 4134, '', '', '', '', 'verificar'],
-      ['XV-05', 'XV', 'industrial', 2120, '', '', '', '', 'verificar'],
-      ['XV-06', 'XV', 'industrial', 4134, '', '', '', '', 'verificar'],
-      ['XVI-05', 'XVI', 'industrial', 2120, '', '', '', '', 'verificar'],
-      ['XVI-06', 'XVI', 'industrial', 4134, '', '', '', '', 'verificar'],
-      ['XVII-05', 'XVII', 'industrial', 2120, '', '', '', '', 'verificar'],
-      ['XVII-06', 'XVII', 'industrial', 4134, '', '', '', '', 'verificar'],
-      // 南側大地塊（花蓮街一帶）
-      ['SUR-01', 'S', 'industrial', 15449, 'img:29%,50%', 'img:37%,50%', 'img:37%,63%', 'img:29%,63%', 'zona K y K — verificar'],
-      ['SUR-02', 'S', 'industrial', 15756, 'img:39%,50%', 'img:46%,50%', 'img:46%,63%', 'img:39%,63%', 'zona POLOS — verificar'],
-      ['SUR-03', 'S', 'industrial', 21477.25, 'img:52%,50%', 'img:58%,50%', 'img:58%,62%', 'img:52%,62%', 'zona Maruri — verificar'],
-      ['SUR-04', 'S', 'industrial', 13752, '', '', '', '', 'verificar'],
-      ['SUR-05', 'S', 'industrial', 10920, '', '', '', '', 'verificar'],
-      ['SUR-06', 'S', 'industrial', 5460, '', '', '', '', 'verificar'],
-      ['SUR-07', 'S', 'industrial', 8558.25, 'img:85%,71%', 'img:92%,71%', 'img:92%,80%', 'img:85%,80%', 'zona 成運/Master Bus — verificar'],
-      // 服務性小地塊
-      ['SRV-01', 'S', 'industrial', 306.25, '', '', '', '', 'verificar'],
-      ['SRV-02', 'S', 'industrial', 1618.75, '', '', '', '', 'verificar'],
-      ['SRV-03', 'S', 'industrial', 1400, '', '', '', '', 'verificar'],
-      ['SRV-04', 'S', 'industrial', 1400, '', '', '', '', 'verificar'],
-      ['SRV-05', 'S', 'industrial', 1618.85, '', '', '', '', 'verificar'],
-      // TELECEL 租區
-      ['TELECEL-01', 'E', 'industrial', 2700, '', '', '', '', 'área arrendada a TELECEL según plano'],
-      // 綠地 / 公設 / 管理
-      ['VERDE-01', 'E', 'área verde', '', '', '', '', '', 'lote verde recreativo (plano)'],
-      ['INFRA-PTAR', 'NE', 'infraestructura', '', 'img:78%,6%', 'img:87%,6%', 'img:87%,16%', 'img:78%,16%', 'planta de tratamiento de aguas'],
-      ['INFRA-RET', 'NO', 'reserva', '', 'img:2%,6%', 'img:8%,6%', 'img:8%,16%', 'img:2%,16%', '舊洪池預定地 / retención pluvial'],
-      ['ADMIN-01', 'E', 'administrativo PSC', 4176, '', '', '', '', 'lote administrativo PTITP; construcción disponible 2.016 m²'],
-      ['EDIF-ADM', 'E', 'administrativo PSC', '', 'img:69%,22%', 'img:76%,22%', 'img:76%,30%', 'img:69%,30%', '舊行政大樓 / centro administrativo'],
-      ['EDIF-VIS', 'E', 'administrativo PSC', '', 'img:86%,33%', 'img:91%,33%', 'img:91%,42%', 'img:86%,42%', '願景館 / centro de visitantes'],
-      ['EDIF-REST', 'E', 'administrativo PSC', 400, '', '', '', '', 'restaurante'],
-      ['EDIF-CAP', 'E', 'administrativo PSC', 2300, '', '', '', '', 'centro de capacitación e incubación'],
-      ['EDIF-DORM', 'E', 'administrativo PSC', 340, '', '', '', '', 'dormitorio; anexos 95/240/280/231 m²'],
-      ['EDIF-G7', 'C', 'industrial', '', 'img:47%,26%', 'img:60%,26%', 'img:60%,46%', 'img:47%,46%', '7號廠房 / galpón 7 (dentro de reserva Julong)'],
+      // 大型街廓與已對位地塊
+      ['XI', 'XI', 'industrial', 33496, 'img:40%,25%', 'img:68%,25%', 'img:68%,48%', 'img:40%,48%', 'BLOCK RESERVED FOR ACELON; incluye AMR Power Supply Station'],
+      ['XII-05', 'XII', 'industrial', 1618.85, 'img:56%,4%', 'img:61%,4%', 'img:61%,15%', 'img:56%,15%', 'LEASED WAREHOUSE FOR GAUSS FURNITURE'],
+      ['XIII', 'XIII', 'industrial', 10920, '', '', '', '', 'bloque numerado'],
+      ['XIV', 'XIV', 'administrativo PSC', 15756, '', '', '', '', 'parcela usos PSC: restaurante, capacitación, área verde recreativa, visitantes'],
+      ['XV', 'XV', 'industrial', 15449, '', '', '', '', 'BLOCK RESERVED FOR MASTERBUS (principal) (+306,25 anexo)'],
+      ['XVI', 'XVI', 'industrial', 21477.25, '', '', '', '', 'bloque numerado (sin empresa)'],
+      ['XVII', 'XVII', 'administrativo PSC', 13752, '', '', '', '', 'ADMINISTRATIVE LOT OF PTITP'],
+      ['MB-B', 's/n', 'industrial', 6912, '', '', '', '', '2º BLOCK RESERVED FOR MASTERBUS (junto a TAIPEI)'],
+      ['MB-LEASE', 'E', 'industrial', 2700, '', '', '', '', 'LEASED AREA FOR MASTERBUS'],
+      ['TELECEL-01', 'E', 'industrial', 340, '', '', '', '', 'área arrendada a TELECEL (+95 y +1.618,75 anexos)'],
+      ['BLK-8558', 's/n', 'industrial', 8558.25, 'img:85%,71%', 'img:92%,71%', 'img:92%,80%', 'img:85%,80%', 'bloque junto a XVI, sin empresa (verificar)'],
+      // 西側街廓（整塊列示；內部小地塊需要時再細分）
+      ['I', 'I', 'industrial', 3480, '', '', '', '', 'bloque numerado'],
+      ['II', 'II', 'industrial', 6360, '', '', '', '', 'bloque numerado'],
+      ['III', 'III', 'industrial', 6360, '', '', '', '', 'bloque numerado'],
+      ['IV', 'IV', 'industrial', 4200, '', '', '', '', 'bloque numerado'],
+      // 已租小地塊（西/中區）
+      ['VII-12', 'VII', 'industrial', 4134, 'img:29%,51%', 'img:36%,51%', 'img:36%,62%', 'img:29%,62%', 'K y K Industria Plástica S.R.L'],
+      ['VII-11', 'VII', 'industrial', 2067, '', '', '', '', 'Cintas S.A (verificar 2ª nave según satélite)'],
+      ['X-02', 'X', 'industrial', 4134, 'img:39%,51%', 'img:46%,51%', 'img:46%,62%', 'img:39%,62%', 'POLOS S.R.L'],
+      ['X-08', 'X', 'industrial', 2120, 'img:53%,51%', 'img:57%,51%', 'img:57%,61%', 'img:53%,61%', 'Maruri S.A'],
+      // 公設 / 管理
+      ['INFRA-PTAR', 'NE', 'infraestructura', 231, 'img:78%,6%', 'img:87%,6%', 'img:87%,16%', 'img:78%,16%', 'DESIGNATED WASTEWATER TREATMENT PLANT AREA'],
+      ['INFRA-RET', 'NO', 'reserva', '', 'img:2%,6%', 'img:8%,6%', 'img:8%,16%', 'img:2%,16%', 'Retention Wall / retención pluvial (área a verificar)'],
+      ['DORM', 'E', 'administrativo PSC', 4176, '', '', '', '', 'DORMITORY — block area 4.176 m²; anexos 340/95/240/280/231'],
+      ['EDIF-ADM', 'E', 'administrativo PSC', 280, 'img:69%,22%', 'img:76%,22%', 'img:76%,30%', 'img:69%,30%', 'ADMINISTRATION CENTER (舊行政大樓)'],
+      ['EDIF-OFI', 'E', 'administrativo PSC', 240, '', '', '', '', 'PTITP OFFICE'],
+      ['EDIF-REST', 'XIV', 'administrativo PSC', 400, '', '', '', '', 'restaurante'],
+      ['EDIF-CAP', 'XIV', 'administrativo PSC', 2300, '', '', '', '', 'centro de capacitación e incubación'],
     ];
     L.forEach(r => shL.appendRow(r.concat(['', ''])));
   }
@@ -656,15 +650,15 @@ function _sembrarLotes(ss) {
   const shO = ss.getSheetByName(CRM.SH.OCUP);
   if (shO && shO.getLastRow() <= 1) {
     const O = [
-      ['O-001', 'TELECEL', '', 'alquilado', 'TELECEL-01', 2700, '', '', '', '', '', '', 'según plano — verificar contrato'],
-      ['O-002', 'Gauss (高斯)', '', 'alquilado', 'XVII-06(verificar)', '', 'img:56%,4%', 'img:61%,4%', 'img:61%,15%', 'img:56%,15%', '', '', 'galpón norte arrendado — verificar lote y m²'],
-      ['O-003', 'K y K', '', 'alquilado', 'SUR-01(parcial)', '', 'img:29%,51%', 'img:36%,51%', 'img:36%,62%', 'img:29%,62%', '', '', 'seed inicial — verificar'],
-      ['O-004', 'POLOS', '', 'alquilado', 'SUR-02(parcial)', '', 'img:39%,51%', 'img:46%,51%', 'img:46%,62%', 'img:39%,62%', '', '', 'seed inicial — verificar'],
-      ['O-005', 'Maruri', '', 'alquilado', 'SUR-03(parcial)', '', 'img:53%,51%', 'img:57%,51%', 'img:57%,61%', 'img:53%,61%', '', '', 'seed inicial — verificar'],
-      ['O-006', 'Cintas', '', 'alquilado', 'SUR-04(parcial), SUR-06(parcial)', '', '', '', '', '', '', '', 'dos naves según satélite — verificar'],
-      ['O-007', 'Julong (聚隆)', '', 'reservado', 'XIV-05, XIV-06, XV-05, XV-06, EDIF-G7', '', 'img:40%,25%', 'img:68%,25%', 'img:68%,48%', 'img:40%,48%', '', '', 'reserva según satélite (incl. galpón 7) — verificar alcance'],
-      ['O-008', 'Master Bus (成運)', '', 'reservado', 'SUR-07(parcial), XVI-05(verificar), XVI-06(verificar)', '', '', '', '', '', '', '', 'ensamblaje buses eléctricos; bloques reservados según plano'],
-      ['O-009', 'Elon', '', 'reservado', 'XIII-05(verificar)', '', '', '', '', '', '', '', 'ELON BLOCK según plano'],
+      ['O-001', 'TELECEL', '', 'alquilado', 'TELECEL-01', 340, '', '', '', '', '', '', 'm² corregido 2.700→340 (el 2.700 es de Master Bus)'],
+      ['O-002', 'Gauss (高斯)', '', 'alquilado', 'XII-05', 1618.85, '', '', '', '', '', '', 'LEASED WAREHOUSE FOR GAUSS FURNITURE (corregido de XVII-06)'],
+      ['O-003', 'K y K', '', 'alquilado', 'VII-12', 4134, '', '', '', '', '', '', 'corregido de SUR-01(15.449) a VII-12(4.134)'],
+      ['O-004', 'POLOS', '', 'alquilado', 'X-02', 4134, '', '', '', '', '', '', 'corregido de SUR-02(15.756) a X-02(4.134)'],
+      ['O-005', 'Maruri', '', 'alquilado', 'X-08', 2120, '', '', '', '', '', '', 'corregido de SUR-03(21.477) a X-08(2.120)'],
+      ['O-006', 'Cintas', '', 'alquilado', 'VII-11', 2067, '', '', '', '', '', '', 'corregido; verificar 2ª nave según satélite'],
+      ['O-007', 'Julong (聚隆)', '', 'reservado', '', '', 'img:40%,25%', 'img:68%,25%', 'img:68%,48%', 'img:40%,48%', '', '', 'NO figura en el plano (zona rotulada en satélite coincide con Block XI/ACELON) — aclarar con administración'],
+      ['O-008', 'Master Bus (成運)', '', 'reservado', 'XV, MB-B, MB-LEASE', 25061, '', '', '', '', '', '', 'XV(15.449)+2º bloque(6.912)+área arrendada(2.700); se elimina XVI'],
+      ['O-009', 'ACELON', '', 'reservado', 'XI', 33496, '', '', '', '', '', '', 'corregido: nombre Elon→ACELON, bloque XIII-05→XI'],
     ];
     O.forEach(r => shO.appendRow(r));
   }
