@@ -100,6 +100,8 @@ function setupCRM() {
   }
   if (!tieneParam('Emails reporte semanal'))
     cfg.appendRow(['Emails reporte semanal', '', 'lunes 8:30; si queda vacío usa "Emails resumen diario"']);
+  if (!tieneParam('Usuarios web'))
+    cfg.appendRow(['Usuarios web', '', 'emails autorizados para la interfaz web (coma); vacío = solo controla el despliegue']);
 
   _sembrarPlantillas(ss);
   _sembrarLotes(ss);
@@ -903,6 +905,122 @@ function crearTriggersCRM() {
   ScriptApp.newTrigger('recordatoriosVisitas').timeBased().everyDays(1).atHour(16).create();
   ScriptApp.newTrigger('reporteSemanal').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).create();
   Logger.log('✅ 觸發器已安裝：同步每10分鐘、任務信每朝8:00、參訪提醒每日16:00、週報週一8點');
+}
+
+// ══════════ Web 介面（W1：Dashboard + Pipeline 看板） ══════════
+// 部署：部署 → 新增部署作業 → 類型「網頁應用程式」→ 執行身分「我」→ 存取權「只有我自己」。
+// 未來開放同事：存取權改「任何擁有 Google 帳戶的使用者」並在 Config「Usuarios web」填 email 白名單。
+function doGet(e) {
+  if (!_usuarioWebAutorizado())
+    return HtmlService.createHtmlOutput('<h3 style="font-family:sans-serif">Acceso no autorizado</h3>');
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle('PTITP CRM')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function _usuarioWebAutorizado() {
+  try {
+    const lista = _cfgCRM('Usuarios web');
+    if (!lista) return true; // 白名單留空：交由部署層的存取權控管（「只有我」）
+    const yo = String(Session.getActiveUser().getEmail() || '').toLowerCase();
+    return lista.toLowerCase().split(/[,;\s]+/).indexOf(yo) !== -1;
+  } catch (err) { return false; }
+}
+
+// 一次抓齊 Dashboard + 看板資料（前端單次往返）
+function webDatos() {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const pv = ss.getSheetByName(CRM.SH.PIPELINE).getDataRange().getValues();
+  const HP = {}; pv[0].forEach((h, i) => HP[h] = i);
+  const hoy = Utilities.formatDate(new Date(), CRM.ZONA, 'yyyy-MM-dd');
+  const en7 = Utilities.formatDate(new Date(Date.now() + 7 * 86400000), CRM.ZONA, 'yyyy-MM-dd');
+  const limA = Utilities.formatDate(new Date(Date.now() - CRM.DIAS_ALERTA_A * 86400000), CRM.ZONA, 'yyyy-MM-dd');
+
+  const pipeline = pv.slice(1).filter(r => String(r[0])).map(r => ({
+    leadId: String(r[HP['LeadID']]),
+    nombre: String(r[HP['Nombre']] || ''), empresa: String(r[HP['Empresa']] || ''),
+    pais: String(r[HP['País']] || ''), tel: String(r[HP['Teléfono']] || ''),
+    email: String(r[HP['Email']] || ''), calif: String(r[HP['Calificación']] || '').charAt(0) || 'C',
+    intereses: String(r[HP['Intereses']] || ''), tarjeta: String(r[HP['Tarjeta']] || ''),
+    etapa: String(r[HP['Etapa']] || 'Nuevo'), resp: String(r[HP['Responsable']] || ''),
+    accion: String(r[HP['Próxima acción']] || ''),
+    limite: String(r[HP['Fecha límite']]).slice(0, 10),
+    ultimo: String(r[HP['Último contacto']]).slice(0, 10),
+    sup: String(r[HP['Superficie (m²)']] || ''), prob: String(r[HP['Probabilidad %']] || ''),
+    lote: String(r[HP['Lote candidato']] || ''), notas: String(r[HP['Notas']] || ''),
+  }));
+
+  const abiertos = pipeline.filter(l => !/Ganado|Perdido/.test(l.etapa));
+  const funnel = CRM.ETAPAS.map(et => ({ etapa: et, n: pipeline.filter(l => l.etapa === et).length }));
+  let m2p = 0;
+  abiertos.forEach(l => {
+    if (['En negociación', 'Propuesta enviada', 'Visita realizada'].indexOf(l.etapa) !== -1)
+      m2p += (Number(l.sup) || 0) * (Number(l.prob) || 0) / 100;
+  });
+
+  // 近 7 日參訪
+  let visProx = 0;
+  const shV = ss.getSheetByName(CRM.SH.VIS);
+  if (shV && shV.getLastRow() > 1) {
+    visProx = shV.getDataRange().getValues().slice(1).filter(r => {
+      const f = String(r[2]).slice(0, 10);
+      return f >= hoy && f <= en7 && !/cancelada/i.test(String(r[7]));
+    }).length;
+  }
+
+  return {
+    usuario: String(Session.getActiveUser().getEmail() || ''),
+    hoy: hoy,
+    etapas: CRM.ETAPAS,
+    pipeline: pipeline,
+    kpis: {
+      abiertos: abiertos.length,
+      vencidas: abiertos.filter(l => l.limite && l.limite < hoy).length,
+      hoyVencen: abiertos.filter(l => l.limite === hoy).length,
+      aFrios: abiertos.filter(l => l.calif === 'A' && (!l.ultimo || l.ultimo < limA)).length,
+      visProx: visProx,
+      m2Ponderado: Math.round(m2p),
+    },
+    funnel: funnel,
+    disponibilidad: resumenDisponibilidad(),
+  };
+}
+
+// 記一筆聯繫（回填 Último contacto，10 秒工作流的核心）
+function webActividad(leadId, tipo, resumen) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  if (!leadId || !String(resumen || '').trim()) throw new Error('Faltan datos');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoy = Utilities.formatDate(new Date(), CRM.ZONA, 'yyyy-MM-dd');
+  const yo = String(Session.getActiveUser().getEmail() || '').split('@')[0];
+  ss.getSheetByName(CRM.SH.ACT).appendRow([hoy, leadId, tipo || 'otro', String(resumen).trim(), yo]);
+  const lead = _leadDePipeline(leadId);
+  if (lead) ss.getSheetByName(CRM.SH.PIPELINE)
+    .getRange(lead.fila, H_PIPELINE.indexOf('Último contacto') + 1).setValue(hoy);
+  return { ok: true, fecha: hoy };
+}
+
+// 換階段（看板拖拉 / 詳情選單共用）
+function webEtapa(leadId, etapa) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  if (CRM.ETAPAS.indexOf(etapa) === -1) throw new Error('Etapa inválida');
+  const lead = _leadDePipeline(leadId);
+  if (!lead) throw new Error('Lead no encontrado');
+  SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CRM.SH.PIPELINE)
+    .getRange(lead.fila, H_PIPELINE.indexOf('Etapa') + 1).setValue(etapa);
+  return { ok: true };
+}
+
+// 客戶詳情用：該 lead 的活動史（開 modal 時才抓）
+function webActividadesDe(leadId) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const vals = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(CRM.SH.ACT).getDataRange().getValues();
+  return vals.slice(1)
+    .filter(r => String(r[1]) === String(leadId))
+    .map(r => ({ fecha: String(r[0]).slice(0, 10), tipo: String(r[2] || ''), resumen: String(r[3] || ''), resp: String(r[4] || '') }))
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
 }
 
 // ══════════ 選單 ══════════

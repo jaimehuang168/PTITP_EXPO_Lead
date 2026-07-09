@@ -1,6 +1,7 @@
-﻿*.xlsx
-_crops/
-*_BACKUP*
 *.xlsx
 _crops/
 *_BACKUP*
+
+# Verification artifacts (Playwright + local test snapshots)
+.playwright-mcp/
+test-demo-*.png

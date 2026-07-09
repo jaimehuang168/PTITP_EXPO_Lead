@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PTITP CRM</title>
+<style>
+  :root{--verde:#009C81;--verde-osc:#0F4C46;--azul:#14588F;--tinta:#152730;--gris:#5E7079;
+    --linea:#DCE7E3;--claro:#F2F7F5;--rojo:#D3452B;--ambar:#D99A2B;--fondo:#EEF4F2}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--fondo);
+    color:var(--tinta);font-size:15px;-webkit-font-smoothing:antialiased}
+
+  /* ── 頁首 ── */
+  header{background:linear-gradient(135deg,var(--verde) 0%,var(--azul) 100%);color:#fff;
+    padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;
+    position:sticky;top:0;z-index:20;box-shadow:0 2px 10px rgba(15,76,70,.25)}
+  header h1{font-size:1.05rem;font-weight:700;letter-spacing:.5px}
+  header .sub{font-size:.7rem;opacity:.85;margin-top:2px}
+  #btn-refrescar{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.45);
+    color:#fff;border-radius:8px;padding:.45rem .8rem;font-size:.85rem;font-weight:600}
+  #btn-refrescar:active{background:rgba(255,255,255,.32)}
+
+  /* ── 分頁列 ── */
+  nav{display:flex;background:#fff;border-bottom:2px solid var(--linea);position:sticky;top:52px;z-index:19}
+  nav button{flex:1;padding:.75rem;border:0;background:none;font-size:.92rem;font-weight:700;
+    color:var(--gris);border-bottom:3px solid transparent}
+  nav button.act{color:var(--azul);border-bottom-color:var(--verde)}
+
+  main{padding:.9rem}
+  .oculto{display:none!important}
+
+  /* ── KPI 卡 ── */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1rem}
+  .kpi{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:.7rem .5rem;text-align:center}
+  .kpi b{display:block;font-size:1.5rem;line-height:1.2}
+  .kpi span{font-size:.62rem;color:var(--gris);text-transform:uppercase;letter-spacing:.5px}
+  .kpi.rojo b{color:var(--rojo)} .kpi.ambar b{color:var(--ambar)}
+  .kpi.verde b{color:var(--verde)} .kpi.azul b{color:var(--azul)}
+
+  .tarjeta-seccion{background:#fff;border:1px solid var(--linea);border-radius:12px;
+    padding:.9rem;margin-bottom:1rem}
+  .tarjeta-seccion h2{font-size:.8rem;color:var(--azul);text-transform:uppercase;
+    letter-spacing:1px;border-left:4px solid var(--verde);padding-left:.5rem;margin-bottom:.7rem}
+
+  /* ── 漏斗條 ── */
+  .ffila{display:flex;align-items:center;margin:.32rem 0;font-size:.8rem}
+  .ffila .fl{width:118px;color:var(--gris);flex-shrink:0}
+  .ffila .fb{height:16px;background:var(--verde);border-radius:4px;min-width:3px;margin-right:.4rem}
+  .ffila b{color:var(--azul)}
+
+  /* ── 可用率 ── */
+  .barra{height:20px;border-radius:6px;overflow:hidden;display:flex;margin:.4rem 0}
+  .barra div{height:100%}
+  .leyenda{font-size:.72rem;color:var(--gris);display:flex;gap:.9rem;flex-wrap:wrap}
+  .leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+
+  /* ── 看板 ── */
+  #kanban{display:flex;gap:.7rem;overflow-x:auto;padding-bottom:1rem;
+    -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+  .col{min-width:250px;max-width:250px;background:#E7EFEC;border-radius:12px;
+    padding:.55rem;scroll-snap-align:start;flex-shrink:0}
+  .col.sobre{outline:2.5px dashed var(--verde);outline-offset:-2px}
+  .col h3{font-size:.74rem;color:var(--azul);text-transform:uppercase;letter-spacing:.5px;
+    padding:.15rem .3rem .45rem;display:flex;justify-content:space-between}
+  .col h3 span{background:var(--azul);color:#fff;border-radius:10px;padding:0 .5rem;font-size:.7rem;line-height:1.5}
+  .card{background:#fff;border:1px solid var(--linea);border-left-width:5px;border-radius:9px;
+    padding:.55rem .65rem;margin-bottom:.5rem;cursor:pointer;box-shadow:0 1px 3px rgba(21,39,48,.07)}
+  .card.cA{border-left-color:var(--rojo)} .card.cB{border-left-color:var(--ambar)} .card.cC{border-left-color:var(--gris)}
+  .card b{font-size:.88rem;display:block}
+  .card .emp{font-size:.76rem;color:var(--gris);margin:.1rem 0 .25rem}
+  .card .acc{font-size:.74rem}
+  .card .lim{font-size:.7rem;color:var(--gris)}
+  .card .lim.vencida{color:var(--rojo);font-weight:700}
+  .card.arrastrando{opacity:.45}
+  .col .vacia{font-size:.72rem;color:var(--gris);text-align:center;padding:.8rem 0}
+
+  /* ── Modal 詳情 ── */
+  #velo{position:fixed;inset:0;background:rgba(15,39,48,.55);z-index:30;display:flex;
+    align-items:flex-end;justify-content:center}
+  #modal{background:#fff;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;
+    border-radius:16px 16px 0 0;padding:1rem 1rem 1.4rem}
+  #modal h2{font-size:1.15rem} 
+  #m-empresa{color:var(--gris);font-size:.85rem;margin:.15rem 0 .6rem}
+  .chip{display:inline-block;border-radius:6px;padding:.12rem .5rem;font-size:.72rem;font-weight:700;color:#fff}
+  .chA{background:var(--rojo)} .chB{background:var(--ambar)} .chC{background:var(--gris)}
+  .m-fila{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+  .m-fila a,.m-fila span.dato{background:var(--claro);border:1px solid var(--linea);border-radius:8px;
+    padding:.4rem .6rem;font-size:.8rem;color:var(--azul);text-decoration:none}
+  .m-bloque{border-top:1px solid var(--linea);margin-top:.8rem;padding-top:.8rem}
+  .m-bloque h4{font-size:.74rem;color:var(--azul);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.5rem}
+  select,input[type=text],textarea{width:100%;border:1.5px solid var(--linea);border-radius:9px;
+    padding:.55rem .6rem;font-size:.9rem;font-family:inherit;background:#fff}
+  .botones{display:flex;gap:.5rem;margin-top:.5rem}
+  .btn{flex:1;border:0;border-radius:10px;padding:.65rem;font-size:.9rem;font-weight:700;color:#fff}
+  .btn.verde{background:var(--verde)} .btn.azul{background:var(--azul)}
+  .btn.plano{background:#fff;color:var(--gris);border:1.5px solid var(--linea)}
+  .btn:active{opacity:.8}
+  .hist{font-size:.8rem;border-left:3px solid var(--linea);padding:.3rem .6rem;margin:.35rem 0}
+  .hist .hf{color:var(--gris);font-size:.7rem}
+  #m-cerrar{position:sticky;top:0;float:right;background:var(--claro);border:1px solid var(--linea);
+    border-radius:50%;width:32px;height:32px;font-size:1rem;color:var(--gris)}
+
+  /* ── Toast / 載入 ── */
+  #toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:var(--verde-osc);
+    color:#fff;border-radius:10px;padding:.6rem 1.1rem;font-size:.85rem;z-index:50;
+    box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  #cargando{position:fixed;inset:0;background:rgba(238,244,242,.75);z-index:40;display:flex;
+    align-items:center;justify-content:center;font-weight:700;color:var(--azul)}
+
+  /* ── Banner MODO DEMO (aparece cuando el HTML se abre fuera de Apps Script) ── */
+  #demo-warn{background:repeating-linear-gradient(45deg,#D3452B,#D3452B 12px,#B33A24 12px,#B33A24 24px);
+    color:#fff;padding:.55rem 1rem;font-size:.82rem;font-weight:700;text-align:center;letter-spacing:.4px;
+    line-height:1.3;position:sticky;top:52px;z-index:19;box-shadow:0 2px 6px rgba(211,69,43,.4)}
+  #demo-warn small{display:block;font-weight:500;opacity:.9;font-size:.72rem;margin-top:2px}
+  body.demo nav{top:calc(52px + 2.5rem)}
+  @media(min-width:700px){ .kpis{grid-template-columns:repeat(6,1fr)} #velo{align-items:center} #modal{border-radius:16px} }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>PTITP CRM</h1>
+    <div class="sub" id="sub-usuario">Seguimiento de inversiones</div>
+  </div>
+  <button id="btn-refrescar" onclick="cargar()">⟳ Actualizar</button>
+</header>
+
+<div id="demo-warn" class="oculto">
+  ⚠️ MODO DEMO — datos ficticios
+  <small>Este HTML se abrió fuera de Google Apps Script. Para ver datos reales, despliegue el script y abra la URL /exec.</small>
+</div>
+
+<nav>
+  <button id="tab-panel" class="act" onclick="verTab('panel')">📊 Panel</button>
+  <button id="tab-pipe" onclick="verTab('pipe')">📋 Pipeline</button>
+</nav>
+
+<main>
+  <!-- ══ Dashboard ══ -->
+  <section id="sec-panel">
+    <div class="kpis" id="kpis"></div>
+    <div class="tarjeta-seccion"><h2>Embudo del pipeline</h2><div id="funnel"></div></div>
+    <div class="tarjeta-seccion"><h2>Suelo industrial</h2>
+      <div class="barra" id="barra-suelo"></div>
+      <div class="leyenda" id="ley-suelo"></div>
+    </div>
+  </section>
+
+  <!-- ══ Kanban ══ -->
+  <section id="sec-pipe" class="oculto">
+    <div id="kanban"></div>
+  </section>
+</main>
+
+<!-- ══ Modal detalle ══ -->
+<div id="velo" class="oculto" onclick="if(event.target===this)cerrarModal()">
+  <div id="modal">
+    <button id="m-cerrar" onclick="cerrarModal()">✕</button>
+    <h2 id="m-nombre"></h2>
+    <div id="m-empresa"></div>
+    <div id="m-chips"></div>
+    <div class="m-fila" id="m-contacto"></div>
+    <div class="m-fila" id="m-meta"></div>
+
+    <div class="m-bloque">
+      <h4>Etapa</h4>
+      <select id="m-etapa"></select>
+      <div class="botones">
+        <button class="btn azul" onclick="guardarEtapa()">Guardar etapa</button>
+        <button class="btn plano" onclick="siguienteEtapa()">→ Siguiente</button>
+      </div>
+    </div>
+
+    <div class="m-bloque">
+      <h4>Registrar contacto</h4>
+      <select id="m-tipo">
+        <option value="llamada">Llamada</option><option value="whatsapp">WhatsApp</option>
+        <option value="email">Email</option><option value="reunión">Reunión</option>
+        <option value="visita">Visita</option><option value="otro">Otro</option>
+      </select>
+      <div style="height:.4rem"></div>
+      <textarea id="m-resumen" rows="2" placeholder="¿Qué se habló / qué se acordó?"></textarea>
+      <div class="botones"><button class="btn verde" onclick="guardarActividad()">Guardar contacto</button></div>
+    </div>
+
+    <div class="m-bloque">
+      <h4>Historial</h4>
+      <div id="m-hist"><span style="color:var(--gris);font-size:.8rem">Cargando…</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="oculto"></div>
+<div id="cargando" class="oculto">Cargando datos…</div>
+
+<script>
+var D = null;          // webDatos() 快取
+var leadAbierto = null;
+var ESDEMO = !(typeof google !== 'undefined' && google.script && google.script.run);
+
+/* ── google.script.run 包裝：無 GAS 環境時用示範資料（本機預覽/測試） ── */
+function srv(fn, args, ok, err) {
+  if (!ESDEMO) {
+    var r = google.script.run.withSuccessHandler(ok);
+    if (err) r = r.withFailureHandler(err);
+    r[fn].apply(r, args || []);
+  } else {
+    setTimeout(function(){ ok(DEMO[fn] ? DEMO[fn](args) : {ok:true}); }, 120);
+  }
+}
+
+/* ── 載入與渲染 ── */
+function cargar() {
+  document.getElementById('cargando').className = '';
+  srv('webDatos', [], function(d) {
+    D = d;
+    document.getElementById('cargando').className = 'oculto';
+    document.getElementById('sub-usuario').textContent = d.usuario || 'Seguimiento de inversiones';
+    pintarKpis(); pintarFunnel(); pintarSuelo(); pintarKanban();
+  }, function(e) {
+    document.getElementById('cargando').className = 'oculto';
+    toast('Error: ' + e.message);
+  });
+}
+
+function pintarKpis() {
+  var k = D.kpis;
+  var def = [
+    [k.abiertos, 'Leads abiertos', 'azul'], [k.vencidas, 'Vencidas', 'rojo'],
+    [k.hoyVencen, 'Vencen hoy', 'ambar'], [k.aFrios, 'A sin contacto', 'rojo'],
+    [k.visProx, 'Visitas 7 días', 'verde'], [fmt(k.m2Ponderado), 'm² ponderados', 'azul'],
+  ];
+  var h = '';
+  for (var i = 0; i < def.length; i++)
+    h += '<div class="kpi ' + def[i][2] + '"><b>' + def[i][0] + '</b><span>' + def[i][1] + '</span></div>';
+  document.getElementById('kpis').innerHTML = h;
+}
+
+function pintarFunnel() {
+  var max = 1, i;
+  for (i = 0; i < D.funnel.length; i++) if (D.funnel[i].n > max) max = D.funnel[i].n;
+  var h = '';
+  for (i = 0; i < D.funnel.length; i++) {
+    var f = D.funnel[i];
+    h += '<div class="ffila"><div class="fl">' + f.etapa + '</div>' +
+         '<div class="fb" style="width:' + Math.round(f.n / max * 55) + '%"></div><b>' + f.n + '</b></div>';
+  }
+  document.getElementById('funnel').innerHTML = h;
+}
+
+function pintarSuelo() {
+  var s = D.disponibilidad, tot = s.catTotal || 1;
+  var oc = Math.round(s.catOcupado / tot * 100), disp = 100 - oc;
+  document.getElementById('barra-suelo').innerHTML =
+    '<div style="width:' + oc + '%;background:var(--rojo)"></div>' +
+    '<div style="width:' + disp + '%;background:var(--verde)"></div>';
+  document.getElementById('ley-suelo').innerHTML =
+    '<span><i style="background:var(--rojo)"></i>Ocupado/reservado ' + fmt(s.catOcupado) + ' m²</span>' +
+    '<span><i style="background:var(--verde)"></i>Disponible ' + fmt(s.catDisponible) + ' m²</span>' +
+    '<span>Contractual: alq. ' + fmt(s.contrato.alquilado) + ' / res. ' + fmt(s.contrato.reservado) + ' m²</span>';
+}
+
+function pintarKanban() {
+  var h = '', i, j;
+  for (i = 0; i < D.etapas.length; i++) {
+    var et = D.etapas[i];
+    var cards = [];
+    for (j = 0; j < D.pipeline.length; j++)
+      if (D.pipeline[j].etapa === et) cards.push(D.pipeline[j]);
+    h += '<div class="col" data-etapa="' + esc(et) + '" ondragover="dragSobre(event)" ' +
+         'ondragleave="dragFuera(event)" ondrop="soltar(event)">' +
+         '<h3>' + esc(et) + '<span>' + cards.length + '</span></h3>';
+    if (!cards.length) h += '<div class="vacia">—</div>';
+    for (j = 0; j < cards.length; j++) {
+      var l = cards[j];
+      var vencida = l.limite && D.hoy && l.limite < D.hoy;
+      h += '<div class="card c' + l.calif + '" draggable="true" data-id="' + esc(l.leadId) + '" ' +
+           'ondragstart="arrastrar(event)" ondragend="finArrastre(event)" onclick="abrirLead(\'' + esc(l.leadId) + '\')">' +
+           '<b>' + esc(l.nombre) + '</b><div class="emp">' + esc(l.empresa || 's/empresa') + '</div>' +
+           (l.accion ? '<div class="acc">' + esc(l.accion) + '</div>' : '') +
+           (l.limite ? '<div class="lim' + (vencida ? ' vencida' : '') + '">vence ' + esc(l.limite) + '</div>' : '') +
+           '</div>';
+    }
+    h += '</div>';
+  }
+  document.getElementById('kanban').innerHTML = h;
+}
+
+/* ── 拖拉（桌機）── */
+var idArrastrado = null;
+function arrastrar(ev) { idArrastrado = ev.target.getAttribute('data-id');
+  ev.target.className += ' arrastrando'; ev.dataTransfer.setData('text', idArrastrado); }
+function finArrastre(ev) { ev.target.className = ev.target.className.replace(' arrastrando', ''); }
+function dragSobre(ev) { ev.preventDefault(); ev.currentTarget.className = 'col sobre'; }
+function dragFuera(ev) { ev.currentTarget.className = 'col'; }
+function soltar(ev) {
+  ev.preventDefault();
+  var col = ev.currentTarget; col.className = 'col';
+  var etapa = col.getAttribute('data-etapa');
+  if (idArrastrado) cambiarEtapa(idArrastrado, etapa);
+}
+
+/* ── 換階段（拖拉與 modal 共用；先樂觀更新再送伺服器）── */
+function cambiarEtapa(leadId, etapa) {
+  var l = buscar(leadId);
+  if (!l || l.etapa === etapa) return;
+  var previa = l.etapa;
+  l.etapa = etapa; pintarKanban(); pintarFunnel(); pintarKpis();
+  srv('webEtapa', [leadId, etapa], function() { toast('Etapa → ' + etapa); },
+    function(e) { l.etapa = previa; pintarKanban(); toast('Error: ' + e.message); });
+}
+
+/* ── Modal 詳情 ── */
+function buscar(id) {
+  for (var i = 0; i < D.pipeline.length; i++)
+    if (D.pipeline[i].leadId === id) return D.pipeline[i];
+  return null;
+}
+
+function abrirLead(id) {
+  var l = buscar(id); if (!l) return;
+  leadAbierto = l;
+  document.getElementById('m-nombre').textContent = l.nombre;
+  document.getElementById('m-empresa').textContent = (l.empresa || 's/empresa') + (l.pais ? ' · ' + l.pais : '');
+  document.getElementById('m-chips').innerHTML =
+    '<span class="chip ch' + l.calif + '">' + l.calif + '</span>' +
+    (l.resp ? ' <span style="font-size:.75rem;color:var(--gris)">Resp.: ' + esc(l.resp) + '</span>' : '');
+  var c = '';
+  if (l.tel) c += '<a href="tel:' + esc(l.tel) + '">📞 ' + esc(l.tel) + '</a>';
+  if (l.tel) c += '<a href="https://wa.me/' + esc(l.tel.replace(/[^0-9]/g, '')) + '">💬 WhatsApp</a>';
+  if (l.email) c += '<a href="mailto:' + esc(l.email) + '">✉️ ' + esc(l.email) + '</a>';
+  if (l.tarjeta) c += '<a href="' + esc(l.tarjeta) + '" target="_blank">🪪 Tarjeta</a>';
+  document.getElementById('m-contacto').innerHTML = c || '<span class="dato">Sin datos de contacto</span>';
+  var m = '';
+  if (l.intereses) m += '<span class="dato">Interés: ' + esc(l.intereses) + '</span>';
+  if (l.sup) m += '<span class="dato">' + esc(l.sup) + ' m²</span>';
+  if (l.prob) m += '<span class="dato">Prob. ' + esc(l.prob) + '%</span>';
+  if (l.lote) m += '<span class="dato">Lote: ' + esc(l.lote) + '</span>';
+  if (l.limite) m += '<span class="dato">Vence: ' + esc(l.limite) + '</span>';
+  document.getElementById('m-meta').innerHTML = m;
+  var sel = document.getElementById('m-etapa'), h = '';
+  for (var i = 0; i < D.etapas.length; i++)
+    h += '<option' + (D.etapas[i] === l.etapa ? ' selected' : '') + '>' + D.etapas[i] + '</option>';
+  sel.innerHTML = h;
+  document.getElementById('m-resumen').value = '';
+  document.getElementById('m-hist').innerHTML = '<span style="color:var(--gris);font-size:.8rem">Cargando…</span>';
+  document.getElementById('velo').className = '';
+  srv('webActividadesDe', [id], function(acts) {
+    var hh = '';
+    for (var i = 0; i < acts.length; i++)
+      hh += '<div class="hist"><div class="hf">' + esc(acts[i].fecha) + ' · ' + esc(acts[i].tipo) +
+            (acts[i].resp ? ' · ' + esc(acts[i].resp) : '') + '</div>' + esc(acts[i].resumen) + '</div>';
+    document.getElementById('m-hist').innerHTML = hh || '<span style="color:var(--gris);font-size:.8rem">Sin contactos registrados</span>';
+  });
+}
+
+function cerrarModal() { document.getElementById('velo').className = 'oculto'; leadAbierto = null; }
+
+function guardarEtapa() {
+  if (!leadAbierto) return;
+  cambiarEtapa(leadAbierto.leadId, document.getElementById('m-etapa').value);
+  cerrarModal();
+}
+
+function siguienteEtapa() {
+  if (!leadAbierto) return;
+  var i = D.etapas.indexOf(leadAbierto.etapa);
+  if (i >= 0 && i < D.etapas.length - 1 && D.etapas[i + 1].indexOf('Ganado') === -1) {
+    cambiarEtapa(leadAbierto.leadId, D.etapas[i + 1]); cerrarModal();
+  } else { toast('Use el selector para cerrar (Ganado/Perdido)'); }
+}
+
+function guardarActividad() {
+  if (!leadAbierto) return;
+  var resumen = document.getElementById('m-resumen').value;
+  if (!resumen.replace(/\s/g, '')) { toast('Escriba un resumen'); return; }
+  var tipo = document.getElementById('m-tipo').value, id = leadAbierto.leadId;
+  srv('webActividad', [id, tipo, resumen], function(r) {
+    var l = buscar(id); if (l) l.ultimo = r.fecha;
+    toast('Contacto registrado ✔'); cerrarModal(); pintarKpis();
+  }, function(e) { toast('Error: ' + e.message); });
+}
+
+/* ── 工具 ── */
+function verTab(t) {
+  document.getElementById('sec-panel').className = t === 'panel' ? '' : 'oculto';
+  document.getElementById('sec-pipe').className = t === 'pipe' ? '' : 'oculto';
+  document.getElementById('tab-panel').className = t === 'panel' ? 'act' : '';
+  document.getElementById('tab-pipe').className = t === 'pipe' ? 'act' : '';
+}
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = '';
+  clearTimeout(t._h); t._h = setTimeout(function(){ t.className = 'oculto'; }, 2400);
+}
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function fmt(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+/* ── 示範資料（本機預覽 / 測試模式）── */
+var DEMO = {
+  webDatos: function() {
+    return { usuario: 'demo@ptitp.com.py', hoy: '2026-07-09',
+      etapas: ['Nuevo','Contactado','Visita agendada','Visita realizada','En negociación','Propuesta enviada','Ganado (contrato)','Perdido','En pausa'],
+      pipeline: [
+        {leadId:'L-1',nombre:'Carlos Benítez',empresa:'Textil del Este SA',pais:'Paraguay',tel:'+595981123456',email:'carlos@textileste.com.py',calif:'A',intereses:'Alquiler de lote',tarjeta:'',etapa:'En negociación',resp:'Jaime',accion:'Enviar propuesta',limite:'2026-07-08',ultimo:'2026-07-05',sup:'5000',prob:'60',lote:'VI-01',notas:''},
+        {leadId:'L-2',nombre:'Lin Wei-Chen',empresa:'Formosa Electronics',pais:'Taiwán',tel:'+886912345678',email:'w@formosa.tw',calif:'A',intereses:'Instalación de planta',tarjeta:'',etapa:'Visita agendada',resp:'Jaime',accion:'Preparar recorrido',limite:'2026-07-12',ultimo:'2026-07-07',sup:'12000',prob:'40',lote:'',notas:''},
+        {leadId:'L-3',nombre:'Ana Souza',empresa:'LogBras',pais:'Brasil',tel:'+5545999',email:'ana@logbras.br',calif:'B',intereses:'Servicios',tarjeta:'',etapa:'Nuevo',resp:'María',accion:'Primer contacto',limite:'2026-07-15',ultimo:'',sup:'',prob:'',lote:'',notas:''},
+        {leadId:'L-4',nombre:'Julia Med',empresa:'',pais:'Argentina',tel:'',email:'',calif:'C',intereses:'',tarjeta:'',etapa:'Contactado',resp:'María',accion:'Newsletter',limite:'',ultimo:'2026-07-01',sup:'',prob:'',lote:'',notas:''}
+      ],
+      kpis: {abiertos:4,vencidas:1,hoyVencen:0,aFrios:1,visProx:2,m2Ponderado:7800},
+      funnel: [{etapa:'Nuevo',n:1},{etapa:'Contactado',n:1},{etapa:'Visita agendada',n:1},{etapa:'Visita realizada',n:0},{etapa:'En negociación',n:1},{etapa:'Propuesta enviada',n:0},{etapa:'Ganado (contrato)',n:0},{etapa:'Perdido',n:0},{etapa:'En pausa',n:0}],
+      disponibilidad: {catTotal:272516.25,catOcupado:81221,catDisponible:191295.25,lotesParciales:1,contrato:{alquilado:23704.85,reservado:59135,negociacion:0}} };
+  },
+  webActividadesDe: function(){ return [{fecha:'2026-07-05',tipo:'llamada',resumen:'Llamado inicial, muy interesado.',resp:'Jaime'}]; },
+  webActividad: function(){ return {ok:true,fecha:'2026-07-09'}; },
+  webEtapa: function(){ return {ok:true}; }
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+  if (ESDEMO) {
+    document.body.className = (document.body.className + ' demo').trim();
+    document.getElementById('demo-warn').className = '';
+  }
+  cargar();
+});
+</script>
+</body>
+</html>
