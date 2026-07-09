@@ -2,31 +2,35 @@
 <html lang="es"><head><meta charset="UTF-8">
 <style>
   @page { size: A4; margin: 0; }
-  body{font-family:Helvetica,Arial,sans-serif;color:#152730;margin:0;font-size:11px;line-height:1.5}
-  .pag{padding:46px 52px;page-break-after:always}
-  .pag:last-child{page-break-after:auto}
-  h1{color:#14588F;font-size:24px;margin:0 0 4px}
-  h2{color:#14588F;font-size:15px;margin:20px 0 6px;border-left:6px solid #009C81;padding-left:9px;text-transform:uppercase;letter-spacing:1px}
-  h3{color:#009C81;font-size:12px;margin:12px 0 4px}
+  body{font-family:Helvetica,Arial,sans-serif;color:#152730;margin:0;font-size:12.5pt;line-height:1.55}
+  .pag{padding:6px 44px 2px}
+  h2{page-break-after:avoid}
+  h3{page-break-after:avoid}
+  .paso,.aviso,.ok,.url{page-break-inside:avoid}
+  tr{page-break-inside:avoid}
+  img.flujo{page-break-inside:avoid}
+  h1{color:#14588F;font-size:26pt;margin:0 0 4px}
+  h2{color:#14588F;font-size:16pt;margin:18px 0 8px;border-left:7px solid #009C81;padding-left:10px;text-transform:uppercase;letter-spacing:1px}
+  h3{color:#009C81;font-size:13.5pt;margin:14px 0 5px}
   p{margin:5px 0}
   .banda{height:8px;background:#009C81;border-bottom:4px solid #14588F}
   .cab{background:#009C81;color:#fff;padding:22px 52px}
   .cab h1{color:#fff}
   .cab p{color:#DFF3EE;font-size:11px}
-  table{border-collapse:collapse;width:100%;font-size:10.5px;margin:6px 0}
-  th{background:#14588F;color:#fff;padding:5px 8px;text-align:left}
-  td{border:1px solid #DCE7E3;padding:5px 8px;vertical-align:top}
-  .paso{border:1px solid #DCE7E3;border-left:5px solid #009C81;padding:8px 12px;margin:7px 0}
-  .paso b.n{display:inline-block;background:#009C81;color:#fff;border-radius:50%;width:18px;height:18px;text-align:center;line-height:18px;font-size:10px;margin-right:6px}
-  .aviso{background:#FFF6E5;border:1px solid #D99A2B;border-left:5px solid #D99A2B;padding:8px 12px;margin:8px 0}
-  .ok{background:#E1F3EE;border:1px solid #009C81;border-left:5px solid #009C81;padding:8px 12px;margin:8px 0}
+  table{border-collapse:collapse;width:100%;font-size:11.5pt;margin:8px 0}
+  th{background:#14588F;color:#fff;padding:7px 10px;text-align:left}
+  td{border:1px solid #DCE7E3;padding:7px 10px;vertical-align:top}
+  .paso{border:1px solid #DCE7E3;border-left:6px solid #009C81;padding:10px 14px;margin:9px 0}
+  .paso b.n{display:inline-block;background:#009C81;color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:12pt;margin-right:8px}
+  .aviso{background:#FFF6E5;border:1px solid #D99A2B;border-left:6px solid #D99A2B;padding:10px 14px;margin:10px 0}
+  .ok{background:#E1F3EE;border:1px solid #009C81;border-left:6px solid #009C81;padding:10px 14px;margin:10px 0}
   .rojo{color:#D3452B;font-weight:bold}
   .calA{color:#D3452B;font-weight:bold}.calB{color:#D99A2B;font-weight:bold}.calC{color:#5E7079;font-weight:bold}
-  img.flujo{width:100%;max-width:640px;display:block;margin:8px auto;border:1px solid #DCE7E3}
+  img.flujo{width:100%;display:block;margin:10px auto;border:1px solid #DCE7E3}
   .pie{position:running(footer);}
-  .url{background:#F2F6F5;border:1px dashed #14588F;padding:8px 12px;font-family:monospace;font-size:11px;color:#14588F;text-align:center;margin:8px 0}
+  .url{background:#F2F6F5;border:1px dashed #14588F;padding:10px 14px;font-family:monospace;font-size:13pt;color:#14588F;text-align:center;margin:10px 0}
   ul{margin:4px 0;padding-left:18px}
-  li{margin:3px 0}
+  li{margin:5px 0}
   .dos{width:100%}
   .dos td{border:0;padding:0 8px 0 0;width:50%}
 </style></head><body>
@@ -37,7 +41,7 @@
   <p>Manual de uso para promotores · Versión 1.8 · Julio 2026</p>
 </div>
 <div class="banda"></div>
-<div class="pag">
+<div class="pag" style="padding-top:16px">
   <p style="margin-top:14px"><b>Parque Tecnológico Inteligente Taiwán-Paraguay (PTITP)</b><br>
   Minga Guazú, Alto Paraná, Paraguay</p>
 
@@ -74,7 +78,7 @@
 <!-- ═══ FLUJO ═══ -->
 <div class="pag">
   <h2>Flujo de atención en el stand</h2>
-  <img class="flujo" src="flujo_stand.png" style="max-width:560px">
+  <img class="flujo" src="flujo_stand.png">
 </div>
 
 <!-- ═══ REGISTRO PASO A PASO ═══ -->
@@ -133,7 +137,7 @@
 <!-- ═══ REPORTES ═══ -->
 <div class="pag">
   <h2>Reportes (sección «supervisión»)</h2>
-  <img class="flujo" src="flujo_reportes.png" style="max-width:600px">
+  <img class="flujo" src="flujo_reportes.png">
 
   <h3>Ver reportes en pantalla</h3>
   <p><b>«Ver reporte de hoy»</b> abre el reporte del día; <b>«Ver reporte acumulado del evento»</b> abre el

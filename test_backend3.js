@@ -15,7 +15,7 @@ eval(fs.readFileSync('Code.gs','utf8'));
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
 
 setup();
-check(sheets['Config']&&sheets['Config'].rows.length===1,'C1 setup 建立 Config 分頁');
+check(sheets['Config']&&sheets['Config'].rows.length===4,'C1 setup 建立 Config 分頁（含排程參數）');
 
 // email 驗證
 check(_validarEmails('a@x.com, b@y.org; malo, c@@z')==='a@x.com,b@y.org','C2 _validarEmails 清洗混合輸入');
