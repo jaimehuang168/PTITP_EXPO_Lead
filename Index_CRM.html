@@ -116,6 +116,23 @@
     border-radius:5px;padding:.05rem .4rem;font-size:.66rem;font-weight:700}
   .aviso-pend{background:#FFF6E5;border:1px solid var(--ambar);border-left:5px solid var(--ambar);
     border-radius:9px;padding:.55rem .7rem;font-size:.78rem;color:#8a6410;margin-top:.5rem}
+  /* ── 互動地圖 ── */
+  #mapa-caja{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--linea);
+    background:#B8C8C2;width:100%;padding-top:33.33%}
+  #mapa-img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
+  #mapa-svg{position:absolute;inset:0;width:100%;height:100%}
+  #mapa-svg polygon{stroke:#fff;stroke-width:.35;fill-opacity:.55;cursor:pointer}
+  #mapa-svg polygon:hover{fill-opacity:.8}
+  .mp-disponible{fill:#009C81}.mp-ocupado{fill:#D3452B}.mp-reservado{fill:#D99A2B}
+  .mp-parcial{fill:#7B61A8}.mp-neg{fill:#14588F}.mp-otro{fill:#5E7079}
+  #mapa-nota{font-size:.7rem;color:var(--gris);margin-top:.4rem}
+  /* ── Visitas ── */
+  .vcard{background:#fff;border:1px solid var(--linea);border-left:5px solid var(--azul);
+    border-radius:9px;padding:.6rem .7rem;margin-bottom:.5rem}
+  .vcard .vf{font-size:.76rem;color:var(--gris);margin-top:.15rem}
+  .est-agendada{background:var(--gris)}.est-confirmada{background:var(--verde)}
+  .est-realizada{background:var(--azul)}.est-cancelada{background:var(--rojo)}
+  nav button{font-size:.8rem;padding:.7rem .2rem}
   .lfila{display:flex;align-items:center;gap:.5rem;padding:.5rem .3rem;border-bottom:1px solid var(--linea);font-size:.82rem;cursor:pointer}
   .lfila b{width:88px;flex-shrink:0} .lfila .lm2{margin-left:auto;color:var(--azul);font-weight:700}
   .ocard{background:#fff;border:1px solid var(--linea);border-left:5px solid var(--ambar);border-radius:9px;padding:.6rem .7rem;margin-bottom:.5rem}
@@ -145,6 +162,7 @@
   <button id="tab-panel" class="act" onclick="verTab('panel')">📊 Panel</button>
   <button id="tab-pipe" onclick="verTab('pipe')">📋 Pipeline</button>
   <button id="tab-lotes" onclick="verTab('lotes')">🏗️ Lotes</button>
+  <button id="tab-vis" onclick="verTab('vis')">📅 Visitas</button>
 </nav>
 
 <main>
@@ -166,6 +184,18 @@
 
   <!-- ══ Lotes / Ocupaciones 維護 ══ -->
   <section id="sec-lotes" class="oculto">
+    <div class="tarjeta-seccion"><h2>Mapa del parque</h2>
+      <div id="mapa-caja">
+        <img id="mapa-img" alt="" onerror="this.style.display='none'">
+        <svg id="mapa-svg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="leyenda" style="margin-top:.5rem">
+        <span><i style="background:#009C81"></i>Disponible</span><span><i style="background:#D3452B"></i>Ocupado</span>
+        <span><i style="background:#D99A2B"></i>Reservado</span><span><i style="background:#7B61A8"></i>Parcial</span>
+        <span><i style="background:#5E7079"></i>No industrial</span>
+      </div>
+      <div id="mapa-nota"></div>
+    </div>
     <div class="tarjeta-seccion"><h2>Resumen</h2><div class="leyenda" id="lotes-resumen"></div></div>
     <div class="tarjeta-seccion">
       <h2>Ocupaciones (contratos y reservas)</h2>
@@ -177,6 +207,15 @@
       <button class="btn-nueva" onclick="abrirLote(null)">＋ Nuevo lote</button>
       <input type="text" id="buscar-lote" placeholder="Buscar lote… (ej: XVI, VII-11)" oninput="pintarLotes()">
       <div id="lista-lotes"></div>
+    </div>
+  </section>
+  <!-- ══ Visitas ══ -->
+  <section id="sec-vis" class="oculto">
+    <div class="tarjeta-seccion">
+      <h2>Visitas al parque</h2>
+      <button class="btn-nueva" onclick="abrirVisita(null)">＋ Nueva visita</button>
+      <button class="btn azul" style="width:100%;margin-bottom:.7rem" onclick="procesarVisitasWeb()">▶ Procesar (Calendar + emails de confirmación)</button>
+      <div id="lista-vis"></div>
     </div>
   </section>
 </main>
@@ -458,7 +497,7 @@ function campoHtml(id, label, tipo, valor) {
     h += '<select id="' + id + '">';
     var ops = tipo.slice(4).split(',');
     for (var i = 0; i < ops.length; i++) {
-      var sel = valor && (ops[i] === String(valor) || ops[i].charAt(0) === String(valor).charAt(0));
+      var sel = valor && (ops[i] === String(valor) || (String(valor).length === 1 && ops[i].charAt(0) === String(valor)));
       h += '<option' + (sel ? ' selected' : '') + '>' + ops[i] + '</option>';
     }
     h += '</select>';
@@ -501,7 +540,7 @@ function guardarLead() {
 /* ══ W2：Lotes / Ocupaciones ══ */
 var DL = null; // webLotes() 快取
 function cargarLotes() {
-  srv('webLotes', [], function(d) { DL = d; pintarResumenLotes(); pintarOcup(); pintarLotes(); });
+  srv('webLotes', [], function(d) { DL = d; pintarResumenLotes(); pintarOcup(); pintarLotes(); pintarMapa(); });
 }
 function pintarResumenLotes() {
   var s = DL.disponibilidad;
@@ -619,15 +658,121 @@ function abrirOcup(id) {
 }
 function cerrarModal2() { document.getElementById('velo2').className = 'oculto'; }
 
+/* ══ W3：互動地圖 ══ */
+function parseImg(e) { // 'img:41%,25%' → [41,25]
+  var m = /img:\s*([\d.]+)%\s*,\s*([\d.]+)%/.exec(String(e || ''));
+  return m ? [parseFloat(m[1]), parseFloat(m[2])] : null;
+}
+function claseMapa(l) {
+  if (l.tipo !== 'industrial') return 'mp-otro';
+  if (l.estado === 'disponible') return 'mp-disponible';
+  if (l.estado === 'ocupado') return 'mp-ocupado';
+  if (l.estado === 'reservado') return 'mp-reservado';
+  if (l.estado === 'parcial') return 'mp-parcial';
+  return 'mp-neg';
+}
+function pintarMapa() {
+  if (DL.urlMapa) document.getElementById('mapa-img').src = DL.urlMapa;
+  var svg = '', dib = 0, i, j;
+  for (i = 0; i < DL.lotes.length; i++) {
+    var l = DL.lotes[i], pts = [];
+    for (j = 0; j < 4; j++) {
+      var p = parseImg(l.esquinas && l.esquinas[j]);
+      if (p) pts.push(p[0] + ',' + p[1]);
+    }
+    if (pts.length < 3) continue;
+    dib++;
+    svg += '<polygon points="' + pts.join(' ') + '" class="' + claseMapa(l) + '" ' +
+           'data-id="' + esc(l.id) + '" onclick="abrirLote(\'' + esc(l.id) + '\')">' +
+           '<title>' + esc(l.id) + ' · ' + esc(l.estado || l.tipo) + (l.m2 ? ' · ' + fmt(l.m2) + ' m²' : '') + '</title></polygon>';
+  }
+  document.getElementById('mapa-svg').innerHTML = svg;
+  document.getElementById('mapa-nota').textContent =
+    dib + ' zonas mapeadas de ' + DL.lotes.length + ' lotes · toque una zona para editar · ' +
+    'coordenadas aproximadas (imagen satelital)';
+}
+
+/* ══ W3：Visitas ══ */
+var DV = null;
+function cargarVisitas() {
+  srv('webVisitas', [], function(d) { DV = d; pintarVisitas(); });
+}
+function pintarVisitas() {
+  var h = '', i;
+  for (i = 0; i < DV.visitas.length; i++) {
+    var v = DV.visitas[i];
+    h += '<div class="vcard"><b>' + esc(v.fecha) + (v.hora ? ' · ' + esc(v.hora) : '') + '</b> ' +
+      '<span class="est est-' + esc(v.estado || 'agendada') + '">' + esc(v.estado) + '</span>' +
+      '<div class="vf"><b>' + esc(v.empresa || v.nombre || v.leadId) + '</b>' +
+      (v.visitantes ? ' · ' + esc(v.visitantes) : '') + '</div>' +
+      '<div class="vf">Recibe: ' + esc(v.recepcion || '—') + (v.idioma ? ' · ' + esc(v.idioma) : '') + '</div>' +
+      (v.minuta ? '<div class="vf">Minuta: ' + esc(v.minuta) + '</div>' : '') +
+      '<div class="obtns"><button onclick="abrirVisita(\'' + esc(v.id) + '\')">✏️ Editar</button></div></div>';
+  }
+  document.getElementById('lista-vis').innerHTML = h || '<div class="of" style="font-size:.8rem;color:var(--gris)">Sin visitas registradas</div>';
+}
+function buscarVisita(id){ for(var i=0;i<DV.visitas.length;i++) if(DV.visitas[i].id===id) return DV.visitas[i]; return null; }
+
+function abrirVisita(id) {
+  var v = id ? buscarVisita(id) : null;
+  document.getElementById('m2-titulo').textContent = v ? 'Editar visita ' + v.id : 'Nueva visita';
+  // lead 選單（開放中的）
+  var opsLead = '', i;
+  if (D) for (i = 0; i < D.pipeline.length; i++) {
+    var l = D.pipeline[i];
+    if (/Ganado|Perdido/.test(l.etapa)) continue;
+    var selc = v && v.leadId === l.leadId ? ' selected' : '';
+    opsLead += '<option value="' + esc(l.leadId) + '"' + selc + '>' + esc(l.nombre) + ' — ' + esc(l.empresa || 's/emp') + '</option>';
+  }
+  document.getElementById('m2-form').innerHTML =
+    '<div class="campo"><label>Lead</label><select id="v-lead"' + (v ? ' disabled' : '') + '>' + opsLead + '</select></div>' +
+    '<div class="grid2">' + campoHtml('v-fecha', 'Fecha', 'date', v ? v.fecha : '') +
+    campoHtml('v-hora', 'Hora (HH:MM)', 'text', v ? v.hora : '10:00') + '</div>' +
+    campoHtml('v-visitantes', 'Visitantes', 'text', v ? v.visitantes : '') +
+    campoHtml('v-recepcion', 'Recibe (anfitrión)', 'text', v ? v.recepcion : '') +
+    campoHtml('v-idioma', 'Idioma email', 'sel:auto,ES,EN,PT', v && v.idioma ? v.idioma : 'auto') +
+    (v ? campoHtml('v-estado', 'Estado', 'sel:agendada,confirmada,realizada,cancelada', v.estado) +
+         campoHtml('v-minuta', 'Minuta (si realizada)', 'text', v.minuta) : '');
+  document.getElementById('m2-guardar').onclick = function() {
+    var campos = {
+      fecha: document.getElementById('v-fecha').value,
+      hora: document.getElementById('v-hora').value,
+      visitantes: document.getElementById('v-visitantes').value,
+      recepcion: document.getElementById('v-recepcion').value,
+      idioma: document.getElementById('v-idioma').value === 'auto' ? '' : document.getElementById('v-idioma').value,
+    };
+    if (v) { campos.estado = document.getElementById('v-estado').value;
+             campos.minuta = document.getElementById('v-minuta').value; }
+    else campos.leadId = document.getElementById('v-lead').value;
+    if (!campos.fecha && !v) { toast('Falta la fecha'); return; }
+    srv('webVisitaGuardar', [v ? v.id : '', campos], function() {
+      toast('Visita guardada ✔ (use «Procesar» para Calendar y email)'); cerrarModal2(); cargarVisitas();
+    }, function(e) { toast('Error: ' + e.message); });
+  };
+  document.getElementById('m2-borrar-fila').className = 'botones oculto';
+  document.getElementById('velo2').className = '';
+}
+function procesarVisitasWeb() {
+  document.getElementById('cargando').className = '';
+  srv('webVisitasProcesar', [], function(r) {
+    document.getElementById('cargando').className = 'oculto';
+    toast('Procesado: ' + r.confirmadas + ' confirmadas, ' + r.canceladas + ' canceladas');
+    cargarVisitas();
+  }, function(e) { document.getElementById('cargando').className = 'oculto'; toast('Error: ' + e.message); });
+}
+
 /* ── 工具 ── */
 function verTab(t) {
   document.getElementById('sec-panel').className = t === 'panel' ? '' : 'oculto';
   document.getElementById('sec-pipe').className = t === 'pipe' ? '' : 'oculto';
   document.getElementById('sec-lotes').className = t === 'lotes' ? '' : 'oculto';
+  document.getElementById('sec-vis').className = t === 'vis' ? '' : 'oculto';
   document.getElementById('tab-panel').className = t === 'panel' ? 'act' : '';
   document.getElementById('tab-pipe').className = t === 'pipe' ? 'act' : '';
   document.getElementById('tab-lotes').className = t === 'lotes' ? 'act' : '';
+  document.getElementById('tab-vis').className = t === 'vis' ? 'act' : '';
   if (t === 'lotes' && !DL) cargarLotes();
+  if (t === 'vis' && !DV) cargarVisitas();
 }
 function toast(msg) {
   var t = document.getElementById('toast');
@@ -660,12 +805,18 @@ var DEMO = {
   webLoteBorrar: function(){ return {ok:true}; },
   webOcupGuardar: function(){ return {ok:true,id:'O-011'}; },
   webOcupBorrar: function(){ return {ok:true}; },
+  webVisitas: function(){ return { visitas:[
+    {id:'V-1',leadId:'L-2',nombre:'Lin Wei-Chen',empresa:'Formosa Electronics',fecha:'2026-07-12',hora:'10:00',visitantes:'Lin + 2 ingenieros',recepcion:'Jaime Huang',idioma:'EN',estado:'confirmada',minuta:''},
+    {id:'V-2',leadId:'L-1',nombre:'Carlos Benítez',empresa:'Textil del Este SA',fecha:'2026-07-05',hora:'14:00',visitantes:'Carlos',recepcion:'Jaime Huang',idioma:'ES',estado:'realizada',minuta:'Interesado en VI-01, pidió propuesta.'}] }; },
+  webVisitaGuardar: function(){ return {ok:true,id:'V-3'}; },
+  webVisitasProcesar: function(){ return {confirmadas:1,canceladas:0}; },
   webLotes: function(){ return {
-    lotes:[{id:'VI-01',block:'VI',tipo:'industrial',m2:'4134',notas:'',estado:'disponible',verificado:true},
-      {id:'VII-11',block:'VII',tipo:'industrial',m2:'4134',notas:'Cintas',estado:'ocupado',verificado:true},
-      {id:'XII-05',block:'XII',tipo:'industrial',m2:'2800',notas:'Gauss parcial',estado:'parcial',verificado:true},
-      {id:'XV',block:'XV',tipo:'industrial',m2:'15449',notas:'Masterbus (verificar)',estado:'reservado',verificado:false},
-      {id:'XIV',block:'XIV',tipo:'área verde',m2:'15755.25',notas:'GREEN AREA',estado:'—',verificado:true}],
+    urlMapa:'',
+    lotes:[{id:'VI-01',block:'VI',tipo:'industrial',m2:'4134',notas:'',estado:'disponible',verificado:true,esquinas:['img:12%,30%','img:24%,30%','img:24%,48%','img:12%,48%']},
+      {id:'VII-11',block:'VII',tipo:'industrial',m2:'4134',notas:'Cintas',estado:'ocupado',verificado:true,esquinas:['img:29%,51%','img:36%,51%','img:36%,62%','img:29%,62%']},
+      {id:'XII-05',block:'XII',tipo:'industrial',m2:'2800',notas:'Gauss parcial',estado:'parcial',verificado:true,esquinas:['img:56%,4%','img:61%,4%','img:61%,15%','img:56%,15%']},
+      {id:'XV',block:'XV',tipo:'industrial',m2:'15449',notas:'Masterbus (verificar)',estado:'reservado',verificado:false,esquinas:['img:68%,55%','img:82%,55%','img:82%,80%','img:68%,80%']},
+      {id:'XIV',block:'XIV',tipo:'área verde',m2:'15755.25',notas:'GREEN AREA',estado:'—',verificado:true,esquinas:['img:70%,20%','img:82%,20%','img:82%,45%','img:70%,45%']}],
     ocupaciones:[{id:'O-001',empresa:'TELECEL',tipo:'alquilado',lotes:'TELECEL-01',m2:'340',inicio:'',fin:'',notas:'superficie a verificar (340 vs 95)',verificado:false},
       {id:'O-007',empresa:'ACELON (聚隆纖維)',tipo:'reservado',lotes:'XI-01, XI-02, XI-03',m2:'33496',inicio:'',fin:'',notas:'manzana XI completa',verificado:true}],
     disponibilidad:{catTotal:272516.25,catOcupado:81221,catDisponible:191295.25,lotesParciales:1,contrato:{alquilado:23704.85,reservado:59135,negociacion:0},sinVerificar:{lotes:1,ocupaciones:1,m2Lotes:15449}} }; }

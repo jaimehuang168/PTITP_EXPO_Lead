@@ -1096,6 +1096,8 @@ function webLotes() {
       tipo: String(r[HL['Tipo de uso']] || ''), m2: String(r[HL['m² catastral']] || ''),
       notas: String(r[HL['Notas']] || ''), estado: String(r[HL['Estado (derivado)']] || ''),
       verificado: HL['Verificado'] != null && String(r[HL['Verificado']]).toLowerCase() === 'sí',
+      esquinas: [r[HL['Esquina 1']], r[HL['Esquina 2']], r[HL['Esquina 3']], r[HL['Esquina 4']]]
+        .map(e => String(e || '')),
     })),
     ocupaciones: ov.slice(1).filter(r => String(r[0])).map(r => ({
       id: String(r[HO['OcupID']]), empresa: String(r[HO['Empresa']] || ''),
@@ -1105,6 +1107,7 @@ function webLotes() {
       verificado: HO['Verificado'] != null && String(r[HO['Verificado']]).toLowerCase() === 'sí',
     })),
     disponibilidad: resumenDisponibilidad(),
+    urlMapa: (_cfgCRM('URL app') || '') + 'mapa_satelital.jpg',
   };
 }
 
@@ -1204,6 +1207,63 @@ function webOcupBorrar(ocupId) {
   _logCambio('Ocupación', ocupId, 'borrada');
   actualizarLotes();
   return { ok: true };
+}
+
+// ══════════ Web W3：Visitas 排程 ══════════
+function webVisitas() {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(CRM.SH.VIS);
+  if (!sh || sh.getLastRow() < 2) return { visitas: [] };
+  const vals = sh.getDataRange().getValues();
+  const HV = {}; vals[0].forEach((h, i) => HV[h] = i);
+  const visitas = vals.slice(1).filter(r => String(r[0])).map(r => {
+    const leadId = String(r[HV['LeadID']] || '');
+    const lead = leadId ? _leadDePipeline(leadId) : null;
+    return {
+      id: String(r[HV['VisitaID']]), leadId: leadId,
+      nombre: lead ? lead.nombre : '', empresa: lead ? lead.empresa : '',
+      fecha: String(r[HV['Fecha']]).slice(0, 10), hora: String(r[HV['Hora']] || ''),
+      visitantes: String(r[HV['Visitantes']] || ''), recepcion: String(r[HV['Recepción']] || ''),
+      idioma: String(r[HV['Idioma']] || ''), estado: String(r[HV['Estado']] || ''),
+      minuta: String(r[HV['Minuta']] || ''),
+    };
+  }).sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+  return { visitas: visitas };
+}
+
+// 新增 / 編輯參訪（新增後 estado=agendada，待「Procesar」建 Calendar+寄信）
+function webVisitaGuardar(visitaId, campos) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(CRM.SH.VIS);
+  const HV = {}; sh.getDataRange().getValues()[0].forEach((h, i) => HV[h] = i);
+  const mapa = { leadId: 'LeadID', fecha: 'Fecha', hora: 'Hora', visitantes: 'Visitantes',
+                 recepcion: 'Recepción', idioma: 'Idioma', estado: 'Estado', minuta: 'Minuta' };
+  let fila = visitaId ? _filaPorId(sh, visitaId) : -1;
+  if (fila === -1) { // 新增
+    if (!campos.leadId || !campos.fecha) throw new Error('Faltan lead y fecha');
+    visitaId = 'V-' + ('000' + sh.getLastRow()).slice(-3);
+    const nueva = Array(sh.getDataRange().getValues()[0].length).fill('');
+    nueva[HV['VisitaID']] = visitaId;
+    Object.keys(mapa).forEach(k => { if (campos[k] != null && HV[mapa[k]] != null) nueva[HV[mapa[k]]] = campos[k]; });
+    if (!nueva[HV['Estado']]) nueva[HV['Estado']] = 'agendada';
+    sh.appendRow(nueva);
+    _logCambio('Visita', visitaId, 'creada');
+  } else {
+    Object.keys(campos || {}).forEach(k => {
+      if (!mapa[k] || HV[mapa[k]] == null) return;
+      sh.getRange(fila, HV[mapa[k]] + 1).setValue(campos[k]);
+    });
+    _logCambio('Visita', visitaId, 'editada');
+  }
+  return { ok: true, id: visitaId };
+}
+
+// 觸發既有引擎：建 Calendar + 三語確認信 / 取消 / 推進階段
+function webVisitasProcesar() {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  return procesarVisitas();
 }
 
 // 一次性輔助：Verificado 欄空白且備註不含 verificar 者標記為已確認（既有資料遷移用）
