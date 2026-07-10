@@ -107,13 +107,27 @@
     box-shadow:0 4px 14px rgba(0,0,0,.3)}
   #cargando{position:fixed;inset:0;background:rgba(238,244,242,.75);z-index:40;display:flex;
     align-items:center;justify-content:center;font-weight:700;color:var(--azul)}
-
-  /* ── Banner MODO DEMO (aparece cuando el HTML se abre fuera de Apps Script) ── */
-  #demo-warn{background:repeating-linear-gradient(45deg,#D3452B,#D3452B 12px,#B33A24 12px,#B33A24 24px);
-    color:#fff;padding:.55rem 1rem;font-size:.82rem;font-weight:700;text-align:center;letter-spacing:.4px;
-    line-height:1.3;position:sticky;top:52px;z-index:19;box-shadow:0 2px 6px rgba(211,69,43,.4)}
-  #demo-warn small{display:block;font-weight:500;opacity:.9;font-size:.72rem;margin-top:2px}
-  body.demo nav{top:calc(52px + 2.5rem)}
+  /* ── Lotes 維護 ── */
+  .est{display:inline-block;border-radius:5px;padding:.08rem .45rem;font-size:.68rem;font-weight:700;color:#fff}
+  .est-disponible{background:var(--verde)} .est-ocupado{background:var(--rojo)}
+  .est-reservado{background:var(--ambar)} .est-parcial{background:#7B61A8}
+  .est-neg{background:var(--azul)} .est-otro{background:var(--gris)}
+  .pend{display:inline-block;background:#FFF6E5;border:1px solid var(--ambar);color:#8a6410;
+    border-radius:5px;padding:.05rem .4rem;font-size:.66rem;font-weight:700}
+  .aviso-pend{background:#FFF6E5;border:1px solid var(--ambar);border-left:5px solid var(--ambar);
+    border-radius:9px;padding:.55rem .7rem;font-size:.78rem;color:#8a6410;margin-top:.5rem}
+  .lfila{display:flex;align-items:center;gap:.5rem;padding:.5rem .3rem;border-bottom:1px solid var(--linea);font-size:.82rem;cursor:pointer}
+  .lfila b{width:88px;flex-shrink:0} .lfila .lm2{margin-left:auto;color:var(--azul);font-weight:700}
+  .ocard{background:#fff;border:1px solid var(--linea);border-left:5px solid var(--ambar);border-radius:9px;padding:.6rem .7rem;margin-bottom:.5rem}
+  .ocard.talq{border-left-color:var(--rojo)}
+  .ocard .of{font-size:.76rem;color:var(--gris);margin-top:.15rem}
+  .ocard .obtns{display:flex;gap:.4rem;margin-top:.4rem}
+  .ocard .obtns button{border:1px solid var(--linea);background:var(--claro);border-radius:7px;padding:.3rem .7rem;font-size:.76rem;color:var(--azul)}
+  .campo{margin-bottom:.55rem}
+  .campo label{display:block;font-size:.72rem;color:var(--gris);margin-bottom:.2rem;text-transform:uppercase;letter-spacing:.4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+  #buscar-lote{margin:.5rem 0}
+  .btn-nueva{width:100%;border:1.5px dashed var(--azul);background:#F6FAFD;color:var(--azul);border-radius:10px;padding:.6rem;font-weight:700;font-size:.86rem;margin-bottom:.7rem}
   @media(min-width:700px){ .kpis{grid-template-columns:repeat(6,1fr)} #velo{align-items:center} #modal{border-radius:16px} }
 </style>
 </head>
@@ -127,14 +141,10 @@
   <button id="btn-refrescar" onclick="cargar()">⟳ Actualizar</button>
 </header>
 
-<div id="demo-warn" class="oculto">
-  ⚠️ MODO DEMO — datos ficticios
-  <small>Este HTML se abrió fuera de Google Apps Script. Para ver datos reales, despliegue el script y abra la URL /exec.</small>
-</div>
-
 <nav>
   <button id="tab-panel" class="act" onclick="verTab('panel')">📊 Panel</button>
   <button id="tab-pipe" onclick="verTab('pipe')">📋 Pipeline</button>
+  <button id="tab-lotes" onclick="verTab('lotes')">🏗️ Lotes</button>
 </nav>
 
 <main>
@@ -145,12 +155,29 @@
     <div class="tarjeta-seccion"><h2>Suelo industrial</h2>
       <div class="barra" id="barra-suelo"></div>
       <div class="leyenda" id="ley-suelo"></div>
+      <div id="aviso-suelo"></div>
     </div>
   </section>
 
   <!-- ══ Kanban ══ -->
   <section id="sec-pipe" class="oculto">
     <div id="kanban"></div>
+  </section>
+
+  <!-- ══ Lotes / Ocupaciones 維護 ══ -->
+  <section id="sec-lotes" class="oculto">
+    <div class="tarjeta-seccion"><h2>Resumen</h2><div class="leyenda" id="lotes-resumen"></div></div>
+    <div class="tarjeta-seccion">
+      <h2>Ocupaciones (contratos y reservas)</h2>
+      <button class="btn-nueva" onclick="abrirOcup(null)">＋ Nueva ocupación</button>
+      <div id="lista-ocup"></div>
+    </div>
+    <div class="tarjeta-seccion">
+      <h2>Lotes (catastro)</h2>
+      <button class="btn-nueva" onclick="abrirLote(null)">＋ Nuevo lote</button>
+      <input type="text" id="buscar-lote" placeholder="Buscar lote… (ej: XVI, VII-11)" oninput="pintarLotes()">
+      <div id="lista-lotes"></div>
+    </div>
   </section>
 </main>
 
@@ -164,6 +191,17 @@
     <div class="m-fila" id="m-contacto"></div>
     <div class="m-fila" id="m-meta"></div>
 
+    <div class="botones" id="m-btn-editar">
+      <button class="btn plano" onclick="modoEditarLead()">✏️ Editar datos</button>
+    </div>
+    <div class="m-bloque oculto" id="m-editor">
+      <h4>Editar datos del lead</h4>
+      <div id="m-form"></div>
+      <div class="botones">
+        <button class="btn verde" onclick="guardarLead()">Guardar cambios</button>
+        <button class="btn plano" onclick="salirEditar()">Cancelar</button>
+      </div>
+    </div>
     <div class="m-bloque">
       <h4>Etapa</h4>
       <select id="m-etapa"></select>
@@ -192,17 +230,29 @@
   </div>
 </div>
 
+<div id="velo2" class="oculto" onclick="if(event.target===this)cerrarModal2()" style="position:fixed;inset:0;background:rgba(15,39,48,.55);z-index:35;display:flex;align-items:flex-end;justify-content:center">
+  <div id="modal2" style="background:#fff;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:1rem 1rem 1.4rem">
+    <h2 id="m2-titulo" style="font-size:1.05rem;margin-bottom:.7rem"></h2>
+    <div id="m2-form"></div>
+    <div class="botones">
+      <button class="btn verde" id="m2-guardar">Guardar</button>
+      <button class="btn plano" onclick="cerrarModal2()">Cancelar</button>
+    </div>
+    <div class="botones oculto" id="m2-borrar-fila">
+      <button class="btn" style="background:var(--rojo)" id="m2-borrar">🗑 Borrar</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="oculto"></div>
 <div id="cargando" class="oculto">Cargando datos…</div>
 
 <script>
 var D = null;          // webDatos() 快取
 var leadAbierto = null;
-var ESDEMO = !(typeof google !== 'undefined' && google.script && google.script.run);
 
 /* ── google.script.run 包裝：無 GAS 環境時用示範資料（本機預覽/測試） ── */
 function srv(fn, args, ok, err) {
-  if (!ESDEMO) {
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
     var r = google.script.run.withSuccessHandler(ok);
     if (err) r = r.withFailureHandler(err);
     r[fn].apply(r, args || []);
@@ -230,7 +280,7 @@ function pintarKpis() {
   var def = [
     [k.abiertos, 'Leads abiertos', 'azul'], [k.vencidas, 'Vencidas', 'rojo'],
     [k.hoyVencen, 'Vencen hoy', 'ambar'], [k.aFrios, 'A sin contacto', 'rojo'],
-    [k.visProx, 'Visitas 7 días', 'verde'], [fmt(k.m2Ponderado), 'm² ponderados', 'azul'],
+    [k.visProx, 'Visitas 7 días', 'verde'], [fmt(k.m2Ponderado), 'm² ponderados (estim.)', 'azul'],
   ];
   var h = '';
   for (var i = 0; i < def.length; i++)
@@ -260,6 +310,14 @@ function pintarSuelo() {
     '<span><i style="background:var(--rojo)"></i>Ocupado/reservado ' + fmt(s.catOcupado) + ' m²</span>' +
     '<span><i style="background:var(--verde)"></i>Disponible ' + fmt(s.catDisponible) + ' m²</span>' +
     '<span>Contractual: alq. ' + fmt(s.contrato.alquilado) + ' / res. ' + fmt(s.contrato.reservado) + ' m²</span>';
+  document.getElementById('aviso-suelo').innerHTML = avisoPendHtml(s);
+}
+function avisoPendHtml(s) {
+  var p = s.sinVerificar;
+  if (!p || (p.lotes + p.ocupaciones) === 0) return '';
+  return '<div class="aviso-pend">⚠ <b>Datos provisorios:</b> ' + p.lotes + ' lotes y ' + p.ocupaciones +
+    ' ocupaciones pendientes de verificación (' + fmt(p.m2Lotes) + ' m² involucrados). ' +
+    'Estas cifras pueden variar hasta confirmar con administración.</div>';
 }
 
 function pintarKanban() {
@@ -346,6 +404,7 @@ function abrirLead(id) {
   sel.innerHTML = h;
   document.getElementById('m-resumen').value = '';
   document.getElementById('m-hist').innerHTML = '<span style="color:var(--gris);font-size:.8rem">Cargando…</span>';
+  salirEditar();
   document.getElementById('velo').className = '';
   srv('webActividadesDe', [id], function(acts) {
     var hh = '';
@@ -383,12 +442,192 @@ function guardarActividad() {
   }, function(e) { toast('Error: ' + e.message); });
 }
 
+/* ══ W2：編輯客戶 ══ */
+var CAMPOS_EDIT = [
+  ['nombre','Nombre','text'],['empresa','Empresa','text'],['pais','País','text'],
+  ['tel','Teléfono','text'],['email','Email','text'],
+  ['calif','Calificación','sel:A - Caliente,B - Tibio,C - Frío'],
+  ['intereses','Intereses','text'],['resp','Responsable','text'],
+  ['accion','Próxima acción','text'],['limite','Fecha límite','date'],
+  ['sup','Superficie (m²)','text'],['prob','Probabilidad %','text'],
+  ['lote','Lote candidato','text'],['notas','Notas','text']
+];
+function campoHtml(id, label, tipo, valor) {
+  var h = '<div class="campo"><label>' + label + '</label>';
+  if (tipo.indexOf('sel:') === 0) {
+    h += '<select id="' + id + '">';
+    var ops = tipo.slice(4).split(',');
+    for (var i = 0; i < ops.length; i++) {
+      var sel = valor && (ops[i] === String(valor) || ops[i].charAt(0) === String(valor).charAt(0));
+      h += '<option' + (sel ? ' selected' : '') + '>' + ops[i] + '</option>';
+    }
+    h += '</select>';
+  } else {
+    h += '<input type="' + (tipo === 'date' ? 'date' : 'text') + '" id="' + id + '" value="' + esc(valor || '') + '">';
+  }
+  return h + '</div>';
+}
+function modoEditarLead() {
+  if (!leadAbierto) return;
+  var h = '<div class="grid2">', i;
+  for (i = 0; i < CAMPOS_EDIT.length; i++) {
+    var c = CAMPOS_EDIT[i];
+    h += campoHtml('ed-' + c[0], c[1], c[2], leadAbierto[c[0]]);
+  }
+  h += '</div>';
+  document.getElementById('m-form').innerHTML = h;
+  document.getElementById('m-editor').className = 'm-bloque';
+  document.getElementById('m-btn-editar').className = 'botones oculto';
+}
+function salirEditar() {
+  document.getElementById('m-editor').className = 'm-bloque oculto';
+  document.getElementById('m-btn-editar').className = 'botones';
+}
+function guardarLead() {
+  if (!leadAbierto) return;
+  var campos = {}, i;
+  for (i = 0; i < CAMPOS_EDIT.length; i++) {
+    var k = CAMPOS_EDIT[i][0];
+    campos[k] = document.getElementById('ed-' + k).value;
+  }
+  var id = leadAbierto.leadId;
+  srv('webLeadGuardar', [id, campos], function() {
+    var l = buscar(id);
+    for (var k in campos) if (l.hasOwnProperty(k)) l[k] = (k==='calif') ? campos[k].charAt(0) : campos[k];
+    toast('Datos guardados ✔'); cerrarModal(); pintarKanban(); pintarKpis();
+  }, function(e) { toast('Error: ' + e.message); });
+}
+
+/* ══ W2：Lotes / Ocupaciones ══ */
+var DL = null; // webLotes() 快取
+function cargarLotes() {
+  srv('webLotes', [], function(d) { DL = d; pintarResumenLotes(); pintarOcup(); pintarLotes(); });
+}
+function pintarResumenLotes() {
+  var s = DL.disponibilidad;
+  document.getElementById('lotes-resumen').innerHTML =
+    '<span><i style="background:var(--verde)"></i>Disponible ' + fmt(s.catDisponible) + ' m²</span>' +
+    '<span><i style="background:var(--rojo)"></i>Ocupado/res. ' + fmt(s.catOcupado) + ' m²</span>' +
+    '<span>Contractual: alq. ' + fmt(s.contrato.alquilado) + ' / res. ' + fmt(s.contrato.reservado) + ' m²</span>' +
+    '<span>' + DL.lotes.length + ' lotes · ' + DL.ocupaciones.length + ' ocupaciones</span>' +
+    avisoPendHtml(s);
+}
+function claseEstado(e) {
+  if (e === 'disponible') return 'est-disponible';
+  if (e === 'ocupado') return 'est-ocupado';
+  if (e === 'reservado') return 'est-reservado';
+  if (e === 'parcial') return 'est-parcial';
+  if (e && e.indexOf('negoci') !== -1) return 'est-neg';
+  return 'est-otro';
+}
+function pintarOcup() {
+  var h = '', i;
+  for (i = 0; i < DL.ocupaciones.length; i++) {
+    var o = DL.ocupaciones[i];
+    h += '<div class="ocard' + (o.tipo.indexOf('alquilado') === 0 ? ' talq' : '') + '">' +
+      '<b>' + esc(o.empresa) + '</b> <span class="est ' + (o.tipo.indexOf('alquilado')===0?'est-ocupado':o.tipo.indexOf('reservado')===0?'est-reservado':'est-neg') + '">' + esc(o.tipo) + '</span>' +
+      (o.verificado ? '' : ' <span class="pend">⚠ sin verificar</span>') +
+      '<div class="of">Lotes: ' + esc(o.lotes || '—') + (o.m2 ? ' · ' + fmt(o.m2) + ' m²' : '') + '</div>' +
+      (o.notas ? '<div class="of">' + esc(o.notas) + '</div>' : '') +
+      '<div class="obtns"><button onclick="abrirOcup(\'' + esc(o.id) + '\')">✏️ Editar</button></div></div>';
+  }
+  document.getElementById('lista-ocup').innerHTML = h || '<div class="of">Sin ocupaciones</div>';
+}
+function pintarLotes() {
+  var q = (document.getElementById('buscar-lote').value || '').toLowerCase();
+  var h = '', i, n = 0;
+  for (i = 0; i < DL.lotes.length; i++) {
+    var l = DL.lotes[i];
+    if (q && (l.id + ' ' + l.tipo + ' ' + l.notas).toLowerCase().indexOf(q) === -1) continue;
+    n++;
+    h += '<div class="lfila" onclick="abrirLote(\'' + esc(l.id) + '\')"><b>' + esc(l.id) + '</b>' +
+      '<span class="est ' + claseEstado(l.estado) + '">' + esc(l.estado || l.tipo) + '</span>' +
+      (l.verificado ? '' : '<span class="pend">⚠</span>') +
+      '<span style="font-size:.72rem;color:var(--gris)">' + esc(l.tipo) + '</span>' +
+      '<span class="lm2">' + (l.m2 ? fmt(l.m2) + ' m²' : '—') + '</span></div>';
+  }
+  document.getElementById('lista-lotes').innerHTML = h || '<div class="of">Sin resultados</div>';
+}
+function buscarLote(id){ for(var i=0;i<DL.lotes.length;i++) if(DL.lotes[i].id===id) return DL.lotes[i]; return null; }
+function buscarOcup(id){ for(var i=0;i<DL.ocupaciones.length;i++) if(DL.ocupaciones[i].id===id) return DL.ocupaciones[i]; return null; }
+
+function abrirLote(id) {
+  var l = id ? buscarLote(id) : null;
+  document.getElementById('m2-titulo').textContent = l ? 'Editar lote ' + l.id : 'Nuevo lote';
+  document.getElementById('m2-form').innerHTML =
+    (l ? '' : campoHtml('l-id', 'LoteID (ej: VI-07)', 'text', '')) +
+    '<div class="grid2">' +
+    campoHtml('l-block', 'Block / Manzana', 'text', l ? l.block : '') +
+    campoHtml('l-m2', 'm² catastral', 'text', l ? l.m2 : '') + '</div>' +
+    campoHtml('l-tipo', 'Tipo de uso', 'sel:industrial,área verde,infraestructura,administrativo PSC,reserva', l ? l.tipo : 'industrial') +
+    campoHtml('l-notas', 'Notas', 'text', l ? l.notas : '') +
+    campoHtml('l-verif', '¿Dato verificado?', 'sel:pendiente,sí', l && l.verificado ? 'sí' : 'pendiente');
+  document.getElementById('m2-guardar').onclick = function() {
+    var loteId = l ? l.id : document.getElementById('l-id').value.trim();
+    if (!loteId) { toast('Falta LoteID'); return; }
+    srv('webLoteGuardar', [loteId, {
+      block: document.getElementById('l-block').value, m2: document.getElementById('l-m2').value,
+      tipo: document.getElementById('l-tipo').value, notas: document.getElementById('l-notas').value,
+      verificado: document.getElementById('l-verif').value,
+    }], function() { toast('Lote guardado ✔'); cerrarModal2(); cargarLotes(); },
+       function(e) { toast('Error: ' + e.message); });
+  };
+  var bf = document.getElementById('m2-borrar-fila');
+  if (l) {
+    bf.className = 'botones';
+    document.getElementById('m2-borrar').onclick = function() {
+      if (!window.confirm('¿Borrar lote ' + l.id + '?')) return;
+      srv('webLoteBorrar', [l.id], function() { toast('Lote borrado'); cerrarModal2(); cargarLotes(); },
+        function(e) { toast(e.message); });
+    };
+  } else bf.className = 'botones oculto';
+  document.getElementById('velo2').className = '';
+}
+
+function abrirOcup(id) {
+  var o = id ? buscarOcup(id) : null;
+  document.getElementById('m2-titulo').textContent = o ? 'Editar ocupación ' + o.id : 'Nueva ocupación';
+  document.getElementById('m2-form').innerHTML =
+    campoHtml('o-empresa', 'Empresa', 'text', o ? o.empresa : '') +
+    campoHtml('o-tipo', 'Tipo', 'sel:alquilado,reservado,en negociación', o ? o.tipo : 'en negociación') +
+    campoHtml('o-lotes', 'Lotes involucrados (coma; «(parcial)» si aplica)', 'text', o ? o.lotes : '') +
+    '<div class="grid2">' +
+    campoHtml('o-m2', 'm² arrendados', 'text', o ? o.m2 : '') +
+    campoHtml('o-inicio', 'Fecha inicio', 'date', o ? o.inicio : '') + '</div>' +
+    campoHtml('o-fin', 'Fecha fin', 'date', o ? o.fin : '') +
+    campoHtml('o-notas', 'Notas', 'text', o ? o.notas : '') +
+    campoHtml('o-verif', '¿Dato verificado?', 'sel:pendiente,sí', o && o.verificado ? 'sí' : 'pendiente');
+  document.getElementById('m2-guardar').onclick = function() {
+    srv('webOcupGuardar', [o ? o.id : '', {
+      empresa: document.getElementById('o-empresa').value, tipo: document.getElementById('o-tipo').value,
+      lotes: document.getElementById('o-lotes').value, m2: document.getElementById('o-m2').value,
+      inicio: document.getElementById('o-inicio').value, fin: document.getElementById('o-fin').value,
+      notas: document.getElementById('o-notas').value, verificado: document.getElementById('o-verif').value,
+    }], function() { toast('Ocupación guardada ✔'); cerrarModal2(); cargarLotes(); },
+       function(e) { toast('Error: ' + e.message); });
+  };
+  var bf = document.getElementById('m2-borrar-fila');
+  if (o) {
+    bf.className = 'botones';
+    document.getElementById('m2-borrar').onclick = function() {
+      if (!window.confirm('¿Borrar ocupación de ' + o.empresa + '? Los lotes quedarán disponibles.')) return;
+      srv('webOcupBorrar', [o.id], function() { toast('Ocupación borrada'); cerrarModal2(); cargarLotes(); },
+        function(e) { toast(e.message); });
+    };
+  } else bf.className = 'botones oculto';
+  document.getElementById('velo2').className = '';
+}
+function cerrarModal2() { document.getElementById('velo2').className = 'oculto'; }
+
 /* ── 工具 ── */
 function verTab(t) {
   document.getElementById('sec-panel').className = t === 'panel' ? '' : 'oculto';
   document.getElementById('sec-pipe').className = t === 'pipe' ? '' : 'oculto';
+  document.getElementById('sec-lotes').className = t === 'lotes' ? '' : 'oculto';
   document.getElementById('tab-panel').className = t === 'panel' ? 'act' : '';
   document.getElementById('tab-pipe').className = t === 'pipe' ? 'act' : '';
+  document.getElementById('tab-lotes').className = t === 'lotes' ? 'act' : '';
+  if (t === 'lotes' && !DL) cargarLotes();
 }
 function toast(msg) {
   var t = document.getElementById('toast');
@@ -411,20 +650,28 @@ var DEMO = {
       ],
       kpis: {abiertos:4,vencidas:1,hoyVencen:0,aFrios:1,visProx:2,m2Ponderado:7800},
       funnel: [{etapa:'Nuevo',n:1},{etapa:'Contactado',n:1},{etapa:'Visita agendada',n:1},{etapa:'Visita realizada',n:0},{etapa:'En negociación',n:1},{etapa:'Propuesta enviada',n:0},{etapa:'Ganado (contrato)',n:0},{etapa:'Perdido',n:0},{etapa:'En pausa',n:0}],
-      disponibilidad: {catTotal:272516.25,catOcupado:81221,catDisponible:191295.25,lotesParciales:1,contrato:{alquilado:23704.85,reservado:59135,negociacion:0}} };
+      disponibilidad: {catTotal:272516.25,catOcupado:81221,catDisponible:191295.25,lotesParciales:1,contrato:{alquilado:23704.85,reservado:59135,negociacion:0},sinVerificar:{lotes:1,ocupaciones:1,m2Lotes:15449}} };
   },
   webActividadesDe: function(){ return [{fecha:'2026-07-05',tipo:'llamada',resumen:'Llamado inicial, muy interesado.',resp:'Jaime'}]; },
   webActividad: function(){ return {ok:true,fecha:'2026-07-09'}; },
-  webEtapa: function(){ return {ok:true}; }
+  webEtapa: function(){ return {ok:true}; },
+  webLeadGuardar: function(){ return {ok:true}; },
+  webLoteGuardar: function(){ return {ok:true}; },
+  webLoteBorrar: function(){ return {ok:true}; },
+  webOcupGuardar: function(){ return {ok:true,id:'O-011'}; },
+  webOcupBorrar: function(){ return {ok:true}; },
+  webLotes: function(){ return {
+    lotes:[{id:'VI-01',block:'VI',tipo:'industrial',m2:'4134',notas:'',estado:'disponible',verificado:true},
+      {id:'VII-11',block:'VII',tipo:'industrial',m2:'4134',notas:'Cintas',estado:'ocupado',verificado:true},
+      {id:'XII-05',block:'XII',tipo:'industrial',m2:'2800',notas:'Gauss parcial',estado:'parcial',verificado:true},
+      {id:'XV',block:'XV',tipo:'industrial',m2:'15449',notas:'Masterbus (verificar)',estado:'reservado',verificado:false},
+      {id:'XIV',block:'XIV',tipo:'área verde',m2:'15755.25',notas:'GREEN AREA',estado:'—',verificado:true}],
+    ocupaciones:[{id:'O-001',empresa:'TELECEL',tipo:'alquilado',lotes:'TELECEL-01',m2:'340',inicio:'',fin:'',notas:'superficie a verificar (340 vs 95)',verificado:false},
+      {id:'O-007',empresa:'ACELON (聚隆纖維)',tipo:'reservado',lotes:'XI-01, XI-02, XI-03',m2:'33496',inicio:'',fin:'',notas:'manzana XI completa',verificado:true}],
+    disponibilidad:{catTotal:272516.25,catOcupado:81221,catDisponible:191295.25,lotesParciales:1,contrato:{alquilado:23704.85,reservado:59135,negociacion:0},sinVerificar:{lotes:1,ocupaciones:1,m2Lotes:15449}} }; }
 };
 
-document.addEventListener('DOMContentLoaded', function () {
-  if (ESDEMO) {
-    document.body.className = (document.body.className + ' demo').trim();
-    document.getElementById('demo-warn').className = '';
-  }
-  cargar();
-});
+document.addEventListener('DOMContentLoaded', cargar);
 </script>
 </body>
 </html>

@@ -36,9 +36,9 @@ const H_VIS = ['VisitaID', 'LeadID', 'Fecha', 'Hora', 'Visitantes', 'Recepción'
   'Idioma', 'Estado', 'CalendarEventId', 'Minuta', 'Evaluación', 'Recordatorio enviado'];
 const H_LOTES = ['LoteID', 'Block', 'Tipo de uso', 'm² catastral',
   'Esquina 1', 'Esquina 2', 'Esquina 3', 'Esquina 4', 'Notas',
-  'Estado (derivado)', 'm² ocupados (derivado)'];
+  'Estado (derivado)', 'm² ocupados (derivado)', 'Verificado'];
 const H_OCUP = ['OcupID', 'Empresa', 'LeadID', 'Tipo', 'Lotes involucrados', 'm² arrendados',
-  'Esquina 1', 'Esquina 2', 'Esquina 3', 'Esquina 4', 'Fecha inicio', 'Fecha fin', 'Notas'];
+  'Esquina 1', 'Esquina 2', 'Esquina 3', 'Esquina 4', 'Fecha inicio', 'Fecha fin', 'Notas', 'Verificado'];
 const H_PLANT = ['Clave', 'Idioma', 'Asunto', 'Cuerpo'];
 
 // ══════════ 初始化 ══════════
@@ -90,13 +90,18 @@ function setupCRM() {
       shv.getRange(1, hv.length + 1).setValue('Recordatorio enviado');
   }
 
-  // Fase 3 遷移：舊 Lotes 表補推導欄
+  // Fase 3 遷移：舊 Lotes 表補推導欄與 Verificado
   const shl = ss.getSheetByName(CRM.SH.LOTES);
   if (shl && shl.getLastRow() > 0) {
     let hl = shl.getDataRange().getValues()[0];
-    ['Estado (derivado)', 'm² ocupados (derivado)'].forEach(c => {
+    ['Estado (derivado)', 'm² ocupados (derivado)', 'Verificado'].forEach(c => {
       if (hl.indexOf(c) === -1) { shl.getRange(1, hl.length + 1).setValue(c); hl = hl.concat([c]); }
     });
+  }
+  const sho2 = ss.getSheetByName(CRM.SH.OCUP);
+  if (sho2 && sho2.getLastRow() > 0) {
+    const ho2 = sho2.getDataRange().getValues()[0];
+    if (ho2.indexOf('Verificado') === -1) sho2.getRange(1, ho2.length + 1).setValue('Verificado');
   }
   if (!tieneParam('Emails reporte semanal'))
     cfg.appendRow(['Emails reporte semanal', '', 'lunes 8:30; si queda vacío usa "Emails resumen diario"']);
@@ -616,7 +621,8 @@ function _sembrarLotes(ss) {
   if (shL && shL.getLastRow() <= 1) {
     const pad = n => (n < 10 ? '0' : '') + n;
     const fila = (id, blk, tipo, m2, nota, e1, e2, e3, e4) =>
-      shL.appendRow([id, blk, tipo, m2, e1 || '', e2 || '', e3 || '', e4 || '', nota || '', '', '']);
+      shL.appendRow([id, blk, tipo, m2, e1 || '', e2 || '', e3 || '', e4 || '', nota || '', '', '',
+        /verificar/i.test(nota || '') ? '' : 'sí']); // 備註含 verificar 者 = 待確認
 
     // 街廓 I–IV：整塊單一地塊
     fila('I', 'I', 'industrial', 3480, 'manzana de lote único');
@@ -668,7 +674,7 @@ function _sembrarLotes(ss) {
       ['O-009', 'Master Bus (成運)', '', 'reservado', 'XV, XVI-C', 21461, '', '', '', '', '', '', 'XV (15.449) + bloque XVI-C (6.012); 現況表 indica 21.768 con XV=15.756 — verificar'],
       ['O-010', 'Misión Técnica de Taiwán', '', 'reservado', 'XVI-B', 4178, '', '', '', '', '', '', 'ÁREA MISIÓN TÉCNICA (incluye dormitorio)'],
     ];
-    O.forEach(r => shO.appendRow(r));
+    O.forEach(r => shO.appendRow(r.concat([/verificar/i.test(r[12] || '') ? '' : 'sí'])));
   }
 }
 
@@ -736,13 +742,22 @@ function resumenDisponibilidad() {
   const HO = {}; ov[0].forEach((h, i) => HO[h] = i);
 
   let catTotal = 0, catOcupado = 0, lotesParciales = 0;
+  const sinVerificar = { lotes: 0, ocupaciones: 0, m2Lotes: 0 };
   lv.slice(1).forEach(r => {
+    if (!String(r[HL['LoteID']] || '')) return;
+    const pendiente = HL['Verificado'] != null && String(r[HL['Verificado']]).toLowerCase() !== 'sí';
+    if (pendiente) sinVerificar.lotes++;
     if (String(r[HL['Tipo de uso']]).toLowerCase() !== 'industrial') return;
     const m2 = Number(r[HL['m² catastral']]) || 0;
     catTotal += m2;
+    if (pendiente) sinVerificar.m2Lotes += m2;
     const est = String(r[HL['Estado (derivado)']]);
     if (est === 'ocupado' || est === 'reservado') catOcupado += m2;
     if (est === 'parcial') lotesParciales++;
+  });
+  ov.slice(1).forEach(r => {
+    if (!String(r[HO['OcupID']] || '')) return;
+    if (HO['Verificado'] != null && String(r[HO['Verificado']]).toLowerCase() !== 'sí') sinVerificar.ocupaciones++;
   });
 
   const contrato = { alquilado: 0, reservado: 0, negociacion: 0 };
@@ -754,7 +769,7 @@ function resumenDisponibilidad() {
     else contrato.negociacion += m2;
   });
 
-  return { catTotal, catOcupado, catDisponible: catTotal - catOcupado, lotesParciales, contrato };
+  return { catTotal, catOcupado, catDisponible: catTotal - catOcupado, lotesParciales, contrato, sinVerificar };
 }
 
 // ══════════ Fase 3：每週管線報告（週一 8:30，PDF 附件） ══════════
@@ -834,6 +849,10 @@ ${negociaciones.slice(0, 12).map(n =>
 <tr><td style="padding:3px 6px;border-bottom:1px solid #DCE7E3">Contractual: alquilado / reservado / en negociaci&oacute;n</td><td align="right" style="padding:3px 6px;border-bottom:1px solid #DCE7E3">${fmt(disp.contrato.alquilado)} / ${fmt(disp.contrato.reservado)} / ${fmt(disp.contrato.negociacion)} m&sup2;</td></tr>
 </table>
 <div style="font-size:8px;color:#5E7079;margin-top:4px">Nota: la ocupaci&oacute;n parcial no descuenta m&sup2; catastrales; el dato contractual refleja los m&sup2; efectivamente comprometidos (permite arriendos que cruzan lotes).</div>
+${(disp.sinVerificar && (disp.sinVerificar.lotes + disp.sinVerificar.ocupaciones) > 0) ?
+  '<div style="margin-top:6px;background:#FFF6E5;border:1px solid #D99A2B;padding:6px 9px;font-size:9px;color:#8a6410"><b>&#9888; DATOS PROVISORIOS:</b> ' +
+  disp.sinVerificar.lotes + ' lotes y ' + disp.sinVerificar.ocupaciones + ' ocupaciones pendientes de verificaci&oacute;n (' +
+  fmt(disp.sinVerificar.m2Lotes) + ' m&sup2; catastrales involucrados). Las cifras de este bloque pueden variar.</div>' : ''}
 
 <div style="margin-top:18px;border-top:1px solid #DCE7E3;padding-top:6px;font-size:8px;color:#5E7079">Generado autom&aacute;ticamente &mdash; Sistema de Seguimiento PTITP</div>
 </body></html>`;
@@ -1023,6 +1042,193 @@ function webActividadesDe(leadId) {
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
 }
 
+// ══════════ Web W2：資料維護（編輯客戶 / Lotes / Ocupaciones + 變更留痕） ══════════
+const CAMPOS_LEAD = { // 前端欄位 → Pipeline 表頭（白名單，防寫入任意欄）
+  nombre: 'Nombre', empresa: 'Empresa', pais: 'País', tel: 'Teléfono', email: 'Email',
+  calif: 'Calificación', intereses: 'Intereses', resp: 'Responsable',
+  accion: 'Próxima acción', limite: 'Fecha límite', sup: 'Superficie (m²)',
+  prob: 'Probabilidad %', lote: 'Lote candidato', notas: 'Notas',
+};
+
+function _logCambio(entidad, id, detalle) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sh = ss.getSheetByName('Cambios');
+    if (!sh) {
+      sh = ss.insertSheet('Cambios');
+      sh.appendRow(['Fecha', 'Usuario', 'Entidad', 'ID', 'Detalle']);
+      sh.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#14588F').setFontColor('#FFFFFF');
+    }
+    sh.appendRow([
+      Utilities.formatDate(new Date(), CRM.ZONA, 'yyyy-MM-dd HH:mm'),
+      String(Session.getActiveUser().getEmail() || ''), entidad, id, detalle,
+    ]);
+  } catch (err) { /* 留痕失敗不擋主流程 */ }
+}
+
+// 編輯客戶欄位（僅白名單欄位）
+function webLeadGuardar(leadId, campos) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const lead = _leadDePipeline(leadId);
+  if (!lead) throw new Error('Lead no encontrado');
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CRM.SH.PIPELINE);
+  const cambios = [];
+  Object.keys(campos || {}).forEach(k => {
+    if (!CAMPOS_LEAD[k]) return;
+    const col = H_PIPELINE.indexOf(CAMPOS_LEAD[k]) + 1;
+    if (col > 0) { sh.getRange(lead.fila, col).setValue(campos[k]); cambios.push(k); }
+  });
+  if (cambios.length) _logCambio('Lead', leadId, 'editó: ' + cambios.join(', '));
+  return { ok: true };
+}
+
+// Lotes / Ocupaciones 全量（維護分頁用）
+function webLotes() {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const lv = ss.getSheetByName(CRM.SH.LOTES).getDataRange().getValues();
+  const HL = {}; lv[0].forEach((h, i) => HL[h] = i);
+  const ov = ss.getSheetByName(CRM.SH.OCUP).getDataRange().getValues();
+  const HO = {}; ov[0].forEach((h, i) => HO[h] = i);
+  return {
+    lotes: lv.slice(1).filter(r => String(r[0])).map(r => ({
+      id: String(r[HL['LoteID']]), block: String(r[HL['Block']] || ''),
+      tipo: String(r[HL['Tipo de uso']] || ''), m2: String(r[HL['m² catastral']] || ''),
+      notas: String(r[HL['Notas']] || ''), estado: String(r[HL['Estado (derivado)']] || ''),
+      verificado: HL['Verificado'] != null && String(r[HL['Verificado']]).toLowerCase() === 'sí',
+    })),
+    ocupaciones: ov.slice(1).filter(r => String(r[0])).map(r => ({
+      id: String(r[HO['OcupID']]), empresa: String(r[HO['Empresa']] || ''),
+      tipo: String(r[HO['Tipo']] || ''), lotes: String(r[HO['Lotes involucrados']] || ''),
+      m2: String(r[HO['m² arrendados']] || ''), inicio: String(r[HO['Fecha inicio']]).slice(0, 10),
+      fin: String(r[HO['Fecha fin']]).slice(0, 10), notas: String(r[HO['Notas']] || ''),
+      verificado: HO['Verificado'] != null && String(r[HO['Verificado']]).toLowerCase() === 'sí',
+    })),
+    disponibilidad: resumenDisponibilidad(),
+  };
+}
+
+function _filaPorId(sh, id) {
+  const vals = sh.getDataRange().getValues();
+  for (let i = 1; i < vals.length; i++) if (String(vals[i][0]) === String(id)) return i + 1;
+  return -1;
+}
+
+// Lote：更新 / 新增 / 刪除（被 Ocupaciones 引用者拒刪）
+function webLoteGuardar(loteId, campos) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CRM.SH.LOTES);
+  const HL = {}; sh.getDataRange().getValues()[0].forEach((h, i) => HL[h] = i);
+  const fila = _filaPorId(sh, loteId);
+  const mapa = { block: 'Block', tipo: 'Tipo de uso', m2: 'm² catastral', notas: 'Notas', verificado: 'Verificado' };
+  if (fila === -1) { // 新增（預設待確認）
+    if (!loteId || !String(loteId).trim()) throw new Error('Falta LoteID');
+    const nueva = Array(sh.getDataRange().getValues()[0].length).fill('');
+    nueva[HL['LoteID']] = String(loteId).trim();
+    nueva[HL['Block']] = campos.block || '';
+    nueva[HL['Tipo de uso']] = campos.tipo || 'industrial';
+    nueva[HL['m² catastral']] = campos.m2 || '';
+    nueva[HL['Notas']] = campos.notas || '';
+    if (HL['Verificado'] != null) nueva[HL['Verificado']] = campos.verificado === 'sí' ? 'sí' : '';
+    sh.appendRow(nueva);
+    _logCambio('Lote', loteId, 'creado');
+  } else {
+    Object.keys(campos || {}).forEach(k => {
+      if (!mapa[k] || HL[mapa[k]] == null) return;
+      sh.getRange(fila, HL[mapa[k]] + 1).setValue(k === 'verificado' ? (campos[k] === 'sí' ? 'sí' : '') : campos[k]);
+    });
+    _logCambio('Lote', loteId, 'editado');
+  }
+  actualizarLotes();
+  return { ok: true };
+}
+
+function webLoteBorrar(loteId) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // 保護：被任何 Ocupación 引用就拒刪
+  const ov = ss.getSheetByName(CRM.SH.OCUP).getDataRange().getValues();
+  const HO = {}; ov[0].forEach((h, i) => HO[h] = i);
+  const usado = ov.slice(1).some(r =>
+    String(r[HO['Lotes involucrados']] || '').split(',')
+      .some(tok => tok.replace(/\(.*?\)/g, '').trim() === String(loteId)));
+  if (usado) throw new Error('No se puede borrar: el lote está referenciado en Ocupaciones');
+  const sh = ss.getSheetByName(CRM.SH.LOTES);
+  const fila = _filaPorId(sh, loteId);
+  if (fila === -1) throw new Error('Lote no encontrado');
+  sh.deleteRow(fila);
+  _logCambio('Lote', loteId, 'borrado');
+  return { ok: true };
+}
+
+// Ocupación：更新 / 新增 / 刪除（任何變動後重算推導狀態）
+function webOcupGuardar(ocupId, campos) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CRM.SH.OCUP);
+  const HO = {}; sh.getDataRange().getValues()[0].forEach((h, i) => HO[h] = i);
+  const mapa = { empresa: 'Empresa', tipo: 'Tipo', lotes: 'Lotes involucrados',
+                 m2: 'm² arrendados', inicio: 'Fecha inicio', fin: 'Fecha fin', notas: 'Notas', verificado: 'Verificado' };
+  let fila = ocupId ? _filaPorId(sh, ocupId) : -1;
+  if (fila === -1) { // 新增：自動編號，預設待確認
+    const n = sh.getLastRow(); // 含表頭
+    ocupId = 'O-' + ('000' + n).slice(-3);
+    const nueva = Array(sh.getDataRange().getValues()[0].length).fill('');
+    nueva[HO['OcupID']] = ocupId;
+    nueva[HO['Empresa']] = campos.empresa || '';
+    nueva[HO['Tipo']] = campos.tipo || 'en negociación';
+    nueva[HO['Lotes involucrados']] = campos.lotes || '';
+    nueva[HO['m² arrendados']] = campos.m2 || '';
+    nueva[HO['Fecha inicio']] = campos.inicio || '';
+    nueva[HO['Fecha fin']] = campos.fin || '';
+    nueva[HO['Notas']] = campos.notas || '';
+    if (HO['Verificado'] != null) nueva[HO['Verificado']] = campos.verificado === 'sí' ? 'sí' : '';
+    sh.appendRow(nueva);
+    _logCambio('Ocupación', ocupId, 'creada: ' + (campos.empresa || ''));
+  } else {
+    Object.keys(campos || {}).forEach(k => {
+      if (!mapa[k] || HO[mapa[k]] == null) return;
+      sh.getRange(fila, HO[mapa[k]] + 1).setValue(k === 'verificado' ? (campos[k] === 'sí' ? 'sí' : '') : campos[k]);
+    });
+    _logCambio('Ocupación', ocupId, 'editada');
+  }
+  actualizarLotes();
+  return { ok: true, id: ocupId };
+}
+
+function webOcupBorrar(ocupId) {
+  if (!_usuarioWebAutorizado()) throw new Error('No autorizado');
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CRM.SH.OCUP);
+  const fila = _filaPorId(sh, ocupId);
+  if (fila === -1) throw new Error('Ocupación no encontrada');
+  sh.deleteRow(fila);
+  _logCambio('Ocupación', ocupId, 'borrada');
+  actualizarLotes();
+  return { ok: true };
+}
+
+// 一次性輔助：Verificado 欄空白且備註不含 verificar 者標記為已確認（既有資料遷移用）
+function marcarVerificadosIniciales() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let marcados = 0;
+  [[CRM.SH.LOTES, 'Notas'], [CRM.SH.OCUP, 'Notas']].forEach(par => {
+    const sh = ss.getSheetByName(par[0]);
+    if (!sh || sh.getLastRow() < 2) return;
+    const vals = sh.getDataRange().getValues();
+    const H = {}; vals[0].forEach((h, i) => H[h] = i);
+    if (H['Verificado'] == null) return;
+    for (let i = 1; i < vals.length; i++) {
+      if (!String(vals[i][0] || '')) continue;
+      if (String(vals[i][H['Verificado']] || '')) continue;
+      if (!/verificar/i.test(String(vals[i][H[par[1]]] || ''))) {
+        sh.getRange(i + 1, H['Verificado'] + 1).setValue('sí');
+        marcados++;
+      }
+    }
+  });
+  Logger.log('✅ 標記 ' + marcados + ' 筆為已確認（備註含 verificar 者維持待確認）');
+  return marcados;
+}
+
 // ══════════ 選單 ══════════
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('🏭 PTITP CRM')
@@ -1034,6 +1240,7 @@ function onOpen() {
     .addItem('Enviar recordatorios de visitas de mañana', 'recordatoriosVisitas')
     .addSeparator()
     .addItem('Actualizar estados de lotes', 'actualizarLotes')
+    .addItem('Marcar verificados iniciales (según notas)', 'marcarVerificadosIniciales')
     .addItem('Enviar reporte semanal de pipeline', 'reporteSemanal')
     .addSeparator()
     .addItem('Instalar automatizaciones', 'crearTriggersCRM')

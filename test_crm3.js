@@ -59,6 +59,8 @@ check(d.catTotal-d.catOcupado===d.catDisponible,'F4 可用=總量-佔用（191.2
 check(d.lotesParciales===1,'F4 parcial = 1（僅 XII-05 Gauss）');
 check(Math.round(d.contrato.alquilado*100)/100===Math.round((340+1618.85+4134+4134+2120+8658+2700)*100)/100,'F4 合約口徑 alquilado 23.704,85');
 check(d.contrato.reservado===33496+21461+4178,'F4 合約口徑 reservado 59.135');
+check(d.sinVerificar&&d.sinVerificar.lotes>0&&d.sinVerificar.ocupaciones>0,'F4 待確認統計存在');
+check(lot.rows.find(r=>r[0]==='TELECEL-01')[11]===''&&lot.rows.find(r=>r[0]==='VI-01')[11]==='sí','F4 種子依備註自動標記待確認/已確認');
 
 // F5: 週報
 crmSS._sheets['Config'].rows.find(r=>r[0]==='Emails resumen diario')[1]='jefe@ptitp.com.py';
