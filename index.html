@@ -23,7 +23,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:var(--body);background:var(--fondo);color:var(--tinta);
-       font-size:16px;line-height:1.45;padding-bottom:4rem}
+       font-size:18px;line-height:1.5;padding-bottom:4rem}
 
   /* 頂部：巴拉圭三色細條 */
   .bandera{height:5px;display:flex}
@@ -34,10 +34,10 @@
   header{background:var(--carta);padding:1rem 1.2rem .9rem;
          display:flex;align-items:center;gap:.9rem}
   header img{width:56px;height:auto;flex:none}
-  .h-tit h1{font-family:var(--disp);font-size:1.02rem;font-weight:700;
+  .h-tit h1{font-family:var(--disp);font-size:1.12rem;font-weight:700;
             letter-spacing:.05em;color:var(--azul);text-transform:uppercase;line-height:1.2}
-  .h-tit p{font-size:.74rem;color:var(--gris);margin-top:.15rem}
-  #estado-red{font-family:var(--disp);font-size:.7rem;font-weight:600;margin-top:.4rem;
+  .h-tit p{font-size:.8rem;color:var(--gris);margin-top:.15rem}
+  #estado-red{font-family:var(--disp);font-size:.78rem;font-weight:600;margin-top:.4rem;
               display:inline-block;padding:.18rem .6rem;border-radius:99px;
               background:var(--verde-claro);color:var(--tinta)}
 
@@ -51,16 +51,16 @@
   main{max-width:640px;margin:0 auto;padding:1.1rem 1rem}
   fieldset{border:1px solid var(--linea);background:var(--carta);border-radius:var(--radio);
            padding:1.05rem 1rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(20,88,143,.05)}
-  legend{font-family:var(--disp);font-size:.72rem;font-weight:700;letter-spacing:.14em;
+  legend{font-family:var(--disp);font-size:.82rem;font-weight:700;letter-spacing:.14em;
          text-transform:uppercase;color:var(--azul);padding:0 .5rem;
          display:flex;align-items:center;gap:.45rem}
   legend::before{content:'';width:8px;height:8px;background:var(--verde);flex:none}
-  label{display:block;font-size:.82rem;font-weight:600;margin:.75rem 0 .28rem;color:var(--tinta)}
+  label{display:block;font-size:.95rem;font-weight:600;margin:.85rem 0 .32rem;color:var(--tinta)}
   label .op{color:var(--gris);font-weight:400}
   input[type=text],input[type=email],input[type=tel],input[type=number],input[type=date],
   select,textarea{
     width:100%;padding:.68rem .75rem;border:1px solid var(--linea);border-radius:9px;
-    font:inherit;font-size:1rem;background:#FAFCFB;color:var(--tinta)}
+    font:inherit;font-size:1.06rem;background:#FAFCFB;color:var(--tinta)}
   input:focus,select:focus,textarea:focus{outline:2px solid var(--verde);outline-offset:1px;
     border-color:var(--verde)}
   textarea{min-height:96px;resize:vertical}
@@ -71,7 +71,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.35rem}
   .chips label{display:flex;align-items:center;gap:.4rem;margin:0;padding:.52rem .72rem;
     border:1px solid var(--linea);border-radius:9px;background:#FAFCFB;font-weight:500;
-    font-size:.85rem;cursor:pointer;user-select:none}
+    font-size:.95rem;cursor:pointer;user-select:none}
   .chips input{accent-color:var(--verde);width:1.05rem;height:1.05rem}
   .chips label:has(input:checked){border-color:var(--verde);background:var(--verde-claro);
     font-weight:600;color:var(--verde-osc)}
@@ -81,8 +81,8 @@
   .calif label{margin:0;border:2px solid var(--linea);border-radius:var(--radio);
     padding:.7rem .3rem;text-align:center;cursor:pointer;background:#FAFCFB}
   .calif input{position:absolute;opacity:0}
-  .calif b{display:block;font-family:var(--disp);font-size:1.4rem;font-weight:700}
-  .calif small{font-size:.7rem;color:var(--gris)}
+  .calif b{display:block;font-family:var(--disp);font-size:1.55rem;font-weight:700}
+  .calif small{font-size:.78rem;color:var(--gris)}
   .calif label:has(input:checked){color:#fff}
   .calif .cA:has(input:checked){background:var(--naranja);border-color:var(--naranja)}
   .calif .cB:has(input:checked){background:var(--amarillo);border-color:var(--amarillo)}
@@ -90,39 +90,39 @@
   .calif label:has(input:checked) small{color:rgba(255,255,255,.88)}
   .calif label:focus-within{outline:2px solid var(--azul);outline-offset:2px}
 
-  .ayuda{font-size:.74rem;color:var(--gris);margin-top:.35rem}
+  .ayuda{font-size:.82rem;color:var(--gris);margin-top:.35rem}
 
   button{font:inherit;cursor:pointer}
   #enviar{width:100%;padding:1rem;border:0;border-radius:var(--radio);
-    font-family:var(--disp);font-size:1.05rem;font-weight:700;letter-spacing:.04em;
+    font-family:var(--disp);font-size:1.15rem;font-weight:700;letter-spacing:.04em;
     color:#fff;background:linear-gradient(120deg,var(--verde) 0%,var(--azul) 100%)}
   #enviar:active{background:linear-gradient(120deg,var(--verde-osc) 0%,var(--azul-osc) 100%)}
   #enviar:disabled{opacity:.55}
   #pendientes-btn{width:100%;margin-top:.6rem;padding:.6rem;background:none;
-    border:1px dashed var(--gris);border-radius:9px;color:var(--gris);font-size:.82rem;display:none}
+    border:1px dashed var(--gris);border-radius:9px;color:var(--gris);font-size:.9rem;display:none}
 
   /* 報告區（主管用） */
   #reportes{margin-top:1.5rem}
   .rep-botones{display:grid;gap:.5rem;margin-top:.3rem}
   .rep-botones button{padding:.78rem .9rem;border:1.5px solid var(--verde);border-radius:9px;
     background:#fff;color:var(--verde-osc);font-family:var(--disp);font-weight:600;
-    font-size:.9rem;text-align:left;letter-spacing:.01em}
+    font-size:1rem;text-align:left;letter-spacing:.01em}
   .rep-botones button:active{background:var(--verde-claro)}
   #enviar-reporte{width:100%;margin-top:.9rem;padding:.85rem;border:0;border-radius:9px;
-    font-family:var(--disp);font-weight:700;font-size:.95rem;letter-spacing:.03em;
+    font-family:var(--disp);font-weight:700;font-size:1.05rem;letter-spacing:.03em;
     color:#fff;background:var(--azul)}
   #enviar-reporte:active{background:var(--azul-osc)}
   #enviar-reporte:disabled{opacity:.55}
   #pdf-reporte{width:100%;margin-top:.5rem;padding:.8rem;border:1.5px solid var(--verde);
     border-radius:9px;background:#fff;color:var(--verde-osc);
-    font-family:var(--disp);font-weight:600;font-size:.92rem}
+    font-family:var(--disp);font-weight:600;font-size:1rem}
   #pdf-reporte:active{background:var(--verde-claro)}
 
   /* 名片掃描 */
   .scan-fila{display:table;width:100%;margin-bottom:.3rem}
   #scan-btn{display:table-cell;width:100%;padding:.7rem;border:1.5px dashed var(--azul);
     border-radius:9px;background:#F6FAFD;color:var(--azul);
-    font-family:var(--disp);font-weight:600;font-size:.9rem}
+    font-family:var(--disp);font-weight:600;font-size:.98rem}
   #scan-btn:active{background:#E8F1F8}
   #scan-btn:disabled{opacity:.6}
   #tarjeta-thumb{display:block;margin-top:.5rem;max-height:72px;border-radius:6px;
@@ -131,9 +131,9 @@
   /* 版本更新橫幅 */
   #act-banner{position:fixed;top:0;left:0;right:0;z-index:99;cursor:pointer;
     background:var(--azul);color:#fff;text-align:center;padding:.7rem 1rem;
-    font-family:var(--disp);font-weight:600;font-size:.88rem;
+    font-family:var(--disp);font-weight:600;font-size:.96rem;
     box-shadow:0 2px 8px rgba(14,63,102,.35)}
-  .ver-pie{text-align:center;font-size:.7rem;color:var(--gris);margin:1.4rem 0 .4rem}
+  .ver-pie{text-align:center;font-size:.78rem;color:var(--gris);margin:1.4rem 0 .4rem}
 
   #aviso{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);
     background:var(--azul-osc);color:#fff;padding:.7rem 1.2rem;border-radius:99px;
@@ -146,7 +146,7 @@
   /* ── 分頁列 ── */
   .tabs{display:flex;gap:.4rem;max-width:640px;margin:0 auto;padding:.9rem 1rem 0}
   .tabs button{flex:1;padding:.6rem .3rem;font-family:var(--disp);font-weight:600;
-    font-size:.86rem;letter-spacing:.02em;color:var(--gris);background:none;
+    font-size:.95rem;letter-spacing:.02em;color:var(--gris);background:none;
     border:0;border-bottom:3px solid transparent}
   .tabs button.activa{color:var(--azul);border-bottom-color:var(--verde)}
   .tab{display:none}
@@ -159,22 +159,22 @@
     overflow:hidden;box-shadow:0 1px 3px rgba(20,88,143,.05)}
   .qr-card .barra{height:6px}
   .qr-card .cuerpo{padding:.8rem .9rem 1rem;text-align:center}
-  .qr-card .eti{font-family:var(--disp);font-size:.66rem;font-weight:700;
+  .qr-card .eti{font-family:var(--disp);font-size:.74rem;font-weight:700;
     letter-spacing:.14em;text-transform:uppercase;color:var(--gris)}
-  .qr-card h3{font-family:var(--disp);font-size:.95rem;font-weight:600;margin:.2rem 0 .5rem}
+  .qr-card h3{font-family:var(--disp);font-size:1.05rem;font-weight:600;margin:.2rem 0 .5rem}
   .qr-card img{width:100%;max-width:230px;height:auto;display:block;margin:0 auto}
-  .qr-card a{display:inline-block;margin-top:.5rem;font-size:.8rem;font-weight:600;
+  .qr-card a{display:inline-block;margin-top:.5rem;font-size:.9rem;font-weight:600;
     color:var(--azul);text-decoration:none;border-bottom:1px solid currentColor}
 
   /* ── 地圖分頁 ── */
   .mapa-card{background:var(--carta);border:1px solid var(--linea);border-radius:var(--radio);
     overflow:hidden;margin-bottom:1rem;box-shadow:0 1px 3px rgba(20,88,143,.05)}
   .mapa-card .cab{padding:.85rem 1rem .6rem}
-  .mapa-card h3{font-family:var(--disp);font-size:.98rem;font-weight:600;color:var(--azul)}
-  .mapa-card p{font-size:.78rem;color:var(--gris);margin-top:.15rem}
+  .mapa-card h3{font-family:var(--disp);font-size:1.08rem;font-weight:600;color:var(--azul)}
+  .mapa-card p{font-size:.86rem;color:var(--gris);margin-top:.15rem}
   .mapa-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .mapa-scroll img{display:block;min-width:700px;width:100%;height:auto}
-  .mapa-card .pie{padding:.6rem 1rem .85rem;font-size:.8rem}
+  .mapa-card .pie{padding:.6rem 1rem .85rem;font-size:.88rem}
   .mapa-card .pie a{color:var(--azul);font-weight:600;text-decoration:none;
     border-bottom:1px solid currentColor;margin-right:1rem}
 </style>
@@ -727,7 +727,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.9.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
