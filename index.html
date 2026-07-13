@@ -117,6 +117,10 @@
     border-radius:9px;background:#fff;color:var(--verde-osc);
     font-family:var(--disp);font-weight:600;font-size:1rem}
   #pdf-reporte:active{background:var(--verde-claro)}
+  #fichas-btn{width:100%;margin-top:.5rem;padding:.8rem;border:1.5px solid var(--azul);
+    border-radius:10px;background:#F6FAFD;color:var(--azul);
+    font-family:var(--disp);font-weight:600;font-size:.98rem}
+  #fichas-btn:active{background:#E8F1F8}
 
   /* 名片掃描 */
   .scan-fila{display:table;width:100%;margin-bottom:.3rem}
@@ -395,6 +399,7 @@
 
   <button type="button" id="enviar-reporte">✉️ Enviar reporte</button>
   <button type="button" id="pdf-reporte">📥 Descargar PDF</button>
+    <button type="button" id="fichas-btn">📇 Fichas de leads (imprimir)</button>
   <p class="ayuda">El reporte diario también se envía automáticamente cada día a las 19:30 a los emails configurados en la hoja "Config" (celda B1).</p>
 </fieldset>
 </section>
@@ -702,6 +707,12 @@ document.getElementById('pdf-reporte').addEventListener('click', ()=>{
   window.open(API_URL + '?action=reportePdf' + t.qs, '_blank');
 });
 
+document.getElementById('fichas-btn').addEventListener('click', ()=>{
+  const t = qsTipoReporte();
+  if(!t) return;
+  window.open(API_URL + '?action=fichas' + t.qs, '_blank'); // 列印視圖，內含「Imprimir / Descargar PDF」
+});
+
 document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
   const emails = $('rep-emails').value.split(/[,;\s]+/).filter(Boolean);
   if(!emails.length || emails.some(e=>!RE_MAIL.test(e)))
@@ -727,7 +738,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){

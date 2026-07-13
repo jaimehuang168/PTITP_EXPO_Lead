@@ -237,6 +237,30 @@ function doGet(e) {
     return _htmlReporte(_construirReporteRango(desde, hasta).texto, `Reporte ${desde} → ${hasta}`);
   }
 
+  // 可列印 Lead 資料卡：?action=fichas&tipo=dia|rango|expo[&fecha|&desde&hasta][&calif=A,B]
+  if (action === 'fichas' || action === 'fichasPdf') {
+    try {
+      const sel = _fichasSegunTipo(e.parameter);
+      if (sel.error) return _json({ ok: false, error: sel.error });
+      const html = _htmlFichas(sel.leads, sel.titulo, sel.evento, e.parameter, action === 'fichas');
+      if (action === 'fichas')
+        return HtmlService.createHtmlOutput(html).setTitle('Fichas de Leads — PTITP');
+      const pdf = Utilities.newBlob(html, 'text/html', sel.archivo + '.html')
+        .getAs('application/pdf').setName(sel.archivo + '.pdf');
+      const b64 = Utilities.base64Encode(pdf.getBytes());
+      const pagina =
+        '<div style="font-family:Helvetica,Arial,sans-serif;max-width:480px;margin:3rem auto;text-align:center">' +
+        '<p style="color:#152730">Su PDF est&aacute; listo:</p>' +
+        '<a id="d" download="' + sel.archivo + '.pdf" href="data:application/pdf;base64,' + b64 + '"' +
+        ' style="display:inline-block;padding:.9rem 1.4rem;background:#009C81;color:#fff;' +
+        'border-radius:10px;text-decoration:none;font-weight:bold">&#128229; Descargar ' + sel.archivo + '.pdf</a></div>' +
+        '<script>try{document.getElementById("d").click();}catch(e){}</script>';
+      return HtmlService.createHtmlOutput(pagina).setTitle('PTITP — PDF');
+    } catch (err) {
+      return _json({ ok: false, error: String(err) });
+    }
+  }
+
   // PDF 下載：?action=reportePdf&tipo=dia|rango|expo[&desde&hasta]
   if (action === 'reportePdf') {
     try {
@@ -412,6 +436,140 @@ function _reporteSegunTipo(p) {
   }
   const f = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
   return { rpt: _construirReporte(f), titulo: 'diario ' + f, archivo: 'PTITP_Reporte_diario_' + f };
+}
+
+// ══════════ Lead 資料卡（Fichas）：完整欄位、可列印設計 ══════════
+function _fichasSegunTipo(p) {
+  const tipo = p.tipo || 'expo';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
+  if (!sh || sh.getLastRow() < 2) return { error: 'Sin datos' };
+  const datos = sh.getDataRange().getValues();
+  const H = {};
+  datos[0].forEach((h, i) => H[h] = i);
+  const hoy = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+
+  let filtro, titulo, archivo;
+  if (tipo === 'dia') {
+    const f = _fechaValida(p.fecha) ? p.fecha : hoy;
+    filtro = r => String(r[H['Fecha']]).slice(0, 10) === f;
+    titulo = 'del ' + f; archivo = 'PTITP_Fichas_' + f;
+  } else if (tipo === 'rango') {
+    if (!_fechaValida(p.desde) || !_fechaValida(p.hasta)) return { error: 'Fechas inválidas' };
+    filtro = r => { const f = String(r[H['Fecha']]).slice(0, 10); return f >= p.desde && f <= p.hasta; };
+    titulo = 'del ' + p.desde + ' al ' + p.hasta; archivo = 'PTITP_Fichas_' + p.desde + '_' + p.hasta;
+  } else {
+    filtro = () => true;
+    titulo = 'de todo el evento'; archivo = 'PTITP_Fichas_evento';
+  }
+
+  // 選擇性過濾評級：&calif=A,B
+  const califs = String(p.calif || '').toUpperCase().split(',').filter(c => c && 'ABC'.indexOf(c) !== -1);
+
+  const orden = { A: 0, B: 1, C: 2 };
+  const leads = datos.slice(1).filter(filtro).map(r => ({
+    fecha: String(r[H['Fecha']]).slice(0, 10),
+    evento: r[H['Evento']] || '', promotor: r[H['Promotor']] || '',
+    nombre: r[H['Nombre']] || '', empresa: r[H['Empresa']] || '', cargo: r[H['Cargo']] || '',
+    pais: r[H['País']] || '', tel: r[H['Teléfono/WhatsApp']] || '', email: r[H['Email']] || '',
+    tipoOrg: r[H['Tipo de organización']] || '', sector: r[H['Sector/Rubro']] || '',
+    intereses: r[H['Intereses']] || '', plazo: r[H['Plazo']] || '',
+    sup: r[H['Superficie (m²)']] || '', empleos: r[H['Empleos est.']] || '',
+    conocio: r[H['Cómo nos conoció']] || '',
+    calif: String(r[H['Calificación']] || 'C').charAt(0).toUpperCase(),
+    obs: r[H['Observaciones']] || '', pasos: r[H['Próximos pasos']] || '',
+    fseg: String(r[H['Fecha límite seguimiento']] || '').slice(0, 10),
+    resp: r[H['Responsable seguimiento']] || '', estado: r[H['Estado']] || 'Pendiente',
+    tarjeta: H['Tarjeta (imagen)'] != null ? (r[H['Tarjeta (imagen)']] || '') : '',
+    leadId: H['LeadID'] != null ? (r[H['LeadID']] || '') : '',
+  })).filter(l => !califs.length || califs.indexOf(l.calif) !== -1)
+    .sort((a, b) => (orden[a.calif] - orden[b.calif]) || (a.fecha < b.fecha ? -1 : 1));
+
+  return { leads, titulo, archivo, evento: (leads[0] && leads[0].evento) || CONFIG.EVENTO_DEFAULT };
+}
+
+// 資料卡 HTML：瀏覽器（含網頁字型與列印工具列）與 GAS PDF（Helvetica）雙用
+function _htmlFichas(leads, titulo, evento, params, conToolbar) {
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const C = { verde: '#009C81', azul: '#14588F', tinta: '#152730', gris: '#5E7079',
+              linea: '#DCE7E3', claro: '#F2F7F5', A: '#D3452B', B: '#D99A2B', Cc: '#5E7079' };
+  const colorDe = c => c === 'A' ? C.A : (c === 'B' ? C.B : C.Cc);
+  const generado = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd HH:mm');
+
+  const dato = (eti, val) => val ?
+    '<td style="padding:3px 10px 3px 0;vertical-align:top"><div style="font-size:8px;color:' + C.gris +
+    ';text-transform:uppercase;letter-spacing:1px">' + eti + '</div>' +
+    '<div style="font-size:10.5px;color:' + C.tinta + '">' + esc(val) + '</div></td>' : '';
+
+  const ficha = l => {
+    const col = colorDe(l.calif);
+    return '<div class="ficha" style="border:1px solid ' + C.linea + ';border-left:6px solid ' + col +
+      ';border-radius:10px;padding:12px 14px;margin-bottom:12px;page-break-inside:avoid;background:#fff">' +
+      // 頭列：徽章 + 姓名 + 識別
+      '<table width="100%" style="border-collapse:collapse"><tr>' +
+      '<td width="44" style="vertical-align:top"><div style="width:34px;height:34px;background:' + col +
+      ';border-radius:8px;color:#fff;font-size:19px;font-weight:bold;text-align:center;line-height:34px;font-family:\'Space Grotesk\',Helvetica,Arial,sans-serif">' + l.calif + '</div></td>' +
+      '<td style="vertical-align:top"><div style="font-size:15px;font-weight:bold;color:' + C.tinta +
+      ';font-family:\'Space Grotesk\',Helvetica,Arial,sans-serif">' + esc(l.nombre) + '</div>' +
+      '<div style="font-size:10.5px;color:' + C.gris + '">' + esc(l.empresa || 's/empresa') +
+      (l.cargo ? ' &middot; ' + esc(l.cargo) : '') + (l.pais ? ' &middot; ' + esc(l.pais) : '') + '</div></td>' +
+      '<td align="right" style="vertical-align:top;font-size:8.5px;color:' + C.gris + '">' +
+      esc(l.leadId) + '<br>' + esc(l.fecha) + ' &middot; ' + esc(l.promotor) + '</td></tr></table>' +
+      // 聯絡
+      '<div style="margin-top:7px;font-size:10.5px;color:' + C.azul + '">' +
+      [l.tel ? '&#9742; ' + esc(l.tel) : '', l.email ? '&#9993; ' + esc(l.email) : '']
+        .filter(Boolean).join(' &nbsp;&nbsp; ') + '</div>' +
+      // 檔案欄位
+      '<table width="100%" style="border-collapse:collapse;margin-top:7px"><tr>' +
+      dato('Organizaci&oacute;n', l.tipoOrg) + dato('Sector', l.sector) + dato('Plazo', l.plazo) +
+      dato('Superficie', l.sup ? l.sup + ' m&sup2;' : '') + dato('Empleos', l.empleos) + '</tr>' +
+      '<tr>' + dato('Intereses', l.intereses) + dato('C&oacute;mo nos conoci&oacute;', l.conocio) +
+      dato('Estado', l.estado) + '</tr></table>' +
+      // 觀察
+      (l.obs ? '<div style="margin-top:7px;background:' + C.claro + ';border-radius:7px;padding:7px 10px;' +
+        'font-size:10px;font-style:italic;color:' + C.tinta + '"><b style="font-style:normal;font-size:8px;' +
+        'color:' + C.gris + ';text-transform:uppercase;letter-spacing:1px">Observaciones</b><br>' + esc(l.obs) + '</div>' : '') +
+      // 下一步
+      '<div style="margin-top:7px;font-size:10.5px">&rarr; <b>' + (esc(l.pasos) || 'definir pr&oacute;ximos pasos') + '</b>' +
+      (l.fseg ? ' <span style="color:' + C.A + ';font-weight:bold">(antes del ' + esc(l.fseg) + ')</span>' : '') +
+      (l.resp ? ' &mdash; Resp.: ' + esc(l.resp) : '') +
+      (l.tarjeta ? ' &nbsp;&middot;&nbsp; <a href="' + esc(l.tarjeta) + '" style="color:' + C.azul + ';font-size:9px">ver tarjeta</a>' : '') +
+      '</div></div>';
+  };
+
+  const nA = leads.filter(l => l.calif === 'A').length,
+        nB = leads.filter(l => l.calif === 'B').length,
+        nC = leads.filter(l => l.calif === 'C').length;
+
+  const qs = [];
+  ['tipo', 'fecha', 'desde', 'hasta', 'calif'].forEach(k => { if (params && params[k]) qs.push(k + '=' + params[k]); });
+  const urlPdf = '?action=fichasPdf' + (qs.length ? '&' + qs.join('&') : '');
+
+  const toolbar = conToolbar ?
+    '<div class="toolbar" style="max-width:800px;margin:0 auto 12px;text-align:right">' +
+    '<button onclick="window.print()" style="background:' + C.azul + ';color:#fff;border:0;border-radius:8px;' +
+    'padding:9px 16px;font-weight:bold;font-size:13px;cursor:pointer">&#128424; Imprimir</button> ' +
+    '<a href="' + urlPdf + '" style="display:inline-block;background:' + C.verde + ';color:#fff;border-radius:8px;' +
+    'padding:9px 16px;font-weight:bold;font-size:13px;text-decoration:none">&#128229; Descargar PDF</a></div>' : '';
+
+  return '<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">' +
+    '<style>body{font-family:Helvetica,Arial,sans-serif;background:#EEF4F2;margin:0;padding:16px}' +
+    '.hoja{max-width:800px;margin:0 auto}' +
+    '@media print{body{background:#fff;padding:0}.toolbar{display:none}}' +
+    '</style></head><body>' + toolbar +
+    '<div class="hoja">' +
+    '<table width="100%" style="border-collapse:collapse;margin-bottom:14px"><tr>' +
+    '<td style="background:' + C.verde + ';padding:13px 16px;border-radius:10px 0 0 10px">' +
+    '<div style="font-size:16px;font-weight:bold;color:#fff;font-family:\'Space Grotesk\',Helvetica,sans-serif">PTITP &mdash; Fichas de Leads</div>' +
+    '<div style="font-size:9.5px;color:#DFF3EE;margin-top:3px">' + esc(titulo) + ' &middot; ' + esc(evento) +
+    ' &middot; ' + leads.length + ' leads (A:' + nA + ' &middot; B:' + nB + ' &middot; C:' + nC + ')' +
+    ' &middot; Generado: ' + generado + '</div></td>' +
+    '<td width="8" style="background:' + C.azul + ';border-radius:0 10px 10px 0"></td></tr></table>' +
+    (leads.map(ficha).join('') || '<p style="color:' + C.gris + '">(sin leads en el per&iacute;odo)</p>') +
+    '<div style="border-top:1px solid ' + C.linea + ';padding-top:6px;font-size:8px;color:' + C.gris + '">' +
+    'Documento interno &mdash; Sistema de Captaci&oacute;n PTITP &middot; contiene datos de contacto: manejar con confidencialidad</div>' +
+    '</div></body></html>';
 }
 
 // 品牌化 PDF：頁首色帶、統計卡、雙欄統計表、A/B 客戶卡片。
