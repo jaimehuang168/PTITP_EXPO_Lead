@@ -107,6 +107,10 @@ function setupCRM() {
     cfg.appendRow(['Emails reporte semanal', '', 'lunes 8:30; si queda vacío usa "Emails resumen diario"']);
   if (!tieneParam('Usuarios web'))
     cfg.appendRow(['Usuarios web', '', 'emails autorizados para la interfaz web (coma); vacío = solo controla el despliegue']);
+  if (!tieneParam('Fecha inicio reportes'))
+    cfg.appendRow(['Fecha inicio reportes', '', 'yyyy-mm-dd · emails automáticos solo desde esta fecha; vacío = siempre']);
+  if (!tieneParam('Fecha fin reportes'))
+    cfg.appendRow(['Fecha fin reportes', '', 'yyyy-mm-dd · emails automáticos hasta esta fecha; vacío = sin límite']);
 
   _sembrarPlantillas(ss);
   _sembrarLotes(ss);
@@ -914,16 +918,56 @@ function _validarEmailsCRM(raw) {
 }
 
 // ══════════ 觸發器 ══════════
+// Config 日期參數（容忍 Date 物件與文字兩種儲存格式）
+function _cfgFechaCRM(param) {
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CRM.SH.CFG);
+    if (!sh) return '';
+    const fila = sh.getDataRange().getValues().find(r => String(r[0]).trim() === param);
+    if (!fila) return '';
+    const v = fila[1];
+    if (v instanceof Date) return Utilities.formatDate(v, CRM.ZONA, 'yyyy-MM-dd');
+    const s = String(v || '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+  } catch (err) { return ''; }
+}
+
+// ══════════ 排程守門：CRM 自動信只在展期內寄送 ══════════
+// Config「Fecha inicio/fin reportes」兩者留空 = 不設限（照常每天寄）。
+// 守門只攔【自動排程】：選單手動按鈕與 Web 的 Procesar 不受限；
+// 展會 leads 同步（sincronizarLeads）照常全年運轉，資料不中斷。
+function _dentroPeriodoReportes() {
+  const hoy = Utilities.formatDate(new Date(), CRM.ZONA, 'yyyy-MM-dd');
+  const ini = _cfgFechaCRM('Fecha inicio reportes');
+  const fin = _cfgFechaCRM('Fecha fin reportes');
+  if (ini && hoy < ini) return false;
+  if (fin && hoy > fin) return false;
+  return true;
+}
+function tareasProgramadas() {
+  if (!_dentroPeriodoReportes()) { Logger.log('展期外，略過任務信'); return 'fuera de periodo'; }
+  return tareasDiarias();
+}
+function recordatoriosProgramados() {
+  if (!_dentroPeriodoReportes()) { Logger.log('展期外，略過參訪提醒'); return 'fuera de periodo'; }
+  return recordatoriosVisitas();
+}
+function reporteSemanalProgramado() {
+  if (!_dentroPeriodoReportes()) { Logger.log('展期外，略過週報'); return 'fuera de periodo'; }
+  return reporteSemanal();
+}
+
 function crearTriggersCRM() {
-  ScriptApp.getProjectTriggers().forEach(t => {
-    if (['sincronizarLeads', 'tareasDiarias', 'recordatoriosVisitas', 'reporteSemanal'].indexOf(t.getHandlerFunction()) !== -1)
-      ScriptApp.deleteTrigger(t);
-  });
+  const mios = ['sincronizarLeads', 'tareasDiarias', 'recordatoriosVisitas', 'reporteSemanal',
+                'tareasProgramadas', 'recordatoriosProgramados', 'reporteSemanalProgramado'];
+  ScriptApp.getProjectTriggers()
+    .filter(t => mios.indexOf(t.getHandlerFunction()) !== -1)
+    .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('sincronizarLeads').timeBased().everyMinutes(10).create();
-  ScriptApp.newTrigger('tareasDiarias').timeBased().everyDays(1).atHour(8).create();
-  ScriptApp.newTrigger('recordatoriosVisitas').timeBased().everyDays(1).atHour(16).create();
-  ScriptApp.newTrigger('reporteSemanal').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).create();
-  Logger.log('✅ 觸發器已安裝：同步每10分鐘、任務信每朝8:00、參訪提醒每日16:00、週報週一8點');
+  ScriptApp.newTrigger('tareasProgramadas').timeBased().everyDays(1).atHour(8).create();
+  ScriptApp.newTrigger('recordatoriosProgramados').timeBased().everyDays(1).atHour(16).create();
+  ScriptApp.newTrigger('reporteSemanalProgramado').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).create();
+  Logger.log('✅ 觸發器已重建（自動信掛展期守門；同步照常）');
 }
 
 // ══════════ Web 介面（W1：Dashboard + Pipeline 看板） ══════════
