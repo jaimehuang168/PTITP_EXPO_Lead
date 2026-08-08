@@ -41,6 +41,7 @@ global.HtmlService = { createHtmlOutput: h => ({ _html:h, setTitle(){ return thi
 global.MailApp = { sendEmail: o => { global._lastEmail = o; } };
 global.ScriptApp = { getProjectTriggers: ()=>[], newTrigger: ()=>({timeBased(){return this},everyDays(){return this},atHour(){return this},nearMinute(){return this},create(){}}), deleteTrigger:()=>{} };
 global.Logger = { log: m => console.log('   [Logger]', String(m).split('\n')[0]) };
+global.PropertiesService = { getScriptProperties: ()=>({ getProperty:k=>k==='REPORT_ADMIN_TOKEN'?'test-admin-token-123456':null, setProperty:()=>{} }) };
 
 // ── 載入 Code.gs ──────────────────────────────
 eval(fs.readFileSync('Code.gs','utf8'));
@@ -50,7 +51,7 @@ const check = (cond, name) => { cond ? (pass++, console.log('✅', name)) : (fai
 
 // T1: setup
 setup();
-check(sheets['Leads'] && sheets['Leads'].rows[0].length === 25, 'T1 setup() 建立 Leads 表頭 (25 欄)');
+check(sheets['Leads'] && sheets['Leads'].rows[0].length === 26, 'T1 setup() 建立 Leads 表頭 (26 欄)');
 check(sheets['Reportes'] && sheets['Reportes'].rows.length === 1, 'T1 setup() 建立 Reportes 表頭');
 
 // T2: doPost 模擬 6 筆問卷
@@ -117,7 +118,7 @@ check(rpt.includes('antes del 2026-07-07'), 'T3 追蹤期限顯示正確');
 check(sheets['Reportes'].rows.length === 2, 'T3 報告寫入 Reportes 分頁');
 
 // T4: doGet 報告網頁
-const page = doGet({ parameter:{ action:'reporte' } });
+const page = doGet({ parameter:{ action:'reporte', token:'test-admin-token-123456' } });
 check(page._html && page._html.includes('REPORTE DIARIO'), 'T4 doGet ?action=reporte 回傳 HTML 報告');
 const ping = doGet({ parameter:{} });
 check(JSON.parse(ping._text).ok === true, 'T4 doGet 無參數回傳 API 狀態');

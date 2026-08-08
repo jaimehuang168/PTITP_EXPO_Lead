@@ -5,7 +5,7 @@
  *   1. doPost()  接收 GitHub Pages 前端送來的問卷 JSON，寫入 "Leads" 工作表
  *   2. generarReporteDiario()  將當日問卷自動彙整成西文「業務推廣暨當日工作報告」
  *      → 寫入 "Reportes" 工作表 + （可選）寄送 Email
- *   3. doGet(?action=reporte)  以網頁形式顯示當日報告，主管用連結即可看
+ *   3. doGet(?action=reporte&token=...)  驗證主管密鑰後顯示報告
  *
  * 部署方式見 README.md
  */
@@ -24,6 +24,7 @@ const CONFIG = {
   // 名片掃描設定
   OCR_MODEL: 'claude-haiku-4-5',
   OCR_LIMITE_DIARIO: 300,          // 每日辨識上限（防止公開端點被刷 API 額度）
+  OCR_MAX_BASE64: 2500000,         // 約 1.9 MB；前端壓縮後應遠低於此值
   CARPETA_TARJETAS: 'PTITP_Tarjetas', // 名片影像存放的 Drive 資料夾
 };
 
@@ -34,7 +35,7 @@ const HEADERS = [
   'Superficie (m²)', 'Empleos est.', 'Cómo nos conoció',
   'Calificación', 'Observaciones', 'Próximos pasos',
   'Fecha límite seguimiento', 'Responsable seguimiento', 'Estado',
-  'Tarjeta (imagen)', 'LeadID',
+  'Tarjeta (imagen)', 'LeadID', 'RequestID',
 ];
 
 // ══════════ 初始化：第一次執行 setup() 建立表頭 ══════════
@@ -51,7 +52,7 @@ function setup() {
   } else {
     // 遷移：舊表補上新增欄標頭
     let hdr = sh.getDataRange().getValues()[0];
-    ['Tarjeta (imagen)', 'LeadID'].forEach(col => {
+    ['Tarjeta (imagen)', 'LeadID', 'RequestID'].forEach(col => {
       if (hdr.indexOf(col) === -1) {
         sh.getRange(1, hdr.length + 1).setValue(col);
         hdr = hdr.concat([col]);
@@ -86,22 +87,43 @@ function setup() {
 function doPost(e) {
   let d;
   try {
+    if (!e || !e.postData || typeof e.postData.contents !== 'string')
+      return _json({ ok: false, error: 'Solicitud inválida' });
+    if (e.postData.contents.length > 120000)
+      return _json({ ok: false, error: 'Solicitud demasiado grande' });
     d = JSON.parse(e.postData.contents);
+    if (!d || typeof d !== 'object' || Array.isArray(d))
+      return _json({ ok: false, error: 'Solicitud inválida' });
   } catch (err) {
-    return _json({ ok: false, error: String(err) });
+    return _json({ ok: false, error: 'JSON inválido' });
   }
 
   // 名片辨識分支（不佔用問卷寫入的鎖）
   if (d.accion === 'ocrTarjeta') return _ocrTarjeta(d);
+  if (d.accion === 'enviarReporteA') {
+    const auth = _autorizarToken(d.token);
+    if (!auth.ok) return _json({ ok: false, error: auth.error });
+    return _enviarReporteAdmin(d);
+  }
+
+  const validado = _validarLead(d);
+  if (validado.error) return _json({ ok: false, error: validado.error });
+  d = validado.datos;
 
   const lock = LockService.getScriptLock();
-  lock.tryLock(10000); // 防止多人同時送出造成競態
+  if (!lock.tryLock(10000))
+    return _json({ ok: false, retryable: true, error: 'Sistema ocupado; reintente' });
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sh = ss.getSheetByName(CONFIG.SHEET_LEADS) || ss.insertSheet(CONFIG.SHEET_LEADS);
+    if (sh.getLastRow() === 0) sh.appendRow(HEADERS);
 
     const now = new Date();
     const fecha = Utilities.formatDate(now, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+
+    const rid = d.requestId || '';
+    if (rid && _requestIdExiste(sh, rid))
+      return _json({ ok: true, duplicate: true, msg: 'Lead ya registrado' });
 
     sh.appendRow([
       Utilities.formatDate(now, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd HH:mm:ss'),
@@ -129,11 +151,13 @@ function doPost(e) {
       'Pendiente', // 追蹤狀態欄，後續人工更新：Pendiente / En proceso / Cerrado
       d.tarjetaUrl || '', // 名片影像的 Drive 連結
       _nuevoLeadID(), // 與 CRM 追蹤系統的關聯鍵
+      rid,
     ]);
 
     return _json({ ok: true, msg: 'Lead registrado' });
   } catch (err) {
-    return _json({ ok: false, error: String(err) });
+    Logger.log('doPost error: ' + String(err));
+    return _json({ ok: false, retryable: true, error: 'No se pudo registrar el lead' });
   } finally {
     lock.releaseLock();
   }
@@ -143,22 +167,35 @@ function doPost(e) {
 function _ocrTarjeta(d) {
   try {
     if (!d.imagen) return _json({ ok: false, error: 'Falta la imagen' });
+    if (typeof d.imagen !== 'string' || d.imagen.length > CONFIG.OCR_MAX_BASE64 ||
+        !/^[A-Za-z0-9+/]+={0,2}$/.test(d.imagen))
+      return _json({ ok: false, error: 'Imagen inválida o demasiado grande' });
+    const mime = String(d.mime || 'image/jpeg').toLowerCase();
+    if (['image/jpeg', 'image/png', 'image/webp'].indexOf(mime) === -1)
+      return _json({ ok: false, error: 'Formato de imagen no permitido' });
 
     const props = PropertiesService.getScriptProperties();
-
-    // 每日用量閘門
-    const hoy = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-    const kCnt = 'ocr_' + hoy;
-    const usados = Number(props.getProperty(kCnt) || 0);
-    if (usados >= CONFIG.OCR_LIMITE_DIARIO)
-      return _json({ ok: false, error: 'Límite diario de escaneos alcanzado' });
 
     const apiKey = props.getProperty('ANTHROPIC_API_KEY');
     if (!apiKey)
       return _json({ ok: false, error: 'API key no configurada (Script Properties → ANTHROPIC_API_KEY)' });
 
+    // 每日用量閘門：先在鎖內保留額度，避免並行請求突破上限
+    const hoy = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+    const kCnt = 'ocr_' + hoy;
+    const quotaLock = LockService.getScriptLock();
+    if (!quotaLock.tryLock(10000))
+      return _json({ ok: false, retryable: true, error: 'Sistema ocupado; reintente' });
+    try {
+      const usados = Number(props.getProperty(kCnt) || 0);
+      if (usados >= CONFIG.OCR_LIMITE_DIARIO)
+        return _json({ ok: false, error: 'Límite diario de escaneos alcanzado' });
+      props.setProperty(kCnt, String(usados + 1));
+    } finally {
+      quotaLock.releaseLock();
+    }
+
     // 1. 影像留存到 Drive
-    const mime = d.mime || 'image/jpeg';
     const nombreArchivo = 'Tarjeta_' +
       Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyyMMdd_HHmmss') +
       (d.promotor ? '_' + String(d.promotor).replace(/[^\w\u00C0-\u017F]/g, '') : '') + '.jpg';
@@ -200,10 +237,10 @@ function _ocrTarjeta(d) {
     txt = txt.replace(/```json|```/g, '').trim();
     const datos = JSON.parse(txt);
 
-    props.setProperty(kCnt, String(usados + 1));
     return _json({ ok: true, datos: datos, imagen: urlImagen });
   } catch (err) {
-    return _json({ ok: false, error: String(err) });
+    Logger.log('OCR error: ' + String(err));
+    return _json({ ok: false, error: 'No se pudo analizar la tarjeta' });
   }
 }
 
@@ -213,11 +250,17 @@ function _carpetaTarjetas() {
 }
 
 // ══════════ 網頁查看報告 ══════════
-//   <WebAppURL>?action=reporte              當日報告（可加 &fecha=2026-07-08）
-//   <WebAppURL>?action=reporteExpo          整個展期累計報告
+//   <WebAppURL>?action=reporte&token=...     當日報告（可加 &fecha=2026-07-08）
+//   <WebAppURL>?action=reporteExpo&token=... 整個展期累計報告
 //   <WebAppURL>?action=enviarReporte        手動觸發：寫入 Reportes 分頁 + 寄 Email
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
+  const privadas = ['reporte', 'reporteExpo', 'reporteRango', 'fichas', 'fichasPdf',
+                    'reportePdf'];
+  if (privadas.indexOf(action) !== -1) {
+    const auth = _autorizarReporte(e);
+    if (!auth.ok) return _json({ ok: false, error: auth.error });
+  }
 
   if (action === 'reporte') {
     const fecha = (e.parameter.fecha) ||
@@ -282,36 +325,9 @@ function doGet(e) {
     }
   }
 
-  // 業務人員自訂寄送：?action=enviarReporteA&tipo=dia|rango|expo&emails=a@x,b@y[&desde&hasta]
-  if (action === 'enviarReporteA') {
-    try {
-      const emails = _validarEmails(e.parameter.emails || '');
-      if (!emails) return _json({ ok: false, error: 'Emails inválidos o vacíos' });
-      const sel = _reporteSegunTipo(e.parameter);
-      if (sel.error) return _json({ ok: false, error: sel.error });
-
-      MailApp.sendEmail({
-        to: emails,
-        subject: `[PTITP] Reporte ${sel.titulo} — ${sel.rpt.total} visitantes, ${sel.rpt.nA} leads A`,
-        body: sel.rpt.texto, // 純文字 fallback
-        htmlBody: _htmlDeReporte(sel.rpt, sel.titulo),
-        attachments: [_pdfDeReporte(sel.rpt, sel.titulo, sel.archivo)],
-      });
-      return _json({ ok: true, enviado: 'a ' + emails, total: sel.rpt.total });
-    } catch (err) {
-      return _json({ ok: false, error: String(err) });
-    }
-  }
-
-  if (action === 'enviarReporte') {
-    try {
-      generarReporteDiario();
-      const dest = _getReportEmails();
-      return _json({ ok: true, email: dest ? 'enviado a ' + dest : 'no configurado (solo guardado en la hoja Reportes; configure emails en la hoja "Config" celda B1)' });
-    } catch (err) {
-      return _json({ ok: false, error: String(err) });
-    }
-  }
+  // 寄信是副作用，只接受 doPost；防止爬蟲、連結預覽或誤點觸發。
+  if (action === 'enviarReporteA' || action === 'enviarReporte')
+    return _json({ ok: false, error: 'Método no permitido' });
 
   return _json({ ok: true, servicio: 'PTITP Expo API', hora: new Date().toISOString() });
 }
@@ -409,6 +425,98 @@ function _validarEmails(raw) {
   return String(raw).split(/[,;\s]+/)
     .filter(e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))
     .slice(0, 10).join(',');
+}
+
+// 報告與寄信功能使用 Script Property「REPORT_ADMIN_TOKEN」作為管理端 bearer token。
+// Token 不可寫入公開的 GitHub Pages 原始碼；由使用者在頁面輸入並只存 sessionStorage。
+function _autorizarReporte(e) {
+  return _autorizarToken(e && e.parameter && e.parameter.token);
+}
+
+function _autorizarToken(token) {
+  try {
+    const esperado = String(PropertiesService.getScriptProperties().getProperty('REPORT_ADMIN_TOKEN') || '');
+    if (esperado.length < 16)
+      return { ok: false, error: 'Acceso administrativo no configurado' };
+    const recibido = String(token || '');
+    return recibido === esperado ? { ok: true } : { ok: false, error: 'No autorizado' };
+  } catch (err) {
+    return { ok: false, error: 'No autorizado' };
+  }
+}
+
+function _enviarReporteAdmin(p) {
+  try {
+    const emails = _getReportEmails();
+    if (!emails) return _json({ ok: false, error: 'No hay destinatarios configurados' });
+    const sel = _reporteSegunTipo(p || {});
+    if (sel.error) return _json({ ok: false, error: sel.error });
+    MailApp.sendEmail({
+      to: emails,
+      subject: `[PTITP] Reporte ${sel.titulo} — ${sel.rpt.total} visitantes, ${sel.rpt.nA} leads A`,
+      body: sel.rpt.texto,
+      htmlBody: _htmlDeReporte(sel.rpt, sel.titulo),
+      attachments: [_pdfDeReporte(sel.rpt, sel.titulo, sel.archivo)],
+    });
+    return _json({ ok: true, enviado: 'a ' + emails, total: sel.rpt.total });
+  } catch (err) {
+    Logger.log('Enviar reporte error: ' + String(err));
+    return _json({ ok: false, error: 'No se pudo enviar el reporte' });
+  }
+}
+
+function _validarLead(raw) {
+  const limites = {
+    evento: 120, promotor: 100, nombre: 160, empresa: 180, cargo: 120, pais: 80,
+    telefono: 60, email: 180, tipoOrg: 100, sector: 120, plazo: 80,
+    superficie: 30, empleos: 30, comoNosConocio: 120, calificacion: 40,
+    observaciones: 2000, fechaSeguimiento: 10, responsable: 120,
+  };
+  const d = {};
+  for (const k in limites) {
+    if (raw[k] != null && typeof raw[k] !== 'string') return { error: 'Campo inválido: ' + k };
+    const s = String(raw[k] || '').trim();
+    if (s.length > limites[k]) return { error: 'Campo demasiado largo: ' + k };
+    d[k] = _textoSeguro(s);
+  }
+  if (!d.nombre) return { error: 'Falta el nombre del visitante' };
+  if (!/^[ABC](?:\s|\s*-|$)/.test(d.calificacion)) return { error: 'Calificación inválida' };
+  if (d.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) return { error: 'Email inválido' };
+  if (d.fechaSeguimiento && !_fechaValida(d.fechaSeguimiento)) return { error: 'Fecha inválida' };
+  if (d.superficie && !/^\d+(?:[.,]\d{1,2})?$/.test(d.superficie)) return { error: 'Superficie inválida' };
+  if (d.empleos && !/^\d+$/.test(d.empleos)) return { error: 'Empleos inválidos' };
+
+  for (const k of ['intereses', 'proximosPasos']) {
+    if (raw[k] != null && !Array.isArray(raw[k])) return { error: 'Campo inválido: ' + k };
+    const arr = raw[k] || [];
+    if (arr.length > 12) return { error: 'Demasiados valores: ' + k };
+    d[k] = [];
+    for (const v of arr) {
+      if (typeof v !== 'string' || v.trim().length > 120) return { error: 'Valor inválido: ' + k };
+      d[k].push(_textoSeguro(v.trim()));
+    }
+  }
+
+  const tarjeta = String(raw.tarjetaUrl || '').trim();
+  if (tarjeta && !/^https:\/\/(?:drive|docs)\.google\.com\//i.test(tarjeta))
+    return { error: 'URL de tarjeta inválida' };
+  d.tarjetaUrl = tarjeta;
+
+  const rid = String(raw.requestId || '').trim();
+  if (rid && !/^[A-Za-z0-9_-]{8,100}$/.test(rid)) return { error: 'RequestID inválido' };
+  d.requestId = rid;
+  return { datos: d };
+}
+
+function _textoSeguro(s) {
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+function _requestIdExiste(sh, requestId) {
+  if (!requestId || sh.getLastRow() < 2) return false;
+  const vals = sh.getDataRange().getValues();
+  const idx = vals[0].indexOf('RequestID');
+  return idx !== -1 && vals.slice(1).some(r => String(r[idx]) === requestId);
 }
 
 function _fechaValida(f) {
@@ -542,7 +650,9 @@ function _htmlFichas(leads, titulo, evento, params, conToolbar) {
         nC = leads.filter(l => l.calif === 'C').length;
 
   const qs = [];
-  ['tipo', 'fecha', 'desde', 'hasta', 'calif'].forEach(k => { if (params && params[k]) qs.push(k + '=' + params[k]); });
+  ['tipo', 'fecha', 'desde', 'hasta', 'calif', 'token'].forEach(k => {
+    if (params && params[k]) qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+  });
   const urlPdf = '?action=fichasPdf' + (qs.length ? '&' + qs.join('&') : '');
 
   const toolbar = conToolbar ?

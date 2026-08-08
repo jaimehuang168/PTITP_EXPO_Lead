@@ -10,6 +10,7 @@ global.HtmlService={createHtmlOutput:h=>({_html:h,setTitle(t){this._title=t;retu
 global.MailApp={sendEmail:o=>{global._lastEmail=o}};
 global.ScriptApp={getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){return this},everyDays(){return this},atHour(){return this},nearMinute(){return this},create(){}}),deleteTrigger:()=>{}};
 global.Logger={log:()=>{}};
+global.PropertiesService={getScriptProperties:()=>({getProperty:k=>k==='REPORT_ADMIN_TOKEN'?'test-admin-token-123456':null,setProperty:()=>{}})};
 eval(fs.readFileSync('Code.gs','utf8'));
 
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
@@ -32,12 +33,12 @@ check(expo.texto.includes('Día1-A')&&expo.texto.includes('Día2-A'),'E1 跨日 
 check(/Estado: En proceso/.test(expo.texto),'E1 Estado 欄顯示於名單');
 
 // E2: doGet actions
-const g1=doGet({parameter:{action:'reporteExpo'}});
+const g1=doGet({parameter:{action:'reporteExpo',token:'test-admin-token-123456'}});
 check(g1._html&&g1._html.includes('REPORTE ACUMULADO'),'E2 ?action=reporteExpo 回傳累計報告 HTML');
-const g2=doGet({parameter:{action:'enviarReporte'}});
+const g2=doGet({parameter:{action:'enviarReporte',token:'test-admin-token-123456'}});
 const j2=JSON.parse(g2._text);
-check(j2.ok===true&&/no configurado/.test(j2.email),'E2 ?action=enviarReporte 觸發成功（Email 未設定時回報）');
-check(sheets['Reportes'].rows.length===2,'E2 手動觸發有寫入 Reportes 分頁');
+check(j2.ok===false&&/Método no permitido/.test(j2.error),'E2 GET 不可觸發寄信副作用');
+check(sheets['Reportes'].rows.length===1,'E2 被拒絕的 GET 不寫入 Reportes');
 // 當日報告只算今天(2026-07-06)兩筆
 const hoy=_construirReporte('2026-07-06');
 check(hoy.total===2&&hoy.nA===1,'E2 當日報告只計今日 2 筆（A=1）');

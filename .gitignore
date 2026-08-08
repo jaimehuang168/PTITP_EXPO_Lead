@@ -5,3 +5,4 @@ _crops/
 # Verification artifacts (Playwright + local test snapshots)
 .playwright-mcp/
 test-demo-*.png
+node_modules/

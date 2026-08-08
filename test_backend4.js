@@ -64,7 +64,7 @@ setup();
 r=doPost({postData:{contents:JSON.stringify({nombre:'Test',calificacion:'C - Frío',tarjetaUrl:'https://drive.google.com/x'})}});
 check(JSON.parse(r._text).ok===true,'O6 問卷送出正常');
 const fila=sheets['Leads'].rows[sheets['Leads'].rows.length-1];
-check(fila.length===25&&fila[23]==='https://drive.google.com/x'&&fila[22]==='Pendiente','O6 名片連結存於第24欄、Estado 不受影響');
+check(fila.length===26&&fila[23]==='https://drive.google.com/x'&&fila[22]==='Pendiente','O6 名片連結存於第24欄、Estado 不受影響');
 checK___=0;check(/^L-[A-Z0-9]+-[A-Z0-9]{2}$/.test(fila[24]),'O7 每筆 lead 自動生成 LeadID');
 
 console.log(`\n═══ 名片辨識測試: ${pass} 通過 / ${fail} 失敗 ═══`);

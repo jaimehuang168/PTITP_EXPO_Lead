@@ -8,7 +8,7 @@ global.LockService={getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})};
 global.ContentService={MimeType:{JSON:'json'},createTextOutput:t=>({_text:t,setMimeType(){return this}})};
 let htmlOut='';global.HtmlService={createHtmlOutput:h=>{htmlOut=h;return{setTitle(){return this}}}};
 global.MailApp={sendEmail:()=>{}};global.ScriptApp={getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){return this},everyDays(){return this},everyHours(){return this},atHour(){return this},nearMinute(){return this},create(){}}),deleteTrigger:()=>{}};global.Logger={log:()=>{}};
-global.PropertiesService={getScriptProperties:()=>({getProperty:()=>null,setProperty:()=>{}})};
+global.PropertiesService={getScriptProperties:()=>({getProperty:k=>k==='REPORT_ADMIN_TOKEN'?'test-admin-token-123456':null,setProperty:()=>{}})};
 global.DriveApp={getFoldersByName:()=>({hasNext:()=>false}),createFolder:()=>({})};
 global.UrlFetchApp={fetch:()=>({})};
 eval(fs.readFileSync('Code.gs','utf8'));
@@ -26,7 +26,7 @@ sheets['Leads'].appendRow(mk('2026-07-10','Carlos','A - Caliente','Dueño con de
 sheets['Leads'].appendRow(mk('2026-07-10','Ana','B - Tibio','Consultar con directorio'));
 
 // F1: 列印視圖
-doGet({parameter:{action:'fichas',tipo:'expo'}});
+doGet({parameter:{action:'fichas',tipo:'expo',token:'test-admin-token-123456'}});
 check(/Fichas de Leads/.test(htmlOut)&&/window\.print/.test(htmlOut),'F1 列印視圖含工具列');
 check(/Carlos/.test(htmlOut)&&/Zoe/.test(htmlOut)&&/Ana/.test(htmlOut),'F1 含全部 leads（A/B/C）');
 check(htmlOut.indexOf('Carlos')<htmlOut.indexOf('Ana')&&htmlOut.indexOf('Ana')<htmlOut.indexOf('Zoe'),'F1 排序 A→B→C');
@@ -37,13 +37,13 @@ check(/page-break-inside:avoid/.test(htmlOut)&&/confidencialidad/.test(htmlOut),
 check(/action=fichasPdf&tipo=expo/.test(htmlOut),'F1 內含 PDF 下載連結（帶原參數）');
 
 // F2: 過濾
-doGet({parameter:{action:'fichas',tipo:'dia',fecha:'2026-07-10'}});
+doGet({parameter:{action:'fichas',tipo:'dia',fecha:'2026-07-10',token:'test-admin-token-123456'}});
 check(/Carlos/.test(htmlOut)&&!/Zoe/.test(htmlOut),'F2 依日期過濾');
-doGet({parameter:{action:'fichas',tipo:'expo',calif:'A'}});
+doGet({parameter:{action:'fichas',tipo:'expo',calif:'A',token:'test-admin-token-123456'}});
 check(/Carlos/.test(htmlOut)&&!/Ana(?! SA)/.test(htmlOut.replace(/Ana SA/g,''))&&!/Zoe/.test(htmlOut),'F2 依評級 A 過濾');
 
 // F3: PDF 下載頁
-doGet({parameter:{action:'fichasPdf',tipo:'expo'}});
+doGet({parameter:{action:'fichasPdf',tipo:'expo',token:'test-admin-token-123456'}});
 check(/B64X/.test(htmlOut)&&/PTITP_Fichas_evento\.pdf/.test(htmlOut),'F3 PDF 下載頁');
 
 console.log(`\n═══ Fichas 測試: ${pass} 通過 / ${fail} 失敗 ═══`);

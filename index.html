@@ -375,9 +375,10 @@
     <button type="button" id="ver-expo">📊 Ver reporte acumulado del evento</button>
   </div>
 
-  <label for="rep-emails">Enviar por email a <span class="op">(uno o varios, separados por coma)</span></label>
-  <input type="text" id="rep-emails" inputmode="email" autocomplete="email"
-         placeholder="gerencia@ptitp.com.py, direccion@ejemplo.com">
+  <label for="rep-token">Clave de supervisión</label>
+  <input type="password" id="rep-token" autocomplete="current-password"
+         placeholder="Clave configurada por administración">
+  <p class="ayuda">La clave se conserva solamente durante esta sesión. Los reportes se envían exclusivamente a los destinatarios configurados en la hoja “Config”.</p>
 
   <label>Tipo de reporte</label>
   <div class="chips" id="rep-tipo">
@@ -487,6 +488,9 @@ const f = $('f');
 
 function datos(){
   return {
+    requestId: (window.crypto && typeof window.crypto.randomUUID === 'function')
+      ? window.crypto.randomUUID()
+      : 'req_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10),
     evento: $('evento').value.trim(),
     promotor: $('promotor').value.trim(),
     nombre: $('nombre').value.trim(),
@@ -525,7 +529,11 @@ async function enviar(payload){
     body: JSON.stringify(payload),
   });
   const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'Error del servidor');
+  if(!j.ok){
+    const err = new Error(j.error||'Error del servidor');
+    err.retryable = j.retryable === true;
+    throw err;
+  }
 }
 
 /* 離線佇列：展場網路不穩時先存手機，恢復後重送 */
@@ -565,9 +573,13 @@ f.addEventListener('submit', async e=>{
     aviso(`Registrado ✔ ${p.nombre} (${p.calificacion.charAt(0)})`);
     limpiar();
   }catch(err){
-    setCola([...getCola(), p]);
-    aviso('Sin conexión: guardado en el dispositivo', true);
-    limpiar();
+    if(err.retryable !== false){
+      setCola([...getCola(), p]);
+      aviso('Sin conexión: guardado en el dispositivo', true);
+      limpiar();
+    }else{
+      aviso(err.message || 'Datos inválidos', true);
+    }
   }finally{
     $('enviar').disabled = false; $('enviar').textContent = 'Registrar visitante';
     window.scrollTo({top:0});
@@ -670,17 +682,23 @@ document.querySelectorAll('.tabs button').forEach(b=>{
 });
 
 /* 報告按鈕（主管用） */
+const tokenGuardado = sessionStorage.getItem('ptitp_rep_token') || '';
+$('rep-token').value = tokenGuardado;
+$('rep-token').addEventListener('change', ()=>sessionStorage.setItem('ptitp_rep_token', $('rep-token').value));
+function qsAdmin(){
+  const token = $('rep-token').value.trim();
+  if(token.length < 16){ aviso('Ingrese la clave de supervisión', true); return null; }
+  sessionStorage.setItem('ptitp_rep_token', token);
+  return '&token=' + encodeURIComponent(token);
+}
 document.getElementById('ver-hoy').addEventListener('click', ()=>{
-  window.open(API_URL + '?action=reporte', '_blank');
+  const a = qsAdmin(); if(a) window.open(API_URL + '?action=reporte' + a, '_blank');
 });
 document.getElementById('ver-expo').addEventListener('click', ()=>{
-  window.open(API_URL + '?action=reporteExpo', '_blank');
+  const a = qsAdmin(); if(a) window.open(API_URL + '?action=reporteExpo' + a, '_blank');
 });
 
-/* 寄送報告：收件人存在裝置上，可寄 當日/日期範圍/全展期 */
-const RE_MAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-$('rep-emails').value = localStorage.getItem('ptitp_rep_emails') || '';
-$('rep-emails').addEventListener('change', ()=>localStorage.setItem('ptitp_rep_emails', $('rep-emails').value));
+/* 寄送報告：只寄到 Config 受控收件人，可寄 當日/日期範圍/全展期 */
 
 document.querySelectorAll('input[name=repTipo]').forEach(r=>r.addEventListener('change', ()=>{
   document.getElementById('rep-rango').style.display =
@@ -702,32 +720,39 @@ function qsTipoReporte(){
 }
 
 document.getElementById('pdf-reporte').addEventListener('click', ()=>{
-  const t = qsTipoReporte();
-  if(!t) return;
-  window.open(API_URL + '?action=reportePdf' + t.qs, '_blank');
+  const t = qsTipoReporte(), a = qsAdmin();
+  if(!t || !a) return;
+  window.open(API_URL + '?action=reportePdf' + t.qs + a, '_blank');
 });
 
 document.getElementById('fichas-btn').addEventListener('click', ()=>{
-  const t = qsTipoReporte();
-  if(!t) return;
-  window.open(API_URL + '?action=fichas' + t.qs, '_blank'); // 列印視圖，內含「Imprimir / Descargar PDF」
+  const t = qsTipoReporte(), a = qsAdmin();
+  if(!t || !a) return;
+  window.open(API_URL + '?action=fichas' + t.qs + a, '_blank'); // 列印視圖，內含「Imprimir / Descargar PDF」
 });
 
 document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
-  const emails = $('rep-emails').value.split(/[,;\s]+/).filter(Boolean);
-  if(!emails.length || emails.some(e=>!RE_MAIL.test(e)))
-    return aviso('Ingrese uno o más emails válidos, separados por coma', true);
+  const t = qsTipoReporte(), a = qsAdmin();
+  if(!t || !a) return;
+  const payload = {
+    accion: 'enviarReporteA',
+    token: $('rep-token').value.trim(),
+    tipo: document.querySelector('input[name=repTipo]:checked').value,
+  };
+  if(payload.tipo === 'rango'){
+    payload.desde = $('rep-desde').value;
+    payload.hasta = $('rep-hasta').value;
+  }
 
-  const t = qsTipoReporte();
-  if(!t) return;
-  const qs = '?action=enviarReporteA' + t.qs + '&emails=' + encodeURIComponent(emails.join(','));
-
-  if(!window.confirm(`¿Enviar el reporte ${t.desc} (con PDF adjunto) a:\n${emails.join('\n')}?`)) return;
+  if(!window.confirm(`¿Enviar el reporte ${t.desc} a los destinatarios configurados (con PDF adjunto)?`)) return;
 
   const b = document.getElementById('enviar-reporte');
   b.disabled = true; b.textContent = '✉️ Enviando…';
   try{
-    const r = await fetch(API_URL + qs);
+    const r = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(payload),
+    });
     const j = await r.json();
     aviso(j.ok ? ('Reporte enviado ✔ ' + j.enviado) : ('Error: ' + j.error), !j.ok);
   }catch(e){
@@ -738,7 +763,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.10.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){

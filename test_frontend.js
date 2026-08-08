@@ -15,6 +15,7 @@ const html = fs.readFileSync('index.html','utf8')
 const dom = new JSDOM(html, { runScripts:'dangerously', url:'https://jaimehuang168.github.io/ptitp-expo-leads/', pretendToBeVisual:true });
 const { window } = dom;
 const { document } = window;
+window.scrollTo = ()=>{};
 
 let pass=0, fail=0;
 const check=(c,n)=>{ c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n)); };

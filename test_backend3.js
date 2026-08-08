@@ -10,9 +10,12 @@ global.HtmlService={createHtmlOutput:h=>({_html:h,setTitle(t){return this}})};
 const mails=[];global.MailApp={sendEmail:o=>mails.push(o)};
 global.ScriptApp={getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){return this},everyDays(){return this},atHour(){return this},nearMinute(){return this},create(){}}),deleteTrigger:()=>{}};
 global.Logger={log:()=>{}};
+const ADMIN_TOKEN='test-admin-token-123456';
+global.PropertiesService={getScriptProperties:()=>({getProperty:k=>k==='REPORT_ADMIN_TOKEN'?ADMIN_TOKEN:null,setProperty:()=>{}})};
 eval(fs.readFileSync('Code.gs','utf8'));
 
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
+const post=p=>doPost({postData:{contents:JSON.stringify(p)}});
 
 setup();
 check(sheets['Config']&&sheets['Config'].rows.length===4,'C1 setup 建立 Config 分頁（含排程參數）');
@@ -39,36 +42,36 @@ check(/REPORTE POR RANGO DE FECHAS \(2026-07-06 → 2026-07-07\)/.test(rg.texto)
 check(_construirReporteExpo().total===4,'C4 全展期仍為 4 筆（未受影響）');
 
 // enviarReporteA：expo
-let r=doGet({parameter:{action:'enviarReporteA',tipo:'expo',emails:'jefe@x.com,otro@y.com'}});
+let r=post({accion:'enviarReporteA',tipo:'expo',token:ADMIN_TOKEN});
 let j=JSON.parse(r._text);
-check(j.ok&&mails.length===1&&mails[0].to==='jefe@x.com,otro@y.com','C5 expo 報告寄給多個收件人');
+check(j.ok&&mails.length===1&&mails[0].to==='jefe@ptitp.com.py,dir@gob.py','C5 expo 報告只寄給 Config 收件人');
 check(/acumulado del evento/.test(mails[0].subject),'C5 expo 主旨正確');
 
 // enviarReporteA：rango
-r=doGet({parameter:{action:'enviarReporteA',tipo:'rango',desde:'2026-07-05',hasta:'2026-07-06',emails:'a@b.co'}});
+r=post({accion:'enviarReporteA',tipo:'rango',desde:'2026-07-05',hasta:'2026-07-06',token:ADMIN_TOKEN});
 j=JSON.parse(r._text);
 check(j.ok&&j.total===2&&mails.length===2,'C5 範圍報告寄出且計數正確');
 
 // enviarReporteA：dia（今天 2026-07-06 假設 mock 日期）
-r=doGet({parameter:{action:'enviarReporteA',tipo:'dia',emails:'a@b.co'}});
+r=post({accion:'enviarReporteA',tipo:'dia',token:ADMIN_TOKEN});
 check(JSON.parse(r._text).ok&&mails.length===3,'C5 當日報告寄出');
 
 // 錯誤處理
-r=doGet({parameter:{action:'enviarReporteA',tipo:'expo',emails:'no-valido'}});
-check(JSON.parse(r._text).ok===false&&mails.length===3,'C6 無效 email 拒寄');
-r=doGet({parameter:{action:'enviarReporteA',tipo:'rango',desde:'2026-07-09',hasta:'2026-07-05',emails:'a@b.co'}});
+r=post({accion:'enviarReporteA',tipo:'expo',token:'wrong-token-123456789'});
+check(JSON.parse(r._text).ok===false&&mails.length===3,'C6 無效管理密鑰拒寄');
+r=post({accion:'enviarReporteA',tipo:'rango',desde:'2026-07-09',hasta:'2026-07-05',token:ADMIN_TOKEN});
 check(JSON.parse(r._text).ok===false,'C6 desde>hasta 拒寄');
-r=doGet({parameter:{action:'reporteRango',desde:'2026-07-05',hasta:'2026-07-07'}});
+r=doGet({parameter:{action:'reporteRango',desde:'2026-07-05',hasta:'2026-07-07',token:ADMIN_TOKEN}});
 check(r._html&&r._html.includes('RANGO'),'C6 reporteRango 檢視正常');
 
 // C7: PDF 功能
-r=doGet({parameter:{action:'reportePdf',tipo:'expo'}});
+r=doGet({parameter:{action:'reportePdf',tipo:'expo',token:ADMIN_TOKEN}});
 check(r._html&&r._html.includes('B64DATA')&&r._html.includes('PTITP_Reporte_evento.pdf'),'C7 reportePdf 回傳下載頁（含 base64 與檔名）');
-r=doGet({parameter:{action:'reportePdf',tipo:'rango',desde:'2026-07-05',hasta:'2026-07-06'}});
+r=doGet({parameter:{action:'reportePdf',tipo:'rango',desde:'2026-07-05',hasta:'2026-07-06',token:ADMIN_TOKEN}});
 check(r._html&&r._html.includes('PTITP_Reporte_2026-07-05_a_2026-07-06.pdf'),'C7 範圍 PDF 檔名正確');
-r=doGet({parameter:{action:'reportePdf',tipo:'rango',desde:'2026-07-09',hasta:'2026-07-05'}});
+r=doGet({parameter:{action:'reportePdf',tipo:'rango',desde:'2026-07-09',hasta:'2026-07-05',token:ADMIN_TOKEN}});
 check(JSON.parse(r._text).ok===false,'C7 無效範圍 PDF 拒絕');
-r=doGet({parameter:{action:'enviarReporteA',tipo:'expo',emails:'pdf@x.com'}});
+r=post({accion:'enviarReporteA',tipo:'expo',token:ADMIN_TOKEN});
 const m=mails[mails.length-1];
 check(m.attachments&&m.attachments.length===1&&m.attachments[0].getName()==='PTITP_Reporte_evento.pdf','C7 寄送報告夾帶 PDF 附件');
 
