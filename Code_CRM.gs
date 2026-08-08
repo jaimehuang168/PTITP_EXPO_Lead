@@ -108,9 +108,9 @@ function setupCRM() {
   if (!tieneParam('Usuarios web'))
     cfg.appendRow(['Usuarios web', '', 'emails autorizados para la interfaz web (coma); vacío = solo controla el despliegue']);
   if (!tieneParam('Fecha inicio reportes'))
-    cfg.appendRow(['Fecha inicio reportes', '', 'yyyy-mm-dd · emails automáticos solo desde esta fecha; vacío = siempre']);
+    cfg.appendRow(['Fecha inicio reportes', '', 'yyyy-mm-dd · obligatorio para habilitar emails automáticos']);
   if (!tieneParam('Fecha fin reportes'))
-    cfg.appendRow(['Fecha fin reportes', '', 'yyyy-mm-dd · emails automáticos hasta esta fecha; vacío = sin límite']);
+    cfg.appendRow(['Fecha fin reportes', '', 'yyyy-mm-dd · obligatorio para habilitar emails automáticos']);
 
   _sembrarPlantillas(ss);
   _sembrarLotes(ss);
@@ -933,27 +933,27 @@ function _cfgFechaCRM(param) {
 }
 
 // ══════════ 排程守門：CRM 自動信只在展期內寄送 ══════════
-// Config「Fecha inicio/fin reportes」兩者留空 = 不設限（照常每天寄）。
+// Config 必須同時有有效的「Fecha inicio/fin reportes」，且今天在展期內才寄。
+// 任一日期留空、格式錯誤或開始日晚於結束日，都視為目前沒有展覽，不寄自動信。
 // 守門只攔【自動排程】：選單手動按鈕與 Web 的 Procesar 不受限；
 // 展會 leads 同步（sincronizarLeads）照常全年運轉，資料不中斷。
 function _dentroPeriodoReportes() {
   const hoy = Utilities.formatDate(new Date(), CRM.ZONA, 'yyyy-MM-dd');
   const ini = _cfgFechaCRM('Fecha inicio reportes');
   const fin = _cfgFechaCRM('Fecha fin reportes');
-  if (ini && hoy < ini) return false;
-  if (fin && hoy > fin) return false;
-  return true;
+  if (!ini || !fin || ini > fin) return false;
+  return hoy >= ini && hoy <= fin;
 }
 function tareasProgramadas() {
-  if (!_dentroPeriodoReportes()) { Logger.log('展期外，略過任務信'); return 'fuera de periodo'; }
+  if (!_dentroPeriodoReportes()) { Logger.log('無有效展期或展期外，略過任務信'); return 'fuera de periodo'; }
   return tareasDiarias();
 }
 function recordatoriosProgramados() {
-  if (!_dentroPeriodoReportes()) { Logger.log('展期外，略過參訪提醒'); return 'fuera de periodo'; }
+  if (!_dentroPeriodoReportes()) { Logger.log('無有效展期或展期外，略過參訪提醒'); return 'fuera de periodo'; }
   return recordatoriosVisitas();
 }
 function reporteSemanalProgramado() {
-  if (!_dentroPeriodoReportes()) { Logger.log('展期外，略過週報'); return 'fuera de periodo'; }
+  if (!_dentroPeriodoReportes()) { Logger.log('無有效展期或展期外，略過週報'); return 'fuera de periodo'; }
   return reporteSemanal();
 }
 

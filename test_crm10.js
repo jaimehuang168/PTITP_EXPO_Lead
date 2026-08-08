@@ -22,19 +22,22 @@ const cfg=crmSS._sheets['Config'];
 check(cfg.rows.some(r=>r[0]==='Fecha inicio reportes')&&cfg.rows.some(r=>r[0]==='Fecha fin reportes'),'G1 Config 有展期兩參數');
 cfg.rows.find(r=>r[0]==='Emails resumen diario')[1]='jefe@ptitp.com.py';
 
-// G2: 日期留空 → 照常寄（向下相容）
-tareasProgramadas();
-check(mails.length===1,'G2 未設展期 → 任務信照寄');
+// G2: 日期留空／不完整／反向 → 視為沒有展覽，不寄
+check(tareasProgramadas()==='fuera de periodo'&&mails.length===0,'G2 未設展期 → 任務信不寄');
+cfg.rows.find(r=>r[0]==='Fecha inicio reportes')[1]='2026-07-01';
+check(recordatoriosProgramados()==='fuera de periodo','G2 只設開始日仍不寄');
+cfg.rows.find(r=>r[0]==='Fecha fin reportes')[1]='2026-06-30';
+check(reporteSemanalProgramado()==='fuera de periodo','G2 開始日晚於結束日仍不寄');
 
 // G3: 展期閘門
 cfg.rows.find(r=>r[0]==='Fecha inicio reportes')[1]='2026-07-15';
 cfg.rows.find(r=>r[0]==='Fecha fin reportes')[1]='2026-07-20';
-check(tareasProgramadas()==='fuera de periodo'&&mails.length===1,'G3 展期未開始不寄');
+check(tareasProgramadas()==='fuera de periodo'&&mails.length===0,'G3 展期未開始不寄');
 HOY='2026-07-22';
 check(reporteSemanalProgramado()==='fuera de periodo'&&recordatoriosProgramados()==='fuera de periodo','G3 展期結束後週報/提醒皆不寄');
 HOY='2026-07-16';
 tareasProgramadas();
-check(mails.length===2,'G3 展期內照常寄');
+check(mails.length===1,'G3 展期內照常寄');
 
 // G4: Date 物件儲存格
 const d1=new Date();d1._s='2026-07-16';
