@@ -5,7 +5,7 @@ let abierto='';dom.window.open=u=>{abierto=u;return null};
 setTimeout(()=>{
   const d=dom.window.document;let f=0;const c=(x,n)=>{x?console.log('✅',n):(f++,console.log('❌',n))};
   c(d.getElementById('fichas-btn'),'B1 fichas 按鈕存在');
-  c(d.getElementById('ver-num').textContent==='v1.10.0','B1 版本 1.10.0');
+  c(d.getElementById('ver-num').textContent==='v1.10.1','B1 版本 1.10.1');
   d.getElementById('rep-token').value='test-admin-token-123456';
   d.getElementById('fichas-btn').click(); // 預設 repTipo=dia
   c(abierto.includes('action=fichas')&&abierto.includes('tipo=')&&abierto.includes('token='),'B2 點擊開啟受保護 fichas 視圖: '+abierto.slice(-35));

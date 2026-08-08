@@ -131,6 +131,7 @@
   #scan-btn:disabled{opacity:.6}
   #tarjeta-thumb{display:block;margin-top:.5rem;max-height:72px;border-radius:6px;
     border:1px solid var(--linea)}
+  #tarjeta-thumb[hidden]{display:none}
 
   /* 版本更新橫幅 */
   #act-banner{position:fixed;top:0;left:0;right:0;z-index:99;cursor:pointer;
@@ -763,7 +764,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.10.1';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
