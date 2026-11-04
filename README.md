@@ -59,7 +59,8 @@ Google Sheet「Leads」──▶ generarReporteDiario() ──▶「Reportes」�
 
 ## 前端功能重點
 
-- **內建使用說明**：上方「Guía / 說明」分頁提供西班牙文與繁體中文切換，包含首次登錄、掃描密鑰位置、評級及標準廠房需求、斷線補傳、多人協作與主管報告。`#guia` 可直接開啟說明；從說明返回表單保留未送出的內容。
+- **內建使用說明**：上方「Guía de uso」分頁提供西班牙文與繁體中文切換，操作介面以西文為主，包含首次登錄、掃描密鑰位置、評級及標準廠房需求、斷線補傳、多人協作與主管報告。`#guia` 可直接開啟說明；從說明返回表單保留未送出的內容。
+- **掃描密鑰入口**：「Registro → Datos del visitante → Configurar escaneo de tarjetas」預設展開，欄位為「Clave de escaneo del equipo」。管理員在 Apps Script 的 Script Properties 儲存 `OCR_ACCESS_TOKEN`，值為至少 16 字元的隨機密鑰（建議 24–32 字元）；修改屬性不必重新部署。同仁索取並貼上密鑰的值，不能把屬性名稱當密鑰。長度不足時會提示並將焦點移回欄位。
 - **活動一致**：各裝置預填 EXPO PBW，避免沿用舊展會名稱；推廣員姓名可留存在該裝置。
 - **離線佇列**：先逐筆保存，再送出；只刪除已確認成功的紀錄。恢復連線或每 30 秒重送待傳資料。同頁不會同時啟動兩次重送，跨頁重送由後端 RequestID 去重。收到成功訊息前，請保留原瀏覽器資料。
 - **6–8 人輸入**：後端以 ScriptLock 序列化寫入、等待最多 30 秒，並於釋放前 flush。測試以八個工作執行緒模擬同時寫入與重試；正式 Google 服務及展場網路的延遲仍需現場演練。參考 [Google Lock 文件](https://developers.google.com/apps-script/reference/lock/lock)。
