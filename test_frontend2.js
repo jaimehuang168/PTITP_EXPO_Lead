@@ -1,6 +1,7 @@
 // 報告寄送 UI 測試（管理密鑰 + Config 收件人 + 類型 + 範圍）
 const fs=require('fs');const{JSDOM}=require('jsdom');
-const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{runScripts:'dangerously',url:'https://x.github.io/',pretendToBeVisual:true});
+let authControl;
+const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{runScripts:'dangerously',url:'https://x.github.io/',pretendToBeVisual:true,beforeParse(w){authControl=require('./test_helpers/browser-auth.cjs').installBrowserAuth(w,{signedIn:false,admin:false});}});
 const{window}=dom;const{document}=window;
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -16,7 +17,8 @@ const $=id=>document.getElementById(id);
 const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
 
 (async()=>{
-  check($('rep-token')&&$('rep-tipo')&&$('rep-rango'),'R1 管理密鑰/類型/範圍元素存在');
+  await sleep(25);
+  check(!$('rep-token')&&$('rep-tipo')&&$('rep-rango'),'R1 Google 身分取代共用管理密鑰');
   document.querySelectorAll('.tabs button').length; // sanity
 
   $('ver-hoy').click();$('ver-expo').click();
@@ -25,18 +27,19 @@ const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
   // 無管理密鑰擋下
   await clickEnviar();
   check(fetched.length===0,'R2 未填管理密鑰不寄送');
-  $('rep-token').value='short';
+  authControl.setUser(authControl.user());await sleep(25);
   await clickEnviar();
-  check(fetched.length===0,'R2 過短管理密鑰不寄送');
+  check(fetched.length===0,'R2 一般 Google 使用者不可寄送');
 
   // 當日報告
-  $('rep-token').value='test-admin-token-123456';
+  authControl.setUser(authControl.user('operator-uid','jaimehuang168@gmail.com'));await sleep(25);
   $('ver-hoy').click();$('ver-expo').click();
-  check(opened[0].token==='test-admin-token-123456'&&opened[1].token==='test-admin-token-123456'&&opened[0].evento==='EXPO PBW','R3 兩個預覽按鈕以 POST 傳送密鑰與活動');
+  await sleep(25);
+  check(opened[0].idToken==='firebase-fixture-operator-uid'&&opened[1].idToken==='firebase-fixture-operator-uid'&&opened[0].evento==='EXPO PBW','R3 預覽使用管理員 Google 身分與活動');
   await clickEnviar();
   check(fetched.length===1&&fetched[0].method==='POST'&&fetched[0].body.accion==='enviarReporteA'&&fetched[0].body.tipo==='dia','R3 當日報告使用 POST 呼叫正確');
-  check(!('emails' in fetched[0].body)&&fetched[0].body.token==='test-admin-token-123456','R3 不傳任意收件人且附管理密鑰');
-  check(window.sessionStorage.getItem('ptitp_rep_token')==='test-admin-token-123456','R3 密鑰只記憶於 session');
+  check(!('emails' in fetched[0].body)&&fetched[0].body.idToken==='firebase-fixture-operator-uid','R3 不傳任意收件人且附 Google 身分');
+  check(window.sessionStorage.getItem('ptitp_rep_token')===null,'R3 不保存舊管理密鑰');
 
   // 範圍：切換顯示 + 缺日期擋下
   document.querySelector('input[name=repTipo][value=rango]').checked=true;
@@ -62,13 +65,15 @@ const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
   // PDF 下載按鈕
   document.querySelector('input[name=repTipo][value=dia]').checked=true;
   $('pdf-reporte').click();
-  check(opened.length===3&&opened[2].action==='reportePdf'&&opened[2].tipo==='dia'&&opened[2].token==='test-admin-token-123456','R7 PDF 按鈕以 POST 開啟受保護下載頁（dia）');
+  await sleep(25);
+  check(opened.length===3&&opened[2].action==='reportePdf'&&opened[2].tipo==='dia'&&opened[2].idToken==='firebase-fixture-operator-uid','R7 PDF 按鈕以 POST 開啟受保護下載頁（dia）');
   document.querySelector('input[name=repTipo][value=rango]').checked=true;
   $('rep-desde').value='';$('rep-hasta').value='';
   $('pdf-reporte').click();
   check(opened.length===3,'R7 範圍缺日期不開下載頁');
   $('rep-desde').value='2026-07-05';$('rep-hasta').value='2026-07-08';
   $('pdf-reporte').click();
+  await sleep(25);
   check(opened.length===4&&opened[3].tipo==='rango'&&opened[3].desde==='2026-07-05','R7 範圍 PDF 參數正確');
 
   // 取消確認

@@ -12,7 +12,10 @@ global.MailApp={sendEmail:()=>{}};global.ScriptApp={getProjectTriggers:()=>[],ne
 global.PropertiesService={getScriptProperties:()=>({getProperty:k=>k==='REPORT_ADMIN_TOKEN'?'test-admin-token-123456':null,setProperty:()=>{}})};
 global.DriveApp={getFoldersByName:()=>({hasNext:()=>false}),createFolder:()=>({})};
 global.UrlFetchApp={fetch:()=>({})};
+const {installGasAuth,withIdentity}=require('./test_helpers/gas-auth.cjs');
+const GOOGLE_ID_TOKEN=installGasAuth(globalThis,{activeOcr:false});
 eval(fs.readFileSync('Code.gs','utf8'));
+doPost=withIdentity(doPost,GOOGLE_ID_TOKEN);
 
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
 setup();
@@ -27,7 +30,7 @@ sheets['Leads'].appendRow(mk('2026-07-10','Carlos','A - Caliente','Dueño con de
 sheets['Leads'].appendRow(mk('2026-07-10','Ana','B - Tibio','Consultar con directorio'));
 
 // F1: 列印視圖
-reportPost({action:'fichas',tipo:'expo',token:'test-admin-token-123456'});
+reportPost({action:'fichas',tipo:'expo',idToken:GOOGLE_ID_TOKEN});
 check(/Fichas de Leads/.test(htmlOut)&&/window\.print/.test(htmlOut),'F1 列印視圖含工具列');
 check(/Carlos/.test(htmlOut)&&/Zoe/.test(htmlOut)&&/Ana/.test(htmlOut),'F1 含全部 leads（A/B/C）');
 check(htmlOut.indexOf('Carlos')<htmlOut.indexOf('Ana')&&htmlOut.indexOf('Ana')<htmlOut.indexOf('Zoe'),'F1 排序 A→B→C');
@@ -38,13 +41,13 @@ check(/page-break-inside:avoid/.test(htmlOut)&&/confidencialidad/.test(htmlOut),
 check(/Guardar PDF/.test(htmlOut) && !htmlOut.includes('test-admin-token-123456'),'F1 可列印成 PDF，輸出不含主管密鑰');
 
 // F2: 過濾
-reportPost({action:'fichas',tipo:'dia',fecha:'2026-07-10',token:'test-admin-token-123456'});
+reportPost({action:'fichas',tipo:'dia',fecha:'2026-07-10',idToken:GOOGLE_ID_TOKEN});
 check(/Carlos/.test(htmlOut)&&!/Zoe/.test(htmlOut),'F2 依日期過濾');
-reportPost({action:'fichas',tipo:'expo',calif:'A',token:'test-admin-token-123456'});
+reportPost({action:'fichas',tipo:'expo',calif:'A',idToken:GOOGLE_ID_TOKEN});
 check(/Carlos/.test(htmlOut)&&!/Ana(?! SA)/.test(htmlOut.replace(/Ana SA/g,''))&&!/Zoe/.test(htmlOut),'F2 依評級 A 過濾');
 
 // F3: PDF 下載頁
-reportPost({action:'fichasPdf',tipo:'expo',token:'test-admin-token-123456'});
+reportPost({action:'fichasPdf',tipo:'expo',idToken:GOOGLE_ID_TOKEN});
 check(/B64X/.test(htmlOut)&&/PTITP_Fichas_evento\.pdf/.test(htmlOut),'F3 PDF 下載頁');
 
 console.log(`\n═══ Fichas 測試: ${pass} 通過 / ${fail} 失敗 ═══`);

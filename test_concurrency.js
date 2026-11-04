@@ -25,8 +25,9 @@ if(isMainThread){
     ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({text,setMimeType(){return this;}})}
   });
   const sheet={getLastRow:()=>Atomics.load(state,2)+1,getDataRange:()=>({getValues:()=>[headers,...Array.from({length:Atomics.load(state,2)},(_,i)=>{const row=Array(26).fill('');row[25]='worker_request_'+Atomics.load(state,4+i);return row;})]}),appendRow(row){assert(owned);Atomics.wait(state,1,0,35);const n=Atomics.load(state,2);Atomics.store(state,4+n,Number(row[25].split('_').pop()));Atomics.add(state,2,1);dirty=true;}};
+  const idToken=require('./test_helpers/gas-auth.cjs').installGasAuth(ctx,{uid:'worker_'+workerData.id,email:'worker'+workerData.id+'@gmail.com'});
   vm.runInContext(source,ctx);headers=vm.runInContext('HEADERS',ctx);
-  const payload={nombre:'Worker',calificacion:'A',evento:'EXPO PBW',promotor:'Operator',requestId:'worker_request_'+workerData.id};
+  const payload={idToken,nombre:'Worker',calificacion:'A',evento:'EXPO PBW',promotor:'Operator',requestId:'worker_request_'+workerData.id};
   const post=()=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify(payload)}}).text);
   parentPort.postMessage({first:post(),retry:post()});
 }

@@ -12,7 +12,10 @@ global.MailApp={sendEmail:o=>{global._lastEmail=o}};
 global.ScriptApp={getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){return this},everyDays(){return this},atHour(){return this},nearMinute(){return this},create(){}}),deleteTrigger:()=>{}};
 global.Logger={log:()=>{}};
 global.PropertiesService={getScriptProperties:()=>({getProperty:k=>k==='REPORT_ADMIN_TOKEN'?'test-admin-token-123456':null,setProperty:()=>{}})};
+const {installGasAuth,withIdentity}=require('./test_helpers/gas-auth.cjs');
+const GOOGLE_ID_TOKEN=installGasAuth(globalThis,{activeOcr:false});
 eval(fs.readFileSync('Code.gs','utf8'));
+doPost=withIdentity(doPost,GOOGLE_ID_TOKEN);
 
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
 
@@ -34,9 +37,9 @@ check(expo.texto.includes('Día1-A')&&expo.texto.includes('Día2-A'),'E1 跨日 
 check(/Estado: En proceso/.test(expo.texto),'E1 Estado 欄顯示於名單');
 
 // E2: doGet actions
-const g1=reportPost({action:'reporteExpo',token:'test-admin-token-123456'});
+const g1=reportPost({action:'reporteExpo',idToken:GOOGLE_ID_TOKEN});
 check(g1._html&&g1._html.includes('REPORTE ACUMULADO'),'E2 ?action=reporteExpo 回傳累計報告 HTML');
-const g2=doGet({parameter:{action:'enviarReporte',token:'test-admin-token-123456'}});
+const g2=doGet({parameter:{action:'enviarReporte',idToken:GOOGLE_ID_TOKEN}});
 const j2=JSON.parse(g2._text);
 check(j2.ok===false&&/Método no permitido/.test(j2.error),'E2 GET 不可觸發寄信副作用');
 check(sheets['Reportes'].rows.length===1,'E2 被拒絕的 GET 不寫入 Reportes');
