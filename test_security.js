@@ -1,3 +1,4 @@
+const reportPost = p=>doPost({postData:{contents:JSON.stringify({accion:'abrirReporte',...p})}});
 // 安全回歸：授權、公式注入、輸入型別、鎖定與重複提交
 const fs = require('fs');
 class MockSheet {
@@ -13,7 +14,7 @@ class MockSheet {
 }
 const sheets={};
 const ss={getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new MockSheet(n))};
-global.SpreadsheetApp={getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
+global.SpreadsheetApp={flush:()=>{},getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
 global.Utilities={formatDate:()=> '2026-08-07',newBlob:()=>({getAs:()=>({setName(){return this},getBytes:()=>[1]})}),base64Encode:()=>''};
 let lockMode=true, releases=0;
 global.LockService={getScriptLock:()=>({tryLock:()=>lockMode,releaseLock:()=>{releases++}})};
@@ -22,7 +23,7 @@ global.HtmlService={createHtmlOutput:h=>({_html:h,setTitle(){return this}})};
 global.MailApp={sendEmail:()=>{}};
 global.ScriptApp={getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){return this},everyDays(){return this},atHour(){return this},nearMinute(){return this},create(){}}),deleteTrigger:()=>{}};
 global.Logger={log:()=>{}};
-const props={REPORT_ADMIN_TOKEN:'test-admin-token-123456',ANTHROPIC_API_KEY:'sk-test'};
+const props={REPORT_ADMIN_TOKEN:'test-admin-token-123456',ANTHROPIC_API_KEY:'sk-test',OCR_ACCESS_TOKEN:'test-operator-secret'};
 global.PropertiesService={getScriptProperties:()=>({getProperty:k=>props[k]||null,setProperty:(k,v)=>props[k]=v})};
 eval(fs.readFileSync('Code.gs','utf8'));
 
@@ -31,7 +32,7 @@ const check=(c,n)=>c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))
 const post=d=>JSON.parse(doPost({postData:{contents:JSON.stringify(d)}})._text);
 setup();
 
-let r=JSON.parse(doGet({parameter:{action:'reporte'}})._text);
+let r=JSON.parse(reportPost({action:'reporte'})._text);
 check(r.ok===false&&/No autorizado/.test(r.error),'S1 未提供管理密鑰不可讀報告');
 r=post({accion:'enviarReporteA',token:'incorrect-token-123456'});
 check(r.ok===false,'S1 錯誤密鑰不可觸發寄信');
@@ -54,7 +55,7 @@ const payload={nombre:'Único',calificacion:'B - Tibio',requestId:'request_secur
 const first=post(payload), count=sheets.Leads.rows.length, second=post(payload);
 check(first.ok===true&&second.ok===true&&second.duplicate===true&&sheets.Leads.rows.length===count,'S4 相同 RequestID 不重複寫入');
 
-r=post({accion:'ocrTarjeta',imagen:'QUFB',mime:'text/html'});
+r=post({accion:'ocrTarjeta',token:'test-operator-secret',imagen:'QUFB',mime:'text/html'});
 check(r.ok===false&&/Formato/.test(r.error),'S5 OCR 拒絕非影像 MIME');
 
 console.log(`\n═══ 安全回歸測試: ${pass} 通過 / ${fail} 失敗 ═══`);

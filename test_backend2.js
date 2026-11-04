@@ -1,8 +1,9 @@
+const reportPost = p=>doPost({postData:{contents:JSON.stringify({accion:'abrirReporte',...p})}});
 // 補充測試：累計報告 + 手動寄送 action
 const fs = require('fs');
 class MockSheet{constructor(n){this.name=n;this.rows=[]}getLastRow(){return this.rows.length}appendRow(r){this.rows.push(r);return this}getRange(){return{setFontWeight:()=>({setBackground:()=>({setFontColor:()=>({})})})}}setFrozenRows(){}getDataRange(){return{getValues:()=>this.rows}}}
 const sheets={};const ss={getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new MockSheet(n))};
-global.SpreadsheetApp={getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
+global.SpreadsheetApp={flush:()=>{},getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
 global.Utilities={formatDate:(d,tz,fmt)=>{const t=new Date(d.getTime()-4*3600*1000);const p=n=>String(n).padStart(2,'0');const s=`${t.getUTCFullYear()}-${p(t.getUTCMonth()+1)}-${p(t.getUTCDate())}`;return fmt.includes('HH')?`${s} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:${p(t.getUTCSeconds())}`:s}};
 global.LockService={getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})};
 global.ContentService={MimeType:{JSON:'json'},createTextOutput:t=>({_text:t,setMimeType(){return this}})};
@@ -33,7 +34,7 @@ check(expo.texto.includes('Día1-A')&&expo.texto.includes('Día2-A'),'E1 跨日 
 check(/Estado: En proceso/.test(expo.texto),'E1 Estado 欄顯示於名單');
 
 // E2: doGet actions
-const g1=doGet({parameter:{action:'reporteExpo',token:'test-admin-token-123456'}});
+const g1=reportPost({action:'reporteExpo',token:'test-admin-token-123456'});
 check(g1._html&&g1._html.includes('REPORTE ACUMULADO'),'E2 ?action=reporteExpo 回傳累計報告 HTML');
 const g2=doGet({parameter:{action:'enviarReporte',token:'test-admin-token-123456'}});
 const j2=JSON.parse(g2._text);

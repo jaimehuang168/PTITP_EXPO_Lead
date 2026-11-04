@@ -2,7 +2,7 @@
 const fs=require('fs');
 class MockSheet{constructor(n){this.name=n;this.rows=[]}getLastRow(){return this.rows.length}appendRow(r){this.rows.push(r.slice());return this}getRange(a,b){const s=this;return{setValue(v){s.rows[a-1][b-1]=v},setFontWeight(){return{setBackground:()=>({setFontColor:()=>({})})}},}}setFrozenRows(){}getDataRange(){const s=this;return{getValues:()=>s.rows.map(r=>r.slice())}}}
 const sheets={};const ss={getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new MockSheet(n))};
-global.SpreadsheetApp={getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
+global.SpreadsheetApp={flush:()=>{},getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
 let HORA=19, HOY='2026-07-10';
 global.Utilities={
   formatDate:(d,tz,fmt)=>{ if(fmt==='H')return String(HORA); if(fmt==='yyyy-MM-dd')return (d instanceof Date && d._s)?d._s:HOY; if(fmt.includes('HH'))return HOY+' '+String(HORA).padStart(2,'0')+':00:00'; return HOY;},

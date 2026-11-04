@@ -22,7 +22,8 @@ const ss = {
   getSheetByName: n => sheets[n] || null,
   insertSheet: n => (sheets[n] = new MockSheet(n)),
 };
-global.SpreadsheetApp = { getActiveSpreadsheet: ()=>ss, getUi: ()=>({ createMenu:()=>({addItem(){return this},addToUi(){}}) }) };
+global.SpreadsheetApp = {
+  flush:()=>{}, getActiveSpreadsheet: ()=>ss, getUi: ()=>({ createMenu:()=>({addItem(){return this},addToUi(){}}) }) };
 global.Utilities = {
   formatDate: (d, tz, fmt) => {
     // 簡化：以 Asuncion 時區近似 (UTC-4 七月)
@@ -56,31 +57,31 @@ check(sheets['Reportes'] && sheets['Reportes'].rows.length === 1, 'T1 setup() �
 
 // T2: doPost 模擬 6 筆問卷
 const leads = [
-  { evento:'Expo Paraguay 2026', promotor:'María González', nombre:'Carlos Benítez', empresa:'Textil del Este SA',
+  { evento:'EXPO PBW', promotor:'María González', nombre:'Carlos Benítez', empresa:'Textil del Este SA',
     cargo:'Gerente General', pais:'Paraguay', telefono:'+595 981 123456', email:'carlos@textileste.com.py',
     tipoOrg:'Manufactura', sector:'Textil', intereses:['Alquiler de lote / nave industrial','Instalación de planta'],
     plazo:'Inmediato (0-6 meses)', superficie:'5000', empleos:'120', comoNosConocio:'Cámara o gremio',
     calificacion:'A - Caliente', observaciones:'Dueño con decisión. Ya alquila en CDE, quiere ampliar. Preguntó por energía y régimen de maquila.',
     proximosPasos:['Agendar visita al parque','Enviar propuesta/cotización'], fechaSeguimiento:'2026-07-08', responsable:'Jaime Huang' },
-  { evento:'Expo Paraguay 2026', promotor:'María González', nombre:'Ana Souza', empresa:'LogBras Ltda',
+  { evento:'EXPO PBW', promotor:'María González', nombre:'Ana Souza', empresa:'LogBras Ltda',
     cargo:'Directora Comercial', pais:'Brasil', telefono:'+55 45 99911 2233', email:'ana@logbras.com.br',
     tipoOrg:'Logística/Comercio', sector:'Logística', intereses:['Servicios del parque','Inversión'],
     plazo:'6-12 meses', superficie:'', empleos:'', comoNosConocio:'Prensa / Medios',
     calificacion:'B - Tibio', observaciones:'Interés en hub logístico frontera. Sin presupuesto aprobado aún.',
     proximosPasos:['Enviar brochure/dossier','Reunión de seguimiento'], fechaSeguimiento:'2026-07-13', responsable:'' },
-  { evento:'Expo Paraguay 2026', promotor:'Pedro Rojas', nombre:'Lin Wei-Chen', empresa:'Formosa Electronics',
+  { evento:'EXPO PBW', promotor:'Pedro Rojas', nombre:'Lin Wei-Chen', empresa:'Formosa Electronics',
     cargo:'VP Operations', pais:'Taiwán', telefono:'+886 912 345 678', email:'wlin@formosaelec.tw',
     tipoOrg:'Manufactura', sector:'Electrónica', intereses:['Instalación de planta'],
     plazo:'Más de 1 año', superficie:'12000', empleos:'300', comoNosConocio:'Gobierno / Embajada',
     calificacion:'A - Caliente', observaciones:'Evaluando Paraguay vs Brasil para ensamblaje. Decisión de directorio Q4. Preocupa mano de obra calificada.',
     proximosPasos:['Presentar a dirección','Agendar visita al parque'], fechaSeguimiento:'2026-07-07', responsable:'Jaime Huang' },
-  { evento:'Expo Paraguay 2026', promotor:'Pedro Rojas', nombre:'Julia Fernández', empresa:'Universidad Nacional del Este',
+  { evento:'EXPO PBW', promotor:'Pedro Rojas', nombre:'Julia Fernández', empresa:'Universidad Nacional del Este',
     cargo:'Investigadora', pais:'Paraguay', telefono:'', email:'jfernandez@une.edu.py',
     tipoOrg:'Académico', sector:'Educación', intereses:['Cooperación institucional'],
     plazo:'Solo explorando', superficie:'', empleos:'', comoNosConocio:'Pasó por el stand',
     calificacion:'C - Frío', observaciones:'Interés en pasantías para alumnos.',
     proximosPasos:['Agregar a newsletter'], fechaSeguimiento:'', responsable:'' },
-  { evento:'Expo Paraguay 2026', promotor:'María González', nombre:'Roberto Díaz', empresa:'',
+  { evento:'EXPO PBW', promotor:'María González', nombre:'Roberto Díaz', empresa:'',
     cargo:'', pais:'Argentina', telefono:'+54 9 11 5555', email:'',
     tipoOrg:'Inversionista', sector:'', intereses:['Inversión','Información general'],
     plazo:'6-12 meses', superficie:'', empleos:'', comoNosConocio:'Redes sociales',
@@ -118,7 +119,7 @@ check(rpt.includes('antes del 2026-07-07'), 'T3 追蹤期限顯示正確');
 check(sheets['Reportes'].rows.length === 2, 'T3 報告寫入 Reportes 分頁');
 
 // T4: doGet 報告網頁
-const page = doGet({ parameter:{ action:'reporte', token:'test-admin-token-123456' } });
+const page = doPost({ postData:{contents:JSON.stringify({accion:'abrirReporte', action:'reporte', token:'test-admin-token-123456'})} });
 check(page._html && page._html.includes('REPORTE DIARIO'), 'T4 doGet ?action=reporte 回傳 HTML 報告');
 const ping = doGet({ parameter:{} });
 check(JSON.parse(ping._text).ok === true, 'T4 doGet 無參數回傳 API 狀態');

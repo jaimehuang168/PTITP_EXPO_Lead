@@ -5,7 +5,7 @@
  *   1. doPost()  接收 GitHub Pages 前端送來的問卷 JSON，寫入 "Leads" 工作表
  *   2. generarReporteDiario()  將當日問卷自動彙整成西文「業務推廣暨當日工作報告」
  *      → 寫入 "Reportes" 工作表 + （可選）寄送 Email
- *   3. doGet(?action=reporte&token=...)  驗證主管密鑰後顯示報告
+ *   3. doPost(accion=abrirReporte)  驗證主管密鑰後顯示報告；密鑰不放網址
  *
  * 部署方式見 README.md
  */
@@ -19,7 +19,10 @@ const CONFIG = {
   // 那裡改完立即生效，不需要重新部署
   REPORT_EMAIL: '',
   // 預設展會名稱（前端也可覆寫）
-  EVENTO_DEFAULT: 'Expo Paraguay 2026',
+  EVENTO_DEFAULT: 'EXPO PBW',
+  EVENTO_DESDE: '2026-11-10',
+  EVENTO_HASTA: '2026-11-14',
+  VERSION: '1.11.0',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
   OCR_MODEL: 'claude-haiku-4-5',
@@ -89,13 +92,24 @@ function doPost(e) {
   try {
     if (!e || !e.postData || typeof e.postData.contents !== 'string')
       return _json({ ok: false, error: 'Solicitud inválida' });
-    if (e.postData.contents.length > 120000)
+    if (e.postData.contents.length > CONFIG.OCR_MAX_BASE64 + 10000)
       return _json({ ok: false, error: 'Solicitud demasiado grande' });
-    d = JSON.parse(e.postData.contents);
+    const body = e.parameter && e.parameter.reportRequest || e.postData.contents;
+    if (body.length > CONFIG.OCR_MAX_BASE64 + 10000)
+      return _json({ ok: false, error: 'Solicitud demasiado grande' });
+    d = JSON.parse(body);
     if (!d || typeof d !== 'object' || Array.isArray(d))
       return _json({ ok: false, error: 'Solicitud inválida' });
   } catch (err) {
     return _json({ ok: false, error: 'JSON inválido' });
+  }
+
+  if (d.accion !== 'ocrTarjeta' && JSON.stringify(d).length > 120000)
+    return _json({ ok: false, error: 'Solicitud demasiado grande' });
+  if (d.accion === 'abrirReporte') {
+    const auth = _autorizarToken(d.token);
+    if (!auth.ok) return _json({ ok: false, error: auth.error });
+    return _respuestaReporte({parameter:d});
   }
 
   // 名片辨識分支（不佔用問卷寫入的鎖）
@@ -111,7 +125,7 @@ function doPost(e) {
   d = validado.datos;
 
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000))
+  if (!lock.tryLock(30000))
     return _json({ ok: false, retryable: true, error: 'Sistema ocupado; reintente' });
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -154,7 +168,8 @@ function doPost(e) {
       rid,
     ]);
 
-    return _json({ ok: true, msg: 'Lead registrado' });
+    SpreadsheetApp.flush();
+    return _json({ ok: true, msg: 'Lead registrado', requestId: rid });
   } catch (err) {
     Logger.log('doPost error: ' + String(err));
     return _json({ ok: false, retryable: true, error: 'No se pudo registrar el lead' });
@@ -166,6 +181,9 @@ function doPost(e) {
 // ══════════ 名片辨識：存 Drive + Claude 視覺辨識 → 結構化欄位 ══════════
 function _ocrTarjeta(d) {
   try {
+    const expected = String(PropertiesService.getScriptProperties().getProperty('OCR_ACCESS_TOKEN') || '');
+    if (expected.length < 16 || String(d.token || '') !== expected)
+      return _json({ ok: false, error: 'Escaneo no autorizado: ingrese la clave de escaneo del equipo' });
     if (!d.imagen) return _json({ ok: false, error: 'Falta la imagen' });
     if (typeof d.imagen !== 'string' || d.imagen.length > CONFIG.OCR_MAX_BASE64 ||
         !/^[A-Za-z0-9+/]+={0,2}$/.test(d.imagen))
@@ -173,6 +191,9 @@ function _ocrTarjeta(d) {
     const mime = String(d.mime || 'image/jpeg').toLowerCase();
     if (['image/jpeg', 'image/png', 'image/webp'].indexOf(mime) === -1)
       return _json({ ok: false, error: 'Formato de imagen no permitido' });
+    const firmas = {'image/jpeg': /^\/9j\//, 'image/png': /^iVBORw0KGgo/, 'image/webp': /^UklGR/};
+    if (d.imagen.length % 4 !== 0 || !firmas[mime].test(d.imagen))
+      return _json({ok:false,error:'El contenido no corresponde al formato de imagen'});
 
     const props = PropertiesService.getScriptProperties();
 
@@ -255,6 +276,15 @@ function _carpetaTarjetas() {
 //   <WebAppURL>?action=enviarReporte        手動觸發：寫入 Reportes 分頁 + 寄 Email
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
+  if (['reporte','reporteExpo','reporteRango','fichas','fichasPdf','reportePdf'].indexOf(action) !== -1)
+    return _json({ok:false,error:'Abra el reporte desde el formulario (POST)'});
+  if (action === 'config') return _json({ok:true,evento:CONFIG.EVENTO_DEFAULT,
+    desde:CONFIG.EVENTO_DESDE,hasta:CONFIG.EVENTO_HASTA,zona:CONFIG.ZONA_HORARIA,version:CONFIG.VERSION});
+  return _respuestaReporte(e);
+}
+
+function _respuestaReporte(e) {
+  const action = e && e.parameter && e.parameter.action;
   const privadas = ['reporte', 'reporteExpo', 'reporteRango', 'fichas', 'fichasPdf',
                     'reportePdf'];
   if (privadas.indexOf(action) !== -1) {
@@ -265,11 +295,12 @@ function doGet(e) {
   if (action === 'reporte') {
     const fecha = (e.parameter.fecha) ||
       Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-    return _htmlReporte(_construirReporte(fecha).texto, 'Reporte diario ' + fecha);
+    if (!_fechaValida(fecha)) return _json({ok:false,error:'Fecha inválida'});
+    return _htmlReporte(_construirReporte(fecha,e.parameter.evento).texto, 'Reporte diario ' + fecha);
   }
 
   if (action === 'reporteExpo') {
-    return _htmlReporte(_construirReporteExpo().texto, 'Reporte acumulado del evento');
+    return _htmlReporte(_construirReporteExpo(e.parameter.evento).texto, 'Reporte acumulado del evento');
   }
 
   // 日期範圍報告檢視：?action=reporteRango&desde=2026-07-06&hasta=2026-07-09
@@ -277,7 +308,7 @@ function doGet(e) {
     const desde = e.parameter.desde, hasta = e.parameter.hasta;
     if (!_fechaValida(desde) || !_fechaValida(hasta) || desde > hasta)
       return _json({ ok: false, error: 'Rango de fechas inválido' });
-    return _htmlReporte(_construirReporteRango(desde, hasta).texto, `Reporte ${desde} → ${hasta}`);
+    return _htmlReporte(_construirReporteRango(desde, hasta,e.parameter.evento).texto, `Reporte ${desde} → ${hasta}`);
   }
 
   // 可列印 Lead 資料卡：?action=fichas&tipo=dia|rango|expo[&fecha|&desde&hasta][&calif=A,B]
@@ -329,7 +360,7 @@ function doGet(e) {
   if (action === 'enviarReporteA' || action === 'enviarReporte')
     return _json({ ok: false, error: 'Método no permitido' });
 
-  return _json({ ok: true, servicio: 'PTITP Expo API', hora: new Date().toISOString() });
+  return _json({ ok: true, servicio: 'PTITP Expo API', version:CONFIG.VERSION, hora: new Date().toISOString() });
 }
 
 function _htmlReporte(texto, titulo) {
@@ -342,7 +373,7 @@ function _htmlReporte(texto, titulo) {
 // ══════════ 每日報告（可手動執行，或由觸發器每晚自動執行） ══════════
 function generarReporteDiario() {
   const fecha = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-  const rpt = _construirReporte(fecha);
+  const rpt = _construirReporte(fecha,CONFIG.EVENTO_DEFAULT);
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const rep = ss.getSheetByName(CONFIG.SHEET_REPORTES) || ss.insertSheet(CONFIG.SHEET_REPORTES);
@@ -358,7 +389,7 @@ function generarReporteDiario() {
       attachments: [_pdfDeReporte(rpt, 'diario ' + fecha, 'PTITP_Reporte_diario_' + fecha)],
     });
   }
-  Logger.log(rpt.texto);
+  Logger.log('Reporte generado: ' + fecha + ', visitantes: ' + rpt.total);
   return rpt.texto;
 }
 
@@ -498,7 +529,7 @@ function _validarLead(raw) {
   }
 
   const tarjeta = String(raw.tarjetaUrl || '').trim();
-  if (tarjeta && !/^https:\/\/(?:drive|docs)\.google\.com\//i.test(tarjeta))
+  if (tarjeta && !_urlTarjetaSegura(tarjeta))
     return { error: 'URL de tarjeta inválida' };
   d.tarjetaUrl = tarjeta;
 
@@ -512,6 +543,20 @@ function _textoSeguro(s) {
   return /^[=+\-@]/.test(s) ? "'" + s : s;
 }
 
+function _urlTarjetaSegura(value) {
+  return typeof value === 'string' && value.length <= 2000 &&
+    /^https:\/\/(?:drive|docs)\.google\.com\/[^\s<>"'`\\]*$/i.test(value);
+}
+
+function _escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function _fechaTexto(value) {
+  return value instanceof Date ? Utilities.formatDate(value,CONFIG.ZONA_HORARIA,'yyyy-MM-dd') : String(value || '').slice(0,10);
+}
+
 function _requestIdExiste(sh, requestId) {
   if (!requestId || sh.getLastRow() < 2) return false;
   const vals = sh.getDataRange().getValues();
@@ -520,7 +565,9 @@ function _requestIdExiste(sh, requestId) {
 }
 
 function _fechaValida(f) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(f || '');
+  if (typeof f !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(f)) return false;
+  const date = new Date(f + 'T12:00:00Z');
+  return !isNaN(date.getTime()) && date.toISOString().slice(0,10) === f;
 }
 
 // 產生 Lead 短 ID（CRM 追蹤系統的關聯鍵），如 L-MCK3A9F7-X2
@@ -534,16 +581,16 @@ function _nuevoLeadID() {
 function _reporteSegunTipo(p) {
   const tipo = (p && p.tipo) || 'dia';
   if (tipo === 'expo') {
-    return { rpt: _construirReporteExpo(), titulo: 'acumulado del evento', archivo: 'PTITP_Reporte_evento' };
+    return { rpt: _construirReporteExpo(p.evento), titulo: 'acumulado del evento', archivo: 'PTITP_Reporte_evento' };
   }
   if (tipo === 'rango') {
     if (!_fechaValida(p.desde) || !_fechaValida(p.hasta) || p.desde > p.hasta)
       return { error: 'Rango de fechas inválido' };
-    return { rpt: _construirReporteRango(p.desde, p.hasta), titulo: `del ${p.desde} al ${p.hasta}`,
+    return { rpt: _construirReporteRango(p.desde, p.hasta, p.evento), titulo: `del ${p.desde} al ${p.hasta}`,
              archivo: `PTITP_Reporte_${p.desde}_a_${p.hasta}` };
   }
   const f = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-  return { rpt: _construirReporte(f), titulo: 'diario ' + f, archivo: 'PTITP_Reporte_diario_' + f };
+  return { rpt: _construirReporte(f, p.evento), titulo: 'diario ' + f, archivo: 'PTITP_Reporte_diario_' + f };
 }
 
 // ══════════ Lead 資料卡（Fichas）：完整欄位、可列印設計 ══════════
@@ -560,11 +607,11 @@ function _fichasSegunTipo(p) {
   let filtro, titulo, archivo;
   if (tipo === 'dia') {
     const f = _fechaValida(p.fecha) ? p.fecha : hoy;
-    filtro = r => String(r[H['Fecha']]).slice(0, 10) === f;
+    filtro = r => _fechaTexto(r[H['Fecha']]) === f;
     titulo = 'del ' + f; archivo = 'PTITP_Fichas_' + f;
   } else if (tipo === 'rango') {
-    if (!_fechaValida(p.desde) || !_fechaValida(p.hasta)) return { error: 'Fechas inválidas' };
-    filtro = r => { const f = String(r[H['Fecha']]).slice(0, 10); return f >= p.desde && f <= p.hasta; };
+    if (!_fechaValida(p.desde) || !_fechaValida(p.hasta) || p.desde > p.hasta) return { error: 'Fechas inválidas' };
+    filtro = r => { const f = _fechaTexto(r[H['Fecha']]); return f >= p.desde && f <= p.hasta; };
     titulo = 'del ' + p.desde + ' al ' + p.hasta; archivo = 'PTITP_Fichas_' + p.desde + '_' + p.hasta;
   } else {
     filtro = () => true;
@@ -575,8 +622,8 @@ function _fichasSegunTipo(p) {
   const califs = String(p.calif || '').toUpperCase().split(',').filter(c => c && 'ABC'.indexOf(c) !== -1);
 
   const orden = { A: 0, B: 1, C: 2 };
-  const leads = datos.slice(1).filter(filtro).map(r => ({
-    fecha: String(r[H['Fecha']]).slice(0, 10),
+  const leads = datos.slice(1).filter(r => !p.evento || String(r[H['Evento']]) === p.evento).filter(filtro).map(r => ({
+    fecha: _fechaTexto(r[H['Fecha']]),
     evento: r[H['Evento']] || '', promotor: r[H['Promotor']] || '',
     nombre: r[H['Nombre']] || '', empresa: r[H['Empresa']] || '', cargo: r[H['Cargo']] || '',
     pais: r[H['País']] || '', tel: r[H['Teléfono/WhatsApp']] || '', email: r[H['Email']] || '',
@@ -598,7 +645,7 @@ function _fichasSegunTipo(p) {
 
 // 資料卡 HTML：瀏覽器（含網頁字型與列印工具列）與 GAS PDF（Helvetica）雙用
 function _htmlFichas(leads, titulo, evento, params, conToolbar) {
-  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const esc = _escHtml;
   const C = { verde: '#009C81', azul: '#14588F', tinta: '#152730', gris: '#5E7079',
               linea: '#DCE7E3', claro: '#F2F7F5', A: '#D3452B', B: '#D99A2B', Cc: '#5E7079' };
   const colorDe = c => c === 'A' ? C.A : (c === 'B' ? C.B : C.Cc);
@@ -616,7 +663,7 @@ function _htmlFichas(leads, titulo, evento, params, conToolbar) {
       // 頭列：徽章 + 姓名 + 識別
       '<table width="100%" style="border-collapse:collapse"><tr>' +
       '<td width="44" style="vertical-align:top"><div style="width:34px;height:34px;background:' + col +
-      ';border-radius:8px;color:#fff;font-size:19px;font-weight:bold;text-align:center;line-height:34px;font-family:\'Space Grotesk\',Helvetica,Arial,sans-serif">' + l.calif + '</div></td>' +
+      ';border-radius:8px;color:#fff;font-size:19px;font-weight:bold;text-align:center;line-height:34px;font-family:\'Space Grotesk\',Helvetica,Arial,sans-serif">' + esc(l.calif) + '</div></td>' +
       '<td style="vertical-align:top"><div style="font-size:15px;font-weight:bold;color:' + C.tinta +
       ';font-family:\'Space Grotesk\',Helvetica,Arial,sans-serif">' + esc(l.nombre) + '</div>' +
       '<div style="font-size:10.5px;color:' + C.gris + '">' + esc(l.empresa || 's/empresa') +
@@ -641,7 +688,7 @@ function _htmlFichas(leads, titulo, evento, params, conToolbar) {
       '<div style="margin-top:7px;font-size:10.5px">&rarr; <b>' + (esc(l.pasos) || 'definir pr&oacute;ximos pasos') + '</b>' +
       (l.fseg ? ' <span style="color:' + C.A + ';font-weight:bold">(antes del ' + esc(l.fseg) + ')</span>' : '') +
       (l.resp ? ' &mdash; Resp.: ' + esc(l.resp) : '') +
-      (l.tarjeta ? ' &nbsp;&middot;&nbsp; <a href="' + esc(l.tarjeta) + '" style="color:' + C.azul + ';font-size:9px">ver tarjeta</a>' : '') +
+      (_urlTarjetaSegura(l.tarjeta) ? ' &nbsp;&middot;&nbsp; <a rel="noreferrer noopener" href="' + esc(l.tarjeta) + '" style="color:' + C.azul + ';font-size:9px">ver tarjeta</a>' : '') +
       '</div></div>';
   };
 
@@ -649,18 +696,10 @@ function _htmlFichas(leads, titulo, evento, params, conToolbar) {
         nB = leads.filter(l => l.calif === 'B').length,
         nC = leads.filter(l => l.calif === 'C').length;
 
-  const qs = [];
-  ['tipo', 'fecha', 'desde', 'hasta', 'calif', 'token'].forEach(k => {
-    if (params && params[k]) qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
-  });
-  const urlPdf = '?action=fichasPdf' + (qs.length ? '&' + qs.join('&') : '');
-
   const toolbar = conToolbar ?
     '<div class="toolbar" style="max-width:800px;margin:0 auto 12px;text-align:right">' +
     '<button onclick="window.print()" style="background:' + C.azul + ';color:#fff;border:0;border-radius:8px;' +
-    'padding:9px 16px;font-weight:bold;font-size:13px;cursor:pointer">&#128424; Imprimir</button> ' +
-    '<a href="' + urlPdf + '" style="display:inline-block;background:' + C.verde + ';color:#fff;border-radius:8px;' +
-    'padding:9px 16px;font-weight:bold;font-size:13px;text-decoration:none">&#128229; Descargar PDF</a></div>' : '';
+    'padding:9px 16px;font-weight:bold;font-size:13px;cursor:pointer">&#128424; Imprimir / Guardar PDF</button></div>' : '';
 
   return '<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
     '<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">' +
@@ -795,15 +834,15 @@ Generado autom&aacute;ticamente &mdash; Sistema de Captaci&oacute;n PTITP &nbsp;
 }
 
 // ══════════ 報告產生核心 ══════════
-function _construirReporte(fecha) {
+function _construirReporte(fecha, eventoFiltro) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
   const data = sh.getDataRange().getValues();
   const H = {};
   data[0].forEach((h, i) => H[h] = i);
 
-  const rows = data.slice(1).filter(r => String(r[H['Fecha']]).slice(0, 10) === fecha
-    || Utilities.formatDate(new Date(r[H['Timestamp']]), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd') === fecha);
+  const rows = data.slice(1).filter(r => !eventoFiltro || String(r[H['Evento']]) === eventoFiltro)
+    .filter(r => _fechaTexto(r[H['Fecha']]) === fecha);
 
   const evento = rows.length ? rows[0][H['Evento']] : CONFIG.EVENTO_DEFAULT;
   const byCal = { A: [], B: [], C: [] };
@@ -884,19 +923,19 @@ Generado automáticamente — Sistema de Captación PTITP
 }
 
 // ══════════ 彙總報告：全展期或指定日期範圍 ══════════
-function _construirReporteExpo() { return _construirReporteAgregado(null, null); }
-function _construirReporteRango(desde, hasta) { return _construirReporteAgregado(desde, hasta); }
+function _construirReporteExpo(evento) { return _construirReporteAgregado(null, null, evento); }
+function _construirReporteRango(desde, hasta, evento) { return _construirReporteAgregado(desde, hasta, evento); }
 
-function _construirReporteAgregado(desde, hasta) {
+function _construirReporteAgregado(desde, hasta, eventoFiltro) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
   const data = sh.getDataRange().getValues();
   const H = {};
   data[0].forEach((h, i) => H[h] = i);
-  let rows = data.slice(1);
+  let rows = data.slice(1).filter(r => !eventoFiltro || String(r[H['Evento']]) === eventoFiltro);
   if (desde && hasta) {
     rows = rows.filter(r => {
-      const f = String(r[H['Fecha']]).slice(0, 10);
+      const f = _fechaTexto(r[H['Fecha']]);
       return f >= desde && f <= hasta;
     });
   }

@@ -2,7 +2,7 @@
   "name": "ptitp-expo-lead",
   "private": true,
   "scripts": {
-    "test": "for f in test_*.js; do node \"$f\" || exit 1; done"
+    "test": "node scripts/run-tests.cjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

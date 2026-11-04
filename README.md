@@ -1,7 +1,9 @@
 # PTITP 展會招商問卷系統（Sistema de Captación de Leads）
 
 Google Sheet 當資料庫 + Apps Script 當 API + GitHub Pages 當前端。
-推廣人員用手機開連結填問卷 → 自動寫入 Sheet → 每晚 19:30 自動產生西文當日業務報告。
+推廣人員用手機開連結填問卷 → 自動寫入 Sheet → 可依設定產生西文當日業務報告。
+
+目前活動為 **EXPO PBW，2026-11-10 至 2026-11-14（America/Asuncion）**。保留活動前後補登；報告預設只看 EXPO PBW，也可選舊展會或全部歷史。「Todo el evento」含補登資料，「Rango de fechas」預填 11/10–11/14。
 
 ## 架構
 
@@ -26,8 +28,8 @@ Google Sheet「Leads」──▶ generarReporteDiario() ──▶「Reportes」�
    - `EVENTO_DEFAULT`：預設展會名稱
 4. 執行一次 `setup()`（第一次會要求授權），建立 `Leads` 與 `Reportes` 表頭。
 5. 在「專案設定 → 指令碼屬性」新增 `REPORT_ADMIN_TOKEN`，值使用至少 16 字元的隨機密鑰。這把密鑰只提供給主管，用於保護報告、PDF、資料卡與手動寄信功能；不可寫入 `index.html` 或提交到 Git。
-6. 如啟用名片辨識，在同一處新增 `ANTHROPIC_API_KEY`。
-7. 執行一次 `crearTriggerDiario()`，安裝每晚 19:30 自動報告觸發器。
+6. 如啟用名片辨識，在同一處設定 `ANTHROPIC_API_KEY` 及獨立的 `OCR_ACCESS_TOKEN`（至少 16 字元隨機值）。掃描密鑰可提供給現場同仁，**不得與主管密鑰相同**；同仁在「Configurar escaneo de tarjetas」輸入，僅留在分頁 sessionStorage。未設定時掃描關閉，人工登錄仍可使用。不要將任何真實密鑰寫入原始碼或 Git。
+7. 如另有授權啟用自動寄信，設定 Config 的起訖日期、收件人與小時後執行 `crearTriggerDiario()`。這是每小時檢查的觸發器，不保證固定分鐘。本次登錄期間設定不會自動啟動寄信。
 8. 「部署 → 新增部署作業 → 網頁應用程式」：
    - 執行身分：**我**
    - 具有存取權的使用者：**所有人**（前端匿名 POST 必須如此）
@@ -51,14 +53,15 @@ Google Sheet「Leads」──▶ generarReporteDiario() ──▶「Reportes」�
 
 | 方式 | 操作 |
 |---|---|
-| 自動 Email | 設定 `REPORT_EMAIL` 後每晚 19:30 自動寄出 |
+| 自動 Email | 另行設定 Config 日期、小時、收件人及觸發器後寄出 |
 | Sheet 選單 | 打開 Sheet →「📋 PTITP Expo → Generar reporte de hoy」 |
-| 網頁查看 | 在前端「Reportes」區輸入主管密鑰後開啟；不要手動分享含 `token` 的報告網址 |
+| 網頁查看 | 在前端「Reportes」區輸入主管密鑰後以 POST 開啟；舊的帶 token 報告連結已停用 |
 
 ## 前端功能重點
 
-- **一次設定**：展會名 + 推廣員姓名存在裝置 localStorage，每天只填一次。
-- **離線佇列**：展場網路斷線時問卷先存手機，恢復連線自動重送（頂部有連線狀態指示）。
+- **活動一致**：各裝置預填 EXPO PBW，避免沿用舊展會名稱；推廣員姓名可留存在該裝置。
+- **離線佇列**：先逐筆保存，再送出；只刪除已確認成功的紀錄。恢復連線或每 30 秒重送待傳資料。同頁不會同時啟動兩次重送，跨頁重送由後端 RequestID 去重。收到成功訊息前，請保留原瀏覽器資料。
+- **6–8 人輸入**：後端以 ScriptLock 序列化寫入、等待最多 30 秒，並於釋放前 flush。測試以八個工作執行緒模擬同時寫入與重試；正式 Google 服務及展場網路的延遲仍需現場演練。參考 [Google Lock 文件](https://developers.google.com/apps-script/reference/lock/lock)。
 - **A/B/C 快速分級**：大按鈕含判斷標準提示（A = 有具體專案 + 決策權）。
 - **必填最少化**：只有姓名 + 分級 + 展會/推廣員為必填，30 秒可完成一筆。
 
@@ -83,3 +86,11 @@ npm test
 ```
 
 測試涵蓋公開問卷、報告授權、受控收件人、公式注入防護、輸入驗證、並行鎖、離線重送去重、OCR 配額及 CRM 功能。
+
+## 1.11.0 發布順序與限制
+
+1. 同時準備 Apps Script 的 `Code.gs` 與 GitHub Pages 的 `index.html`、`version.json`；先部署後端，再立即更新前端。舊版前端的 GET 報告入口將失效，需重新整理。
+2. 保留既有 Apps Script 部署網址及舊版本，方便回復。Google Sheet 既有資料不需移動、刪除或重建。
+3. 管理員親自設定獨立掃描密鑰後，才提供現場同仁使用。不要在公開 issue、PR 或聊天內貼出密鑰。
+4. 以唯讀 health/config 回應確認後端版本，並在獨立測試表做 6–8 裝置演練。測試不可混入正式廠商資料。
+5. 本次修正只修改 Expo 登錄程式。`Code_CRM.gs` / `Index_CRM.html` 是另一套部署；不可將 Expo 的多人輸入驗證視為 CRM 多人編輯驗證。

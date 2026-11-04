@@ -5,6 +5,11 @@ const{window}=dom;const{document}=window;
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const opened=[];window.open=u=>{opened.push(u);return{}};
+window.HTMLFormElement.prototype.submit=function(){
+  const payload=JSON.parse(this.elements.reportRequest.value);
+  check(this.method==='post' && !this.action.includes('token='),'Report credentials stay out of the URL');
+  opened.push(payload);
+};
 let confirmAns=true;window.confirm=()=>confirmAns;
 const fetched=[];window.fetch=async (u,o)=>{fetched.push({url:u,body:o&&o.body?JSON.parse(o.body):null,method:o&&o.method});return{json:async()=>({ok:true,enviado:'a test'})}};
 const $=id=>document.getElementById(id);
@@ -27,7 +32,7 @@ const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
   // 當日報告
   $('rep-token').value='test-admin-token-123456';
   $('ver-hoy').click();$('ver-expo').click();
-  check(opened[0].includes('token=')&&opened[1].includes('token='),'R3 兩個預覽按鈕附管理密鑰');
+  check(opened[0].token==='test-admin-token-123456'&&opened[1].token==='test-admin-token-123456'&&opened[0].evento==='EXPO PBW','R3 兩個預覽按鈕以 POST 傳送密鑰與活動');
   await clickEnviar();
   check(fetched.length===1&&fetched[0].method==='POST'&&fetched[0].body.accion==='enviarReporteA'&&fetched[0].body.tipo==='dia','R3 當日報告使用 POST 呼叫正確');
   check(!('emails' in fetched[0].body)&&fetched[0].body.token==='test-admin-token-123456','R3 不傳任意收件人且附管理密鑰');
@@ -37,6 +42,7 @@ const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
   document.querySelector('input[name=repTipo][value=rango]').checked=true;
   document.querySelector('input[name=repTipo][value=rango]').dispatchEvent(new window.Event('change'));
   check($('rep-rango').style.display==='grid','R4 選「rango」顯示日期欄');
+  $('rep-desde').value='';$('rep-hasta').value='';
   await clickEnviar();
   check(fetched.length===1,'R4 缺日期不寄送');
   $('rep-desde').value='2026-07-09';$('rep-hasta').value='2026-07-05';
@@ -56,14 +62,14 @@ const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
   // PDF 下載按鈕
   document.querySelector('input[name=repTipo][value=dia]').checked=true;
   $('pdf-reporte').click();
-  check(opened.length===3&&opened[2].includes('action=reportePdf')&&opened[2].includes('tipo=dia')&&opened[2].includes('token='),'R7 PDF 按鈕開啟受保護下載頁（dia）');
+  check(opened.length===3&&opened[2].action==='reportePdf'&&opened[2].tipo==='dia'&&opened[2].token==='test-admin-token-123456','R7 PDF 按鈕以 POST 開啟受保護下載頁（dia）');
   document.querySelector('input[name=repTipo][value=rango]').checked=true;
   $('rep-desde').value='';$('rep-hasta').value='';
   $('pdf-reporte').click();
   check(opened.length===3,'R7 範圍缺日期不開下載頁');
   $('rep-desde').value='2026-07-05';$('rep-hasta').value='2026-07-08';
   $('pdf-reporte').click();
-  check(opened.length===4&&opened[3].includes('tipo=rango')&&opened[3].includes('desde=2026-07-05'),'R7 範圍 PDF 參數正確');
+  check(opened.length===4&&opened[3].tipo==='rango'&&opened[3].desde==='2026-07-05','R7 範圍 PDF 參數正確');
 
   // 取消確認
   confirmAns=false;
