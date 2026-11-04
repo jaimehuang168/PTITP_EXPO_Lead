@@ -150,12 +150,36 @@
 
   /* ── 分頁列 ── */
   .tabs{display:flex;gap:.4rem;max-width:640px;margin:0 auto;padding:.9rem 1rem 0}
-  .tabs button{flex:1;padding:.6rem .3rem;font-family:var(--disp);font-weight:600;
+  .tabs button{flex:1;min-width:0;padding:.6rem .3rem;font-family:var(--disp);font-weight:600;
     font-size:.95rem;letter-spacing:.02em;color:var(--gris);background:none;
     border:0;border-bottom:3px solid transparent}
   .tabs button.activa{color:var(--azul);border-bottom-color:var(--verde)}
   .tab{display:none}
   .tab.activa{display:block}
+
+  /* ── 首次使用說明 ── */
+  .guia-idiomas{display:flex;justify-content:flex-end;gap:.4rem;margin-bottom:.8rem}
+  .guia-idiomas button,.guia-accion{padding:.6rem .8rem;border:1px solid var(--azul);
+    border-radius:9px;background:#fff;color:var(--azul);font-size:.9rem;font-weight:600}
+  .guia-idiomas button[aria-pressed=true]{background:var(--azul);color:#fff}
+  .guia-card,.guia-detalle{background:var(--carta);border:1px solid var(--linea);
+    border-radius:var(--radio);padding:1rem;margin-bottom:.8rem}
+  .guia-card{border-top:4px solid var(--verde)}
+  .guia-card h2{font-family:var(--disp);font-size:1.35rem;color:var(--azul)}
+  .guia-card p,.guia-detalle p{margin-top:.6rem;font-size:.96rem}
+  .guia-pasos{padding-left:1.3rem;margin:.9rem 0}
+  .guia-pasos li{padding-left:.15rem;margin-bottom:.7rem;font-size:.96rem}
+  .guia-detalle summary{cursor:pointer;color:var(--azul);font-weight:600;font-size:1rem}
+  .guia-accion{display:inline-block;margin-top:.6rem;min-height:44px}
+  .guia-nota{padding:.7rem .8rem;background:var(--verde-claro);border-radius:8px}
+  .guia-detalle code{overflow-wrap:anywhere;font-size:.88em}
+  .guia-enlace{display:block;margin:.3rem 0 1rem;padding:.55rem .75rem;
+    border:1px solid var(--linea);border-radius:9px;background:#fff;color:var(--azul);font-size:.88rem}
+  #ocr-ajustes{margin-bottom:.7rem;padding:.65rem .75rem;border:1px solid var(--linea);border-radius:9px}
+  #ocr-ajustes summary{cursor:pointer;font-size:.95rem;color:var(--azul);font-weight:600}
+  #ocr-ajustes label{font-size:.9rem}
+  button:focus-visible,summary:focus-visible{outline:2px solid var(--verde);outline-offset:3px}
+  @media(max-width:480px){.tabs{gap:.15rem}.tabs button{font-size:.8rem;letter-spacing:0}}
 
   /* ── QR 分頁 ── */
   .qr-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
@@ -205,10 +229,12 @@
   <button type="button" class="activa" data-tab="tab-registro">📝 Registro</button>
   <button type="button" data-tab="tab-qr">🔗 Códigos QR</button>
   <button type="button" data-tab="tab-mapas">🗺️ Mapas</button>
+  <button type="button" data-tab="tab-guia">📖 Guía / <span lang="zh-Hant">說明</span></button>
 </nav>
 
 <main>
 <section id="tab-registro" class="tab activa">
+<button type="button" id="abrir-guia" class="guia-enlace">¿Primera vez? Consultá la guía · <span lang="zh-Hant">首次使用請看說明</span></button>
 <form id="f" novalidate>
 
   <fieldset>
@@ -228,6 +254,12 @@
 
   <fieldset>
     <legend>Datos del visitante</legend>
+    <details id="ocr-ajustes">
+      <summary>Configurar escaneo de tarjetas · <span lang="zh-Hant">掃描密鑰設定</span></summary>
+      <label for="ocr-token">Clave de escaneo del equipo</label>
+      <input type="password" id="ocr-token" autocomplete="off" placeholder="Clave de escaneo del equipo" aria-describedby="ocr-ayuda">
+      <p id="ocr-ayuda" class="ayuda">Pedí la clave a tu coordinador. Pegá su valor, no el nombre OCR_ACCESS_TOKEN. Sin clave podés registrar manualmente.</p>
+    </details>
     <div class="scan-fila">
       <button type="button" id="scan-btn">📷 Escanear tarjeta de presentación</button>
       <input type="file" id="tarjeta-file" accept="image/*" capture="environment" hidden>
@@ -475,6 +507,126 @@
     </div>
   </div>
 </section>
+<section id="tab-guia" class="tab">
+  <div class="guia-idiomas" role="group" aria-label="Idioma de la guía / 說明語言">
+    <button type="button" data-guia-idioma="es" aria-pressed="true">Español</button>
+    <button type="button" data-guia-idioma="zh-Hant" aria-pressed="false" lang="zh-Hant">繁體中文</button>
+  </div>
+  <div data-guia-contenido="es" lang="es">
+    <div class="guia-card">
+      <h2>Tu primer registro, paso a paso</h2>
+      <p>Para el equipo de promoción de PTITP. El registro manual no requiere iniciar sesión ni ingresar una clave.</p>
+      <p class="guia-nota"><strong>EXPO PBW · 10–14 de noviembre de 2026</strong><br>Hora de Paraguay. Se permite completar registros antes y después del evento.</p>
+      <ol class="guia-pasos">
+        <li><strong>Identificate.</strong> En <b>Registro</b>, confirmá EXPO PBW y escribí tu nombre en <b>Promotor que registra</b>. Revisalo si compartís el dispositivo.</li>
+        <li><strong>Registrá al visitante.</strong> Completá su nombre y apellido; agregá empresa, teléfono con código de país y email. Podés escribirlos o escanear una tarjeta y corregir el resultado.</li>
+        <li><strong>Evaluá y prepará el seguimiento.</strong> Elegí A, B o C; marcá intereses y próximos pasos. Anotá responsable, fecha y necesidades concretas.</li>
+        <li><strong>Guardá y verificá.</strong> Tocá <b>Registrar visitante</b> una vez y esperá. <b>Registrado ✔</b> confirma el envío. Si aparece un pendiente, seguí las instrucciones de conexión de abajo.</li>
+      </ol>
+      <button type="button" class="guia-accion" data-guia-destino="promotor">Empezar un registro →</button>
+      <p class="ayuda">Obligatorios: evento, promotor, nombre del visitante y calificación A/B/C. Cambiar de pestaña conserva lo que ya escribiste.</p>
+    </div>
+    <details class="guia-detalle">
+      <summary>1. Escanear una tarjeta y encontrar la clave</summary>
+      <ol class="guia-pasos">
+        <li>Pedí a tu coordinador la <b>clave de escaneo del equipo</b>.</li>
+        <li>En <b>Registro → Datos del visitante → Configurar escaneo de tarjetas</b>, pegá la clave. Ingresá el valor que te entregaron, no el texto <code>OCR_ACCESS_TOKEN</code>.</li>
+        <li>Tocá <b>Escanear tarjeta de presentación</b>, tomá una foto nítida o elegí una imagen, según tu dispositivo. Se necesita conexión.</li>
+        <li>Verificá los datos reconocidos, completá la evaluación y tocá <b>Registrar visitante</b>. Escanear por sí solo no registra al visitante.</li>
+      </ol>
+      <button type="button" class="guia-accion" data-guia-destino="ocr-token">Ir a la clave de escaneo →</button>
+      <p>La clave se conserva durante esta sesión de la pestaña; al cerrarla, tené la clave disponible para volver a ingresarla. Si aparece <b>Escaneo no autorizado</b>, pedí al coordinador que revise la clave. Podés continuar manualmente.</p>
+      <p class="ayuda">Administración: OCR_ACCESS_TOKEN es el nombre de la propiedad que se configura en Apps Script. La clave de supervisión y la clave del proveedor de IA cumplen funciones distintas; esta casilla es para la clave de escaneo.</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>2. Calificar A/B/C y anotar necesidades de una nave</summary>
+      <p><b>A · Caliente:</b> proyecto concreto y poder de decisión.<br><b>B · Tibio:</b> interés real, sin plazo definido.<br><b>C · Frío:</b> curiosidad o información general.</p>
+      <p>Si busca una nave industrial, marcá <b>Alquiler de lote / nave</b>, completá <b>Superficie requerida (m²)</b> y aclará en <b>Observaciones</b> si necesita una nave estándar, el área, la actividad y cuándo desea instalarse. No inventes cifras que aún no confirmó.</p>
+      <p>En <b>Próximos pasos</b>, elegí la acción acordada; agregá la fecha y el responsable del seguimiento.</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>3. Sin conexión o registros pendientes</summary>
+      <p><b>Red disponible</b> indica conexión de red; la confirmación de cada registro llega al enviarlo. <b>Pendiente de confirmación</b> significa que la copia quedó guardada en este navegador y todavía necesita confirmación del servidor.</p>
+      <p>Recuperá la conexión, mantené o volvé a abrir esta app en el mismo navegador y dispositivo, y esperá el reenvío automático. También podés tocar <b>Reenviar … registro(s) pendiente(s)</b>, debajo del botón de registro. Al confirmarse todos, ese botón desaparece.</p>
+      <p class="guia-nota">Hasta resolver los pendientes, no borres los datos del navegador ni uses una sesión privada. No vuelvas a cargar manualmente al mismo visitante en otro dispositivo: podría quedar duplicado.</p>
+      <p>Si aparece <b>pendiente de revisión</b>, un error persiste o no se puede guardar localmente, conservá el dispositivo y los datos, y avisá al coordinador con el mensaje de error. La app debe haberse abierto con conexión antes de poder seguir usándola sin red.</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>4. Trabajar en equipo, mostrar QR y mapas</summary>
+      <p>Para el equipo de 6–8 personas, cada promotor usa su propio dispositivo y su propio nombre. Acuerden quién registra a cada visitante para evitar duplicados. Los pendientes se guardan en cada dispositivo y navegador.</p>
+      <p><b>Códigos QR:</b> mostrale al visitante el formulario en su idioma o el folleto. Son enlaces externos; no asumas que completar uno equivale a guardar este registro.</p>
+      <p><b>Mapas:</b> consultá la vista satelital y el plano; deslizá la imagen horizontalmente o abrila en pantalla completa. Confirmá la disponibilidad actual con el equipo.</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>5. Consultar reportes (supervisión)</summary>
+      <p>En la parte inferior de <b>Registro</b>, abrí <b>Reportes (supervisión)</b> e ingresá la <b>Clave de supervisión</b> proporcionada por administración. Elegí el evento y la vista de hoy o acumulada.</p>
+      <p>Para PDF, fichas o envío, elegí <b>Hoy</b>, <b>Rango de fechas</b> o <b>Todo el evento</b>. El rango inicial es 10–14/11/2026; todo el evento incluye registros anteriores y posteriores.</p>
+      <p><b>Enviar reporte</b> solicita confirmación y envía a los destinatarios configurados por administración. No es necesario enviarlo después de registrar a cada visitante.</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>6. No encuentro un botón o necesito corregir un registro</summary>
+      <p>Si no aparece la guía o la configuración de escaneo, antes de actualizar conservá cualquier formulario sin enviar y resolvé los pendientes. Después recargá la página o tocá el aviso <b>Nueva versión disponible</b>.</p>
+      <p>Esta pantalla crea registros. Para corregir uno ya confirmado, contactá al coordinador con el nombre del visitante, la fecha y el cambio necesario; no lo ingreses otra vez como solución.</p>
+    </details>
+  </div>
+  <div data-guia-contenido="zh-Hant" lang="zh-Hant" hidden>
+    <div class="guia-card">
+      <h2>第一次使用，照著步驟完成登錄</h2>
+      <p>供 PTITP 推廣團隊使用。手動登錄不需要登入帳號或輸入密鑰。</p>
+      <p class="guia-nota"><strong>EXPO PBW · 2026/11/10–11/14</strong><br>採巴拉圭時間，活動前後仍可補登。</p>
+      <ol class="guia-pasos">
+        <li><strong>確認登錄人員。</strong>在「Registro」確認活動為 EXPO PBW，於「Promotor que registra」填自己的姓名。共用裝置時，先檢查是否為上一位同仁。</li>
+        <li><strong>填寫訪客資料。</strong>輸入姓名，補上公司、含國碼的電話與 Email。可手動填寫，或掃描名片後核對修正。</li>
+        <li><strong>評估與安排追蹤。</strong>選擇 A、B 或 C 級，勾選需求及後續工作，填寫負責人、日期與具體需求。</li>
+        <li><strong>送出並確認。</strong>按一次「Registrar visitante」並等待。「Registrado ✔」表示送出成功；若顯示待傳，請依下方斷線說明處理。</li>
+      </ol>
+      <button type="button" class="guia-accion" data-guia-destino="promotor">開始登錄 →</button>
+      <p class="ayuda">必填：活動、推廣員、訪客姓名及 A/B/C 評級。切換分頁會保留目前填寫的內容。</p>
+    </div>
+    <details class="guia-detalle">
+      <summary>1. 掃描名片與輸入團隊密鑰</summary>
+      <ol class="guia-pasos">
+        <li>向主管索取「團隊掃描密鑰」。</li>
+        <li>進入「Registro → Datos del visitante → Configurar escaneo de tarjetas」，在「Clave de escaneo del equipo」貼上密鑰的值，不是輸入 <code>OCR_ACCESS_TOKEN</code> 這段名稱。</li>
+        <li>按「Escanear tarjeta de presentación」，依裝置提供的選項拍攝清晰名片或選取圖片。掃描需要網路連線。</li>
+        <li>核對辨識結果、補上評級，再按「Registrar visitante」。只有掃描名片，尚未完成訪客登錄。</li>
+      </ol>
+      <button type="button" class="guia-accion" data-guia-destino="ocr-token">前往掃描密鑰設定 →</button>
+      <p>密鑰只保留在目前分頁的工作階段；關閉分頁後，請準備再次輸入。若出現「Escaneo no autorizado」，請主管確認密鑰，期間仍可手動登錄。</p>
+      <p class="ayuda">管理員補充：OCR_ACCESS_TOKEN 是 Apps Script 的指令碼屬性名稱。主管報告密鑰及 AI 服務金鑰用途不同，此處只填團隊掃描密鑰。</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>2. A/B/C 評級與標準廠房需求</summary>
+      <p><b>A · Caliente：</b>已有具體專案且具決策權。<br><b>B · Tibio：</b>有實際興趣，時程尚未確定。<br><b>C · Frío：</b>初步了解或索取一般資訊。</p>
+      <p>需要廠房者，勾選「Alquiler de lote / nave」，填寫「Superficie requerida (m²)」，並在「Observaciones」註明是否需要標準廠房、面積、產業及預計進駐時間。未確認的數字請不要臆填。</p>
+      <p>在「Próximos pasos」勾選議定的後續工作，補上追蹤日期與負責人。</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>3. 斷線、待傳與補傳</summary>
+      <p>「Red disponible」僅表示裝置有網路，個別資料是否送達仍須等待確認。「Pendiente de confirmación」表示副本已留在這個瀏覽器，尚待伺服器確認。</p>
+      <p>恢復網路後，在同一裝置、同一瀏覽器保持或重新開啟 App，等待自動補傳；也可按登錄按鈕下方的「Reenviar … registro(s) pendiente(s)」。全部確認後，待傳按鈕會消失。</p>
+      <p class="guia-nota">待傳完成前，勿清除瀏覽器資料，也不要使用無痕模式。勿改用另一台裝置重新手動登錄同一訪客，以免重複建檔。</p>
+      <p>若出現「pendiente de revisión」、錯誤持續或無法儲存在裝置，請保留裝置與表單內容，將錯誤訊息交給主管。必須先連網開啟 App，才能在之後斷線時繼續使用已載入的頁面。</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>4. 多人登錄、QR Code 與地圖</summary>
+      <p>6–8 位同仁各用自己的裝置及姓名登錄，事先分配同一訪客由誰負責，避免重複。待傳資料分別保留於各自裝置的瀏覽器。</p>
+      <p>「Códigos QR」可展示各語言詢問表及簡介供訪客掃描。這些是外部連結，填完外部表單不代表已完成此 App 的登錄。</p>
+      <p>「Mapas」提供衛星圖及配置圖，可左右滑動或開啟全螢幕；目前可用土地及廠房仍請向園區團隊確認。</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>5. 查看與寄送報告（主管使用）</summary>
+      <p>到「Registro」下方的「Reportes (supervisión)」，輸入管理員提供的「Clave de supervisión」，選擇活動並查看當日或累計報告。</p>
+      <p>下載 PDF、客戶資料卡或寄送時，可選「Hoy」（今天）、「Rango de fechas」（日期範圍）或「Todo el evento」（整場活動）。預設範圍是 2026/11/10–11/14；整場活動包含前後補登資料。</p>
+      <p>「Enviar reporte」會要求確認，並寄到管理員已設定的收件人。每登錄一位訪客後，不必另外寄送報告。</p>
+    </details>
+    <details class="guia-detalle">
+      <summary>6. 找不到按鈕或需要更正已送出的資料</summary>
+      <p>若看不到說明或掃描設定，更新前請先保留未送出的表單內容並處理待傳。之後重新整理頁面，或按「Nueva versión disponible」更新提示。</p>
+      <p>此畫面用於新增登錄。已確認的資料若需更正，請提供訪客姓名、日期與更正內容給主管，不要以再次新增代替修改。</p>
+    </details>
+  </div>
+</section>
 <p class="ver-pie">Sistema de Captación PTITP · <span id="ver-num"></span></p>
 </main>
 
@@ -650,23 +802,19 @@ f.addEventListener('submit', async e=>{
 
 function limpiar(){
   const ev = $('evento').value, pr = $('promotor').value;
+  const clave = $('ocr-token').value;
   f.reset();
   $('evento').value = ev; $('promotor').value = pr;
+  $('ocr-token').value = clave;
   $('tarjetaUrl').value = ''; $('tarjeta-thumb').hidden = true; $('tarjeta-thumb').src = '';
 }
 
 /* ═══ 掃描名片：拍照/選圖 → 壓縮 → 後端辨識 → 自動填欄（推廣員核對後再送出） ═══ */
 $('scan-btn').addEventListener('click', ()=>$('tarjeta-file').click());
 $('tarjeta-file').addEventListener('change', escanearTarjeta);
-const claveScan = document.createElement('input');
-claveScan.type='password';claveScan.id='ocr-token';claveScan.autocomplete='off';
-claveScan.placeholder='Clave de escaneo del equipo';claveScan.setAttribute('aria-label','Clave de escaneo del equipo');
+const claveScan = $('ocr-token');
 try {claveScan.value=sessionStorage.getItem('ptitp_ocr_token')||'';}catch(e){}
 claveScan.addEventListener('change',()=>{try{sessionStorage.setItem('ptitp_ocr_token',claveScan.value);}catch(e){}});
-const ajusteScan=document.createElement('details');
-const tituloScan=document.createElement('summary');tituloScan.textContent='Configurar escaneo de tarjetas';
-ajusteScan.append(tituloScan,claveScan);ajusteScan.style.marginBottom='.6rem';
-$('scan-btn').closest('.scan-fila').before(ajusteScan);
 
 async function escanearTarjeta(){
   const file = $('tarjeta-file').files[0];
@@ -744,13 +892,54 @@ function flashCampo(el){
 }
 
 /* 分頁切換 */
-document.querySelectorAll('.tabs button').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('activa'));
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('activa'));
-    b.classList.add('activa');
-    document.getElementById(b.dataset.tab).classList.add('activa');
-    window.scrollTo({top:0});
+const pestanas = [...document.querySelectorAll('.tabs button')];
+function mostrarPestana(id){
+  pestanas.forEach(b=>{
+    const activa = b.dataset.tab === id;
+    b.classList.toggle('activa',activa);
+    b.setAttribute('aria-selected',String(activa));
+    b.tabIndex = activa ? 0 : -1;
+    $(b.dataset.tab).classList.toggle('activa',activa);
+  });
+  window.scrollTo({top:0});
+}
+pestanas.forEach((b,i)=>{
+  b.id = 'boton-' + b.dataset.tab;
+  b.setAttribute('role','tab');
+  b.setAttribute('aria-controls',b.dataset.tab);
+  const panel = $(b.dataset.tab);
+  panel.setAttribute('role','tabpanel');
+  panel.setAttribute('aria-labelledby',b.id);
+  panel.tabIndex = 0;
+  b.addEventListener('click',()=>mostrarPestana(b.dataset.tab));
+  b.addEventListener('keydown',e=>{
+    let siguiente;
+    if(e.key==='ArrowRight') siguiente=(i+1)%pestanas.length;
+    else if(e.key==='ArrowLeft') siguiente=(i+pestanas.length-1)%pestanas.length;
+    else if(e.key==='Home') siguiente=0;
+    else if(e.key==='End') siguiente=pestanas.length-1;
+    else return;
+    e.preventDefault();
+    mostrarPestana(pestanas[siguiente].dataset.tab);
+    pestanas[siguiente].focus();
+  });
+});
+mostrarPestana(location.hash==='#guia' ? 'tab-guia' : 'tab-registro');
+$('abrir-guia').addEventListener('click',()=>{
+  mostrarPestana('tab-guia');
+  $('boton-tab-guia').focus();
+});
+document.querySelectorAll('[data-guia-idioma]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-guia-contenido]').forEach(p=>{p.hidden=p.dataset.guiaContenido!==b.dataset.guiaIdioma;});
+    document.querySelectorAll('[data-guia-idioma]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  });
+});
+document.querySelectorAll('[data-guia-destino]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    mostrarPestana('tab-registro');
+    if(b.dataset.guiaDestino==='ocr-token') $('ocr-ajustes').open=true;
+    $(b.dataset.guiaDestino).focus();
   });
 });
 
@@ -845,7 +1034,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.11.1';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
@@ -857,12 +1046,12 @@ async function verificarVersion(){
   }catch(e){ /* 離線或本機直開時安靜略過 */ }
 }
 document.getElementById('act-banner').addEventListener('click', ()=>{
-  location.href = location.pathname + '?v=' + Date.now(); // 帶參數強制抓新 HTML
+  location.href = location.pathname + '?v=' + Date.now() + location.hash; // 帶參數強制抓新 HTML
 });
 setInterval(verificarVersion, 3*60*1000);        // 每 3 分鐘
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) verificarVersion(); }); // 回到前景時
 verificarVersion();
-if(location.search.indexOf('v=') !== -1) history.replaceState(null, '', location.pathname); // 清掉網址參數
+if(location.search.indexOf('v=') !== -1) history.replaceState(null, '', location.pathname + location.hash); // 清掉網址參數
 
 /* 連線狀態指示 + 恢復連線自動重送 */
 function estadoRed(){
