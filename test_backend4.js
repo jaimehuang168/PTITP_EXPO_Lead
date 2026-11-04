@@ -2,7 +2,7 @@
 const fs=require('fs');
 class MockSheet{constructor(n){this.name=n;this.rows=[]}getLastRow(){return this.rows.length}appendRow(r){this.rows.push(r);return this}getRange(){return{setValue(){},getValue:()=>'',setFontWeight:()=>({setBackground:()=>({setFontColor:()=>({})})})}}setFrozenRows(){}getDataRange(){return{getValues:()=>this.rows}}}
 const sheets={};const ss={getSheetByName:n=>sheets[n]||null,insertSheet:n=>(sheets[n]=new MockSheet(n))};
-global.SpreadsheetApp={getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
+global.SpreadsheetApp={flush:()=>{},getActiveSpreadsheet:()=>ss,getUi:()=>({createMenu:()=>({addItem(){return this},addToUi(){}})})};
 global.Utilities={newBlob:(b,m,n)=>({_name:n,getAs:mt=>({setName(x){this._n=x;return this},getBytes:()=>[1],getName(){return this._n}})}),base64Decode:s=>'BYTES:'+s,base64Encode:()=>'B64',formatDate:(d,tz,fmt)=>fmt.includes('HHmmss')?'20260706_183000':(fmt.includes('HH')?'2026-07-06 18:30:00':'2026-07-06')};
 global.LockService={getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})};
 global.ContentService={MimeType:{JSON:'json'},createTextOutput:t=>({_text:t,setMimeType(){return this}})};
@@ -11,7 +11,7 @@ global.MailApp={sendEmail:()=>{}};
 global.ScriptApp={getProjectTriggers:()=>[],newTrigger:()=>({timeBased(){return this},everyDays(){return this},atHour(){return this},nearMinute(){return this},create(){}}),deleteTrigger:()=>{}};
 global.Logger={log:()=>{}};
 // Script Properties mock
-const propStore={};
+const propStore={OCR_ACCESS_TOKEN:'test-operator-secret'};
 global.PropertiesService={getScriptProperties:()=>({getProperty:k=>propStore[k]||null,setProperty:(k,v)=>propStore[k]=v})};
 // Drive mock
 const driveFiles=[];
@@ -28,13 +28,13 @@ eval(fs.readFileSync('Code.gs','utf8'));
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
 
 // O1: 沒有 API key
-let r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',imagen:'AAA',promotor:'María'})}});
+let r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',token:'test-operator-secret',imagen:'/9j/AAAA',promotor:'María'})}});
 let j=JSON.parse(r._text);
 check(j.ok===false&&/API key no configurada/.test(j.error),'O1 缺 API key 明確報錯');
 
 // O2: 正常辨識
 propStore['ANTHROPIC_API_KEY']='sk-test';
-r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',imagen:'AAA',mime:'image/jpeg',promotor:'María González'})}});
+r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',token:'test-operator-secret',imagen:'/9j/AAAA',mime:'image/jpeg',promotor:'María González'})}});
 j=JSON.parse(r._text);
 check(j.ok===true,'O2 辨識成功');
 check(j.datos.nombre==='Carlos Benítez'&&j.datos.email==='carlos@textileste.com.py','O2 欄位解析正確（含 markdown 圍欄清除）');
@@ -44,19 +44,19 @@ check(propStore['ocr_2026-07-06']==='1','O2 每日計數 +1');
 
 // O3: 每日上限
 propStore['ocr_2026-07-06']='300';
-r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',imagen:'AAA'})}});
+r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',token:'test-operator-secret',imagen:'/9j/AAAA'})}});
 check(JSON.parse(r._text).ok===false&&/Límite diario/.test(JSON.parse(r._text).error),'O3 達每日上限拒絕');
 propStore['ocr_2026-07-06']='5';
 
 // O4: API 失敗仍回傳影像連結
 apiMode='fail';
-r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',imagen:'AAA'})}});
+r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',token:'test-operator-secret',imagen:'/9j/AAAA'})}});
 j=JSON.parse(r._text);
 check(j.ok===false&&j.imagen&&/no disponible/.test(j.error),'O4 API 失敗回錯誤但保留影像連結');
 apiMode='ok';
 
 // O5: 缺影像
-r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta'})}});
+r=doPost({postData:{contents:JSON.stringify({accion:'ocrTarjeta',token:'test-operator-secret'})}});
 check(JSON.parse(r._text).ok===false,'O5 缺影像拒絕');
 
 // O6: 問卷寫入含名片連結（第 24 欄），且不受 OCR 分支影響

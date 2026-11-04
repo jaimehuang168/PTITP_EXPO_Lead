@@ -91,7 +91,7 @@ window.fetch = async (url, opts) => {
   $('nombre').value='Ana Souza';
   document.querySelector('input[name=calif][value="B - Tibio"]').checked=true;
   await submit();
-  const cola = JSON.parse(window.localStorage.getItem('ptitp_cola')||'[]');
+  const cola = window.eval('getCola()');
   check(cola.length===1 && cola[0].nombre==='Ana Souza', 'F5 斷線時問卷存入離線佇列');
   check(document.getElementById('pendientes-btn').style.display==='block', 'F5 顯示「重送待傳」按鈕');
 
@@ -99,7 +99,7 @@ window.fetch = async (url, opts) => {
   fetchMode='ok';
   document.getElementById('pendientes-btn').click();
   await sleep(30);
-  const cola2 = JSON.parse(window.localStorage.getItem('ptitp_cola')||'[]');
+  const cola2 = window.eval('getCola()');
   check(cola2.length===0, 'F5 恢復連線後重送成功、佇列清空');
   check(sent.length===2 && sent[1].body.nombre==='Ana Souza', 'F5 重送內容正確');
 
