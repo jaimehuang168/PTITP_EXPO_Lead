@@ -229,12 +229,12 @@
   <button type="button" class="activa" data-tab="tab-registro">📝 Registro</button>
   <button type="button" data-tab="tab-qr">🔗 Códigos QR</button>
   <button type="button" data-tab="tab-mapas">🗺️ Mapas</button>
-  <button type="button" data-tab="tab-guia">📖 Guía / <span lang="zh-Hant">說明</span></button>
+  <button type="button" data-tab="tab-guia">📖 Guía de uso</button>
 </nav>
 
 <main>
 <section id="tab-registro" class="tab activa">
-<button type="button" id="abrir-guia" class="guia-enlace">¿Primera vez? Consultá la guía · <span lang="zh-Hant">首次使用請看說明</span></button>
+<button type="button" id="abrir-guia" class="guia-enlace">¿Primera vez? Consultá la guía de uso →</button>
 <form id="f" novalidate>
 
   <fieldset>
@@ -254,11 +254,11 @@
 
   <fieldset>
     <legend>Datos del visitante</legend>
-    <details id="ocr-ajustes">
-      <summary>Configurar escaneo de tarjetas · <span lang="zh-Hant">掃描密鑰設定</span></summary>
+    <details id="ocr-ajustes" open>
+      <summary>Configurar escaneo de tarjetas</summary>
       <label for="ocr-token">Clave de escaneo del equipo</label>
       <input type="password" id="ocr-token" autocomplete="off" placeholder="Clave de escaneo del equipo" aria-describedby="ocr-ayuda">
-      <p id="ocr-ayuda" class="ayuda">Pedí la clave a tu coordinador. Pegá su valor, no el nombre OCR_ACCESS_TOKEN. Sin clave podés registrar manualmente.</p>
+      <p id="ocr-ayuda" class="ayuda">Pedí a tu coordinador la clave de escaneo (mínimo 16 caracteres). Pegá aquí su valor. OCR_ACCESS_TOKEN es el nombre de la configuración, no la clave. La clave se conserva durante esta sesión.</p>
     </details>
     <div class="scan-fila">
       <button type="button" id="scan-btn">📷 Escanear tarjeta de presentación</button>
@@ -529,14 +529,14 @@
     <details class="guia-detalle">
       <summary>1. Escanear una tarjeta y encontrar la clave</summary>
       <ol class="guia-pasos">
-        <li>Pedí a tu coordinador la <b>clave de escaneo del equipo</b>.</li>
+        <li>Pedí a tu coordinador la <b>clave de escaneo del equipo</b> (mínimo 16 caracteres).</li>
         <li>En <b>Registro → Datos del visitante → Configurar escaneo de tarjetas</b>, pegá la clave. Ingresá el valor que te entregaron, no el texto <code>OCR_ACCESS_TOKEN</code>.</li>
         <li>Tocá <b>Escanear tarjeta de presentación</b>, tomá una foto nítida o elegí una imagen, según tu dispositivo. Se necesita conexión.</li>
         <li>Verificá los datos reconocidos, completá la evaluación y tocá <b>Registrar visitante</b>. Escanear por sí solo no registra al visitante.</li>
       </ol>
       <button type="button" class="guia-accion" data-guia-destino="ocr-token">Ir a la clave de escaneo →</button>
       <p>La clave se conserva durante esta sesión de la pestaña; al cerrarla, tené la clave disponible para volver a ingresarla. Si aparece <b>Escaneo no autorizado</b>, pedí al coordinador que revise la clave. Podés continuar manualmente.</p>
-      <p class="ayuda">Administración: OCR_ACCESS_TOKEN es el nombre de la propiedad que se configura en Apps Script. La clave de supervisión y la clave del proveedor de IA cumplen funciones distintas; esta casilla es para la clave de escaneo.</p>
+      <p class="ayuda">Administración: abrí el proyecto Apps Script de esta app → Project Settings → Script Properties → Edit script properties. En OCR_ACCESS_TOKEN, guardá una clave aleatoria de al menos 16 caracteres (se recomiendan 24–32), generada con tu gestor de contraseñas, y compartila de forma privada con el equipo. No hace falta volver a desplegar. La clave de supervisión y la clave del proveedor de IA cumplen funciones distintas; esta casilla es para la clave de escaneo.</p>
     </details>
     <details class="guia-detalle">
       <summary>2. Calificar A/B/C y anotar necesidades de una nave</summary>
@@ -593,7 +593,7 @@
       </ol>
       <button type="button" class="guia-accion" data-guia-destino="ocr-token">前往掃描密鑰設定 →</button>
       <p>密鑰只保留在目前分頁的工作階段；關閉分頁後，請準備再次輸入。若出現「Escaneo no autorizado」，請主管確認密鑰，期間仍可手動登錄。</p>
-      <p class="ayuda">管理員補充：OCR_ACCESS_TOKEN 是 Apps Script 的指令碼屬性名稱。主管報告密鑰及 AI 服務金鑰用途不同，此處只填團隊掃描密鑰。</p>
+      <p class="ayuda">管理員補充：到此 App 的 Apps Script 專案 → Project Settings → Script Properties → Edit script properties，在 OCR_ACCESS_TOKEN 儲存以密碼管理員產生的至少 16 字元隨機密鑰（建議 24–32 字元），再私下提供給同仁。儲存後不必重新部署。主管報告密鑰及 AI 服務金鑰用途不同，此處只填團隊掃描密鑰。</p>
     </details>
     <details class="guia-detalle">
       <summary>2. A/B/C 評級與標準廠房需求</summary>
@@ -819,7 +819,10 @@ claveScan.addEventListener('change',()=>{try{sessionStorage.setItem('ptitp_ocr_t
 async function escanearTarjeta(){
   const file = $('tarjeta-file').files[0];
   if(!file) return;
-  if(claveScan.value.trim().length<16) return aviso('Ingrese la clave de escaneo del equipo; también puede completar los datos manualmente.',true);
+  if(claveScan.value.trim().length<16){
+    $('ocr-ajustes').open=true;claveScan.focus();
+    return aviso('La clave de escaneo debe tener al menos 16 caracteres. Pedila a tu coordinador.',true);
+  }
   const b = $('scan-btn');
   b.disabled = true; b.textContent = '📷 Analizando tarjeta…';
   try{
@@ -1034,7 +1037,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.11.1';
+const APP_VERSION = '1.11.2';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
