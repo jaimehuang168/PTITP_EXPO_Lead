@@ -2,15 +2,15 @@
 
 目前正式網站：https://jaimehuang168.github.io/PTITP_EXPO_Lead/
 
-## 1.12.0 待啟用：Google 登入與活動掃描
+## 1.12.0：Google 登入與活動掃描
 
-本版本改用 Google 帳號登入。程式已準備，正式啟用仍待使用者同意建立登入用 Firebase 專案；未建立完成前，不得把這個版本視為正式上線。
+本版本改用 Google 帳號登入。登入專案為 ptitp-expo-registro，使用免費 Spark 方案。
 
 - 西文操作介面，使用說明支援西班牙文與繁體中文。
 - EXPO PBW：2026/11/10–11/14，America/Asuncion。手動登錄保留前後補登。
 - 每筆登錄由後端驗證 Google 身分，寫入既有 Promotor 與新增的「Registrado por (email)」「Google UID」「Nombre de cuenta」。既有 Timestamp 作為建立時間；保留舊資料。
 - 只有 jaimehuang168@gmail.com 可查閱、匯出、列印、產生 PDF/資料卡及手動寄送報告。後端以已驗證 Email 判斷。
-- 所有已驗證的 Google 登入者在 PBW 期間自動取得掃描權限。伺服器以巴拉圭日期限制；期限外不會建立圖片或呼叫 AI。
+- 所有已驗證的 Google 登入者在 2026/11/6–11/14 自動取得掃描權限，包含 11/6 起的訓練；正式活動統計仍為 11/10–11/14。伺服器以巴拉圭日期限制；期限外不會建立圖片或呼叫 AI。
 - OCR 每日全團隊最多 300 次；最多輸出 500 tokens。沿用 Claude Haiku 4.5。
 - OCR_ACCESS_TOKEN、REPORT_ADMIN_TOKEN 已由 Google 身分驗證取代；不再接受共用密鑰授權。ANTHROPIC_API_KEY 只保留後端。
 - Google 登入使用分頁工作階段；待傳資料保留原 Google UID，不儲存 ID token。換帳號無法代送其他帳號的待傳。

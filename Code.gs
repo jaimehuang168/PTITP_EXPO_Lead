@@ -27,6 +27,8 @@ const CONFIG = {
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
   OCR_MODEL: 'claude-haiku-4-5',
+  OCR_DESDE: '2026-11-06',
+  OCR_HASTA: '2026-11-14',
   OCR_LIMITE_DIARIO: 300,          // 每日辨識上限（防止公開端點被刷 API 額度）
   OCR_MAX_BASE64: 2500000,         // 約 1.9 MB；前端壓縮後應遠低於此值
   CARPETA_TARJETAS: 'PTITP_Tarjetas', // 名片影像存放的 Drive 資料夾
@@ -195,7 +197,7 @@ function _ocrTarjeta(d) {
     const auth = _autorizarOperador(d.idToken);
     if (!auth.ok) return _json(auth);
     const permiso = _estadoEscaneo();
-    if (!permiso.activo) return _json({ok:false,retryable:false,error:'Escaneo disponible solo del 10 al 14 de noviembre de 2026 (hora de Paraguay)'});
+    if (!permiso.activo) return _json({ok:false,retryable:false,error:'Escaneo disponible solo del 6 al 14 de noviembre de 2026 (hora de Paraguay)'});
     d.promotor = auth.usuario.nombre || auth.usuario.email;
     if (!d.imagen) return _json({ ok: false, error: 'Falta la imagen' });
     if (typeof d.imagen !== 'string' || d.imagen.length > CONFIG.OCR_MAX_BASE64 ||
@@ -481,8 +483,8 @@ function _configuracionGoogle(){
 
 function _estadoEscaneo(){
   const hoy=Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'yyyy-MM-dd');
-  return {activo:hoy>=CONFIG.EVENTO_DESDE&&hoy<=CONFIG.EVENTO_HASTA,
-    desde:CONFIG.EVENTO_DESDE,hasta:CONFIG.EVENTO_HASTA,zona:CONFIG.ZONA_HORARIA,limiteDiario:CONFIG.OCR_LIMITE_DIARIO};
+  return {activo:hoy>=CONFIG.OCR_DESDE&&hoy<=CONFIG.OCR_HASTA,
+    desde:CONFIG.OCR_DESDE,hasta:CONFIG.OCR_HASTA,zona:CONFIG.ZONA_HORARIA,limiteDiario:CONFIG.OCR_LIMITE_DIARIO};
 }
 
 function _autorizarOperador(idToken){

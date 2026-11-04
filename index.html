@@ -265,7 +265,7 @@
 
   <fieldset>
     <legend>Datos del visitante</legend>
-    <p id="scan-estado" class="ayuda" tabindex="-1">Iniciá sesión con Google para escanear. Disponible del 10 al 14 de noviembre de 2026, hora de Paraguay.</p>
+    <p id="scan-estado" class="ayuda" tabindex="-1">Iniciá sesión con Google para escanear. Disponible del 6 al 14 de noviembre de 2026, hora de Paraguay.</p>
     <div class="scan-fila">
       <button type="button" id="scan-btn">📷 Escanear tarjeta de presentación</button>
       <input type="file" id="tarjeta-file" accept="image/*" capture="environment" hidden>
@@ -534,7 +534,7 @@
       <summary>1. Iniciar sesión y escanear una tarjeta</summary>
       <ol class="guia-pasos">
         <li>Iniciá sesión con tu propia cuenta mediante <b>Continuar con Google</b>.</li>
-        <li>El escaneo se habilita automáticamente del <b>10/11/2026 a las 00:00 al 14/11/2026 a las 23:59:59, hora de Paraguay</b>. No tenés que ingresar una clave de equipo.</li>
+        <li>El escaneo se habilita automáticamente del <b>6/11/2026 a las 00:00 al 14/11/2026 a las 23:59:59, hora de Paraguay</b>. No tenés que ingresar una clave de equipo.</li>
         <li>Tocá <b>Escanear tarjeta de presentación</b>, tomá una foto nítida o elegí una imagen, según tu dispositivo. Se necesita conexión.</li>
         <li>Verificá los datos reconocidos, completá la evaluación y tocá <b>Registrar visitante</b>. Escanear por sí solo no registra al visitante.</li>
       </ol>
@@ -592,7 +592,7 @@
       <summary>1. 登入 Google 與掃描名片</summary>
       <ol class="guia-pasos">
         <li>按「Continuar con Google」，登入自己的 Google 帳號。</li>
-        <li>掃描於巴拉圭時間 <b>2026/11/10 00:00 至 11/14 23:59:59</b> 自動開放，登入後即可使用，不必輸入團隊密鑰。</li>
+        <li>掃描於巴拉圭時間 <b>2026/11/6 00:00 至 11/14 23:59:59</b> 自動開放，登入後即可使用，不必輸入團隊密鑰。</li>
         <li>按「Escanear tarjeta de presentación」，依裝置提供的選項拍攝清晰名片或選取圖片。掃描需要網路連線。</li>
         <li>核對辨識結果、補上評級，再按「Registrar visitante」。只有掃描名片，尚未完成訪客登錄。</li>
       </ol>
@@ -656,7 +656,7 @@ $('evento').readOnly = true;
 $('rep-desde').value = EVENTO.desde;
 $('rep-hasta').value = EVENTO.hasta;
 
-let enviando=false,escaneando=false,ultimoUid='',estadoUid='',revisionFormulario=0;
+let enviando=false,escaneando=false,iniciando=false,ultimoUid='',estadoUid='',revisionFormulario=0;
 f.addEventListener('input',()=>{revisionFormulario++;});
 const sesion=window.PtitpGoogleSession({apiUrl:API_URL,onChange:s=>{pintarSesion(s);if(s.user&&navigator.onLine)reintentar();}});
 function pintarSesion(s){
@@ -664,7 +664,7 @@ function pintarSesion(s){
   if(uid!==estadoUid){revisionFormulario++;estadoUid=uid;}
   if(s.user&&ultimoUid&&ultimoUid!==s.user.uid) limpiar();
   if(s.user)ultimoUid=s.user.uid;
-  $('login-google').hidden=!!s.user;$('login-google').disabled=s.loading||!s.configured;
+  $('login-google').hidden=!!s.user;$('login-google').disabled=s.loading||!s.configured||iniciando;
   $('salir-google').hidden=!s.user;
   $('salir-google').disabled=enviando||escaneando;
   $('sesion-estado').textContent=s.error||(s.loading?'Comprobando el acceso…':s.user?'Sesión verificada con Google':'Iniciá sesión para registrar visitantes');
@@ -674,12 +674,14 @@ function pintarSesion(s){
   [...f.elements].forEach(el=>{el.disabled=!s.user||enviando||escaneando;});
   $('enviar').disabled=!s.user||enviando;
   $('scan-btn').disabled=!s.user||!s.ocr?.activo||escaneando;
-  $('scan-estado').textContent=s.ocr?.activo?'Escaneo habilitado al iniciar sesión con Google. Verificá los datos antes de registrar.':'Escaneo disponible solo del 10 al 14 de noviembre de 2026, hora de Paraguay. Podés registrar manualmente después de iniciar sesión.';
+  $('scan-estado').textContent=s.ocr?.activo?'Escaneo habilitado al iniciar sesión con Google. Verificá los datos antes de registrar.':'Escaneo disponible solo del 6 al 14 de noviembre de 2026, hora de Paraguay. Podés registrar manualmente después de iniciar sesión.';
   $('reportes').hidden=!s.user?.admin;
   pintarCola();
 }
 $('login-google').addEventListener('click',async()=>{
-  try{await sesion.signIn();}catch(e){aviso(e.code==='auth/popup-closed-by-user'?'Inicio de sesión cancelado':e.code==='auth/popup-blocked'?'Permití la ventana de Google e intentá de nuevo':'No se pudo iniciar sesión con Google. Reintentá o avisá al coordinador.',true);}
+  if(iniciando)return;iniciando=true;$('login-google').disabled=true;
+  try{await sesion.signIn();}catch(e){console.warn('[PTITP] Google sign-in error',e?.code||e?.name||'unknown');aviso(e.code==='auth/popup-closed-by-user'?'Inicio de sesión cancelado':e.code==='auth/popup-blocked'?'Permití la ventana de Google e intentá de nuevo':'No se pudo iniciar sesión con Google. Reintentá o avisá al coordinador.',true);}
+  finally{iniciando=false;pintarSesion(sesion.getSnapshot());}
 });
 $('salir-google').addEventListener('click',async()=>{
   if($('nombre').value.trim()&&!window.confirm('Hay un formulario sin enviar. ¿Descartarlo y cerrar sesión? Los registros pendientes se conservan.'))return;
@@ -865,7 +867,7 @@ async function escanearTarjeta(){
   const file = $('tarjeta-file').files[0];
   if(!file) return;
   const usuario=sesion.getSnapshot().user;
-  if(!usuario||!sesion.getSnapshot().ocr?.activo)return aviso('Escaneo disponible con Google solo del 10 al 14 de noviembre de 2026.',true);
+  if(!usuario||!sesion.getSnapshot().ocr?.activo)return aviso('Escaneo disponible con Google solo del 6 al 14 de noviembre de 2026.',true);
   const revision=revisionFormulario;
   const actual=()=>sesion.getSnapshot().user?.uid===usuario.uid&&revisionFormulario===revision;
   const b = $('scan-btn');

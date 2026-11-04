@@ -13,6 +13,8 @@ const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{runScripts:'dangerousl
 const w=dom.window,d=w.document,$=id=>d.getElementById(id);
 (async()=>{
   await tick();assert.equal($('enviar').disabled,true,'anonymous form cannot create records');assert.equal($('reportes').hidden,true);
+  $('login-google').click();$('login-google').click();await tick();
+  assert.equal(controller.popupCalls,1,'a double click must open only one Google sign-in flow');
   controller.setUser(user());await tick();
   assert.equal($('promotor').readOnly,true);assert.equal($('promotor').value,'María González');assert.equal($('reportes').hidden,true);
   assert.equal($('ocr-token'),null,'Google login replaces shared OCR key');assert.equal($('scan-btn').disabled,false);

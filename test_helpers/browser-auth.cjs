@@ -2,11 +2,11 @@
 const user=(uid='operator-uid',email='operator@gmail.com',displayName='María González')=>({uid,email,displayName,getIdToken:async()=> 'firebase-fixture-'+uid});
 function installBrowserAuth(w,{signedIn=true,admin=true,ocrActive=true}={}){
   const auth={currentUser:signedIn?user('operator-uid',admin?'jaimehuang168@gmail.com':'operator@gmail.com'):null,languageCode:''};
-  let listener=()=>{},nextUser=user();
+  let listener=()=>{},nextUser=user(),popupCalls=0;
   const sdk={initializeApp:()=>({}),getAuth:()=>auth,setPersistence:async()=>{},browserSessionPersistence:'session',
     GoogleAuthProvider:class{setCustomParameters(){}},
     onIdTokenChanged:(a,cb)=>{listener=cb;queueMicrotask(()=>cb(auth.currentUser));return()=>{};},
-    signInWithPopup:async()=>{auth.currentUser=nextUser;listener(nextUser);return{user:nextUser};},
+    signInWithPopup:async()=>{popupCalls++;auth.currentUser=nextUser;listener(nextUser);return{user:nextUser};},
     signOut:async()=>{auth.currentUser=null;listener(null);}
   };
   const authFetch=async(url,options)=>({ok:true,json:async()=>{
@@ -15,6 +15,6 @@ function installBrowserAuth(w,{signedIn=true,admin=true,ocrActive=true}={}){
   }});
   w.PtitpGoogleSession=options=>require('../google-session.js').createGoogleSession({...options,loadSdk:async()=>sdk,fetch:authFetch});
   w.scrollTo=()=>{};
-  return{setUser(u){auth.currentUser=u;listener(u);},nextLogin(u){nextUser=u;},user,auth};
+  return{setUser(u){auth.currentUser=u;listener(u);},nextLogin(u){nextUser=u;},get popupCalls(){return popupCalls;},user,auth};
 }
 module.exports={installBrowserAuth,user};

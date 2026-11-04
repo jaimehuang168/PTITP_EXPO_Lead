@@ -62,7 +62,7 @@ test('ordinary signed-in Google users cannot export print or send reports',()=>{
 test('only Jaime receives administrator role and a report response',()=>{assert.equal(post({accion:'sesion',idToken:admin()}).usuario.admin,true);const r=post({accion:'abrirReporte',action:'fichas',tipo:'expo',idToken:admin()});assert(r.html?.includes('Fichas'));});
 test('Google login enables OCR during PBW without OCR_ACCESS_TOKEN',()=>{const before=claudeCalls;delete props.OCR_ACCESS_TOKEN;const r=post({accion:'ocrTarjeta',idToken:operator(),imagen:'/9j/AAAA',mime:'image/jpeg'});assert.equal(r.ok,true);assert.equal(claudeCalls,before+1);});
 test('OCR starts and ends at Paraguay midnight with no outside quota or paid work',()=>{
-  for(const [when,active] of [['2026-11-10T02:59:59Z',false],['2026-11-10T03:00:00Z',true],['2026-11-15T02:59:59Z',true],['2026-11-15T03:00:00Z',false]]){
+  for(const [when,active] of [['2026-11-06T02:59:59Z',false],['2026-11-06T03:00:00Z',true],['2026-11-15T02:59:59Z',true],['2026-11-15T03:00:00Z',false]]){
     now=Date.parse(when);const q=quotaWrites,c=claudeCalls,d=driveWrites;
     const r=post({accion:'ocrTarjeta',idToken:operator(),imagen:'/9j/AAAA',mime:'image/jpeg',token:'legacy-secret-123456'});
     assert.equal(r.ok,active,when);if(!active){assert.equal(quotaWrites,q);assert.equal(claudeCalls,c);assert.equal(driveWrites,d);}
