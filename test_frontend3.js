@@ -1,6 +1,6 @@
 // 名片掃描前端測試（獨立檔，納入版控）
 const fs=require('fs');const{JSDOM}=require('jsdom');
-const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{runScripts:'dangerously',url:'https://x.github.io/',pretendToBeVisual:true});
+const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{runScripts:'dangerously',url:'https://x.github.io/',pretendToBeVisual:true,beforeParse(w){require('./test_helpers/browser-auth.cjs').installBrowserAuth(w);}});
 dom.window.fetch=async()=>({json:async()=>({ok:true})});
 setTimeout(()=>{
   const d=dom.window.document;let f=0;

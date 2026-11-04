@@ -175,10 +175,13 @@
   .guia-detalle code{overflow-wrap:anywhere;font-size:.88em}
   .guia-enlace{display:block;margin:.3rem 0 1rem;padding:.55rem .75rem;
     border:1px solid var(--linea);border-radius:9px;background:#fff;color:var(--azul);font-size:.88rem}
-  #ocr-ajustes{margin-bottom:.7rem;padding:.65rem .75rem;border:1px solid var(--linea);border-radius:9px}
-  #ocr-ajustes summary{cursor:pointer;font-size:.95rem;color:var(--azul);font-weight:600}
-  #ocr-ajustes label{font-size:.9rem}
   button:focus-visible,summary:focus-visible{outline:2px solid var(--verde);outline-offset:3px}
+  #acceso{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);padding:1rem;margin-bottom:1rem}
+  #acceso h2{font-family:var(--disp);font-size:1.05rem;color:var(--azul)}
+  #acceso button{margin-top:.6rem;padding:.65rem .9rem;border:1px solid var(--azul);border-radius:9px;background:#fff;color:var(--azul);font-weight:600}
+  #acceso button:disabled{opacity:.55;cursor:wait}
+  #sesion-usuario{overflow-wrap:anywhere;margin-top:.4rem;font-size:.9rem}
+  [hidden]{display:none!important}
   @media(max-width:480px){.tabs{gap:.15rem}.tabs button{font-size:.8rem;letter-spacing:0}}
 
   /* ── QR 分頁 ── */
@@ -233,6 +236,14 @@
 </nav>
 
 <main>
+<section id="acceso" aria-labelledby="acceso-titulo">
+  <h2 id="acceso-titulo">Acceso del equipo</h2>
+  <p id="sesion-estado" class="ayuda" role="status">Comprobando el acceso…</p>
+  <p id="sesion-usuario" hidden></p>
+  <button type="button" id="login-google" disabled>Continuar con Google</button>
+  <button type="button" id="salir-google" hidden>Cerrar sesión</button>
+  <p class="ayuda">Cada registro queda asociado a tu cuenta de Google. Usá tu propia cuenta en los dispositivos compartidos.</p>
+</section>
 <section id="tab-registro" class="tab activa">
 <button type="button" id="abrir-guia" class="guia-enlace">¿Primera vez? Consultá la guía de uso →</button>
 <form id="f" novalidate>
@@ -246,20 +257,15 @@
       </div>
       <div>
         <label for="promotor">Promotor que registra</label>
-        <input type="text" id="promotor" placeholder="Su nombre" required>
+        <input type="text" id="promotor" placeholder="Se completa al iniciar sesión" readonly required>
       </div>
     </div>
-    <p class="ayuda">El evento está predefinido. El nombre del promotor se conserva en este dispositivo.</p>
+    <p class="ayuda">El promotor y su email se obtienen de la cuenta de Google verificada.</p>
   </fieldset>
 
   <fieldset>
     <legend>Datos del visitante</legend>
-    <details id="ocr-ajustes" open>
-      <summary>Configurar escaneo de tarjetas</summary>
-      <label for="ocr-token">Clave de escaneo del equipo</label>
-      <input type="password" id="ocr-token" autocomplete="off" placeholder="Clave de escaneo del equipo" aria-describedby="ocr-ayuda">
-      <p id="ocr-ayuda" class="ayuda">Pedí a tu coordinador la clave de escaneo (mínimo 16 caracteres). Pegá aquí su valor. OCR_ACCESS_TOKEN es el nombre de la configuración, no la clave. La clave se conserva durante esta sesión.</p>
-    </details>
+    <p id="scan-estado" class="ayuda" tabindex="-1">Iniciá sesión con Google para escanear. Disponible del 10 al 14 de noviembre de 2026, hora de Paraguay.</p>
     <div class="scan-fila">
       <button type="button" id="scan-btn">📷 Escanear tarjeta de presentación</button>
       <input type="file" id="tarjeta-file" accept="image/*" capture="environment" hidden>
@@ -397,12 +403,13 @@
     </div>
   </fieldset>
 
-  <button type="submit" id="enviar">Registrar visitante</button>
+  <button type="submit" id="enviar" disabled>Registrar visitante</button>
   <button type="button" id="pendientes-btn"></button>
+  <p id="pendientes-info" class="ayuda" hidden></p>
 </form>
 
-<fieldset id="reportes">
-  <legend>Reportes (supervisión)</legend>
+<fieldset id="reportes" hidden>
+  <legend>Reportes (administración)</legend>
   <label for="rep-evento">Evento del reporte</label>
   <select id="rep-evento">
     <option value="EXPO PBW">EXPO PBW · 10–14 noviembre 2026</option>
@@ -414,10 +421,7 @@
     <button type="button" id="ver-expo">📊 Ver reporte acumulado del evento</button>
   </div>
 
-  <label for="rep-token">Clave de supervisión</label>
-  <input type="password" id="rep-token" autocomplete="current-password"
-         placeholder="Clave configurada por administración">
-  <p class="ayuda">La clave se conserva solamente durante esta sesión. Los reportes se envían exclusivamente a los destinatarios configurados en la hoja “Config”.</p>
+  <p class="ayuda">Exportación, PDF, fichas e impresión: acceso exclusivo de jaimehuang168@gmail.com mediante Google. Los envíos usan los destinatarios configurados en la hoja “Config”.</p>
 
   <label>Tipo de reporte</label>
   <div class="chips" id="rep-tipo">
@@ -515,28 +519,28 @@
   <div data-guia-contenido="es" lang="es">
     <div class="guia-card">
       <h2>Tu primer registro, paso a paso</h2>
-      <p>Para el equipo de promoción de PTITP. El registro manual no requiere iniciar sesión ni ingresar una clave.</p>
+      <p>Para el equipo de promoción de PTITP. Iniciá sesión con tu propia cuenta de Google antes de registrar visitantes; cada registro conserva tu email verificado.</p>
       <p class="guia-nota"><strong>EXPO PBW · 10–14 de noviembre de 2026</strong><br>Hora de Paraguay. Se permite completar registros antes y después del evento.</p>
       <ol class="guia-pasos">
-        <li><strong>Identificate.</strong> En <b>Registro</b>, confirmá EXPO PBW y escribí tu nombre en <b>Promotor que registra</b>. Revisalo si compartís el dispositivo.</li>
+        <li><strong>Iniciá sesión.</strong> Tocá <b>Continuar con Google</b> y elegí tu cuenta. Tu nombre y email se completan automáticamente; revisalos si compartís el dispositivo.</li>
         <li><strong>Registrá al visitante.</strong> Completá su nombre y apellido; agregá empresa, teléfono con código de país y email. Podés escribirlos o escanear una tarjeta y corregir el resultado.</li>
         <li><strong>Evaluá y prepará el seguimiento.</strong> Elegí A, B o C; marcá intereses y próximos pasos. Anotá responsable, fecha y necesidades concretas.</li>
         <li><strong>Guardá y verificá.</strong> Tocá <b>Registrar visitante</b> una vez y esperá. <b>Registrado ✔</b> confirma el envío. Si aparece un pendiente, seguí las instrucciones de conexión de abajo.</li>
       </ol>
-      <button type="button" class="guia-accion" data-guia-destino="promotor">Empezar un registro →</button>
+      <button type="button" class="guia-accion" data-guia-destino="login-google">Empezar un registro →</button>
       <p class="ayuda">Obligatorios: evento, promotor, nombre del visitante y calificación A/B/C. Cambiar de pestaña conserva lo que ya escribiste.</p>
     </div>
     <details class="guia-detalle">
-      <summary>1. Escanear una tarjeta y encontrar la clave</summary>
+      <summary>1. Iniciar sesión y escanear una tarjeta</summary>
       <ol class="guia-pasos">
-        <li>Pedí a tu coordinador la <b>clave de escaneo del equipo</b> (mínimo 16 caracteres).</li>
-        <li>En <b>Registro → Datos del visitante → Configurar escaneo de tarjetas</b>, pegá la clave. Ingresá el valor que te entregaron, no el texto <code>OCR_ACCESS_TOKEN</code>.</li>
+        <li>Iniciá sesión con tu propia cuenta mediante <b>Continuar con Google</b>.</li>
+        <li>El escaneo se habilita automáticamente del <b>10/11/2026 a las 00:00 al 14/11/2026 a las 23:59:59, hora de Paraguay</b>. No tenés que ingresar una clave de equipo.</li>
         <li>Tocá <b>Escanear tarjeta de presentación</b>, tomá una foto nítida o elegí una imagen, según tu dispositivo. Se necesita conexión.</li>
         <li>Verificá los datos reconocidos, completá la evaluación y tocá <b>Registrar visitante</b>. Escanear por sí solo no registra al visitante.</li>
       </ol>
-      <button type="button" class="guia-accion" data-guia-destino="ocr-token">Ir a la clave de escaneo →</button>
-      <p>La clave se conserva durante esta sesión de la pestaña; al cerrarla, tené la clave disponible para volver a ingresarla. Si aparece <b>Escaneo no autorizado</b>, pedí al coordinador que revise la clave. Podés continuar manualmente.</p>
-      <p class="ayuda">Administración: abrí el proyecto Apps Script de esta app → Project Settings → Script Properties → Edit script properties. En OCR_ACCESS_TOKEN, guardá una clave aleatoria de al menos 16 caracteres (se recomiendan 24–32), generada con tu gestor de contraseñas, y compartila de forma privada con el equipo. No hace falta volver a desplegar. La clave de supervisión y la clave del proveedor de IA cumplen funciones distintas; esta casilla es para la clave de escaneo.</p>
+      <button type="button" class="guia-accion" data-guia-destino="scan-estado">Ver disponibilidad del escaneo →</button>
+      <p>Fuera de ese período el escaneo queda deshabilitado automáticamente. El registro manual sigue disponible para completar datos antes o después del evento. Si tu sesión vence, volvé a ingresar con la misma cuenta.</p>
+      <p class="ayuda">El límite es de 300 solicitudes de escaneo por día para todo el equipo. Cada nueva foto o intento cuenta para ese límite. La administración mantiene la clave del proveedor de IA en el servidor.</p>
     </details>
     <details class="guia-detalle">
       <summary>2. Calificar A/B/C y anotar necesidades de una nave</summary>
@@ -550,6 +554,7 @@
       <p>Recuperá la conexión, mantené o volvé a abrir esta app en el mismo navegador y dispositivo, y esperá el reenvío automático. También podés tocar <b>Reenviar … registro(s) pendiente(s)</b>, debajo del botón de registro. Al confirmarse todos, ese botón desaparece.</p>
       <p class="guia-nota">Hasta resolver los pendientes, no borres los datos del navegador ni uses una sesión privada. No vuelvas a cargar manualmente al mismo visitante en otro dispositivo: podría quedar duplicado.</p>
       <p>Si aparece <b>pendiente de revisión</b>, un error persiste o no se puede guardar localmente, conservá el dispositivo y los datos, y avisá al coordinador con el mensaje de error. La app debe haberse abierto con conexión antes de poder seguir usándola sin red.</p>
+      <p>Los pendientes se reenvían únicamente con la cuenta que los creó. Los registros de una versión anterior que no tienen cuenta asociada requieren revisión del administrador.</p>
     </details>
     <details class="guia-detalle">
       <summary>4. Trabajar en equipo, mostrar QR y mapas</summary>
@@ -558,42 +563,42 @@
       <p><b>Mapas:</b> consultá la vista satelital y el plano; deslizá la imagen horizontalmente o abrila en pantalla completa. Confirmá la disponibilidad actual con el equipo.</p>
     </details>
     <details class="guia-detalle">
-      <summary>5. Consultar reportes (supervisión)</summary>
-      <p>En la parte inferior de <b>Registro</b>, abrí <b>Reportes (supervisión)</b> e ingresá la <b>Clave de supervisión</b> proporcionada por administración. Elegí el evento y la vista de hoy o acumulada.</p>
+      <summary>5. Consultar, exportar e imprimir reportes (administración)</summary>
+      <p>Solo <b>jaimehuang168@gmail.com</b> puede consultar, exportar, imprimir o enviar reportes. Al iniciar sesión con esa cuenta de Google, aparece <b>Reportes (administración)</b> al final de Registro. Elegí el evento y la vista de hoy o acumulada.</p>
       <p>Para PDF, fichas o envío, elegí <b>Hoy</b>, <b>Rango de fechas</b> o <b>Todo el evento</b>. El rango inicial es 10–14/11/2026; todo el evento incluye registros anteriores y posteriores.</p>
       <p><b>Enviar reporte</b> solicita confirmación y envía a los destinatarios configurados por administración. No es necesario enviarlo después de registrar a cada visitante.</p>
     </details>
     <details class="guia-detalle">
       <summary>6. No encuentro un botón o necesito corregir un registro</summary>
-      <p>Si no aparece la guía o la configuración de escaneo, antes de actualizar conservá cualquier formulario sin enviar y resolvé los pendientes. Después recargá la página o tocá el aviso <b>Nueva versión disponible</b>.</p>
+      <p>Si no aparece el acceso con Google o la guía, antes de actualizar conservá cualquier formulario sin enviar y resolvé los pendientes. Después recargá la página o tocá el aviso <b>Nueva versión disponible</b>. El panel de reportes solo aparece para la cuenta administradora.</p>
       <p>Esta pantalla crea registros. Para corregir uno ya confirmado, contactá al coordinador con el nombre del visitante, la fecha y el cambio necesario; no lo ingreses otra vez como solución.</p>
     </details>
   </div>
   <div data-guia-contenido="zh-Hant" lang="zh-Hant" hidden>
     <div class="guia-card">
       <h2>第一次使用，照著步驟完成登錄</h2>
-      <p>供 PTITP 推廣團隊使用。手動登錄不需要登入帳號或輸入密鑰。</p>
+      <p>供 PTITP 推廣團隊使用。請先登入自己的 Google 帳號，每筆資料都會記錄已驗證的 Email。</p>
       <p class="guia-nota"><strong>EXPO PBW · 2026/11/10–11/14</strong><br>採巴拉圭時間，活動前後仍可補登。</p>
       <ol class="guia-pasos">
-        <li><strong>確認登錄人員。</strong>在「Registro」確認活動為 EXPO PBW，於「Promotor que registra」填自己的姓名。共用裝置時，先檢查是否為上一位同仁。</li>
+        <li><strong>登入 Google。</strong>按「Continuar con Google」選擇自己的帳號；姓名與 Email 自動帶入。共用裝置時，先確認顯示的是自己的帳號。</li>
         <li><strong>填寫訪客資料。</strong>輸入姓名，補上公司、含國碼的電話與 Email。可手動填寫，或掃描名片後核對修正。</li>
         <li><strong>評估與安排追蹤。</strong>選擇 A、B 或 C 級，勾選需求及後續工作，填寫負責人、日期與具體需求。</li>
         <li><strong>送出並確認。</strong>按一次「Registrar visitante」並等待。「Registrado ✔」表示送出成功；若顯示待傳，請依下方斷線說明處理。</li>
       </ol>
-      <button type="button" class="guia-accion" data-guia-destino="promotor">開始登錄 →</button>
+      <button type="button" class="guia-accion" data-guia-destino="login-google">開始登錄 →</button>
       <p class="ayuda">必填：活動、推廣員、訪客姓名及 A/B/C 評級。切換分頁會保留目前填寫的內容。</p>
     </div>
     <details class="guia-detalle">
-      <summary>1. 掃描名片與輸入團隊密鑰</summary>
+      <summary>1. 登入 Google 與掃描名片</summary>
       <ol class="guia-pasos">
-        <li>向主管索取「團隊掃描密鑰」。</li>
-        <li>進入「Registro → Datos del visitante → Configurar escaneo de tarjetas」，在「Clave de escaneo del equipo」貼上密鑰的值，不是輸入 <code>OCR_ACCESS_TOKEN</code> 這段名稱。</li>
+        <li>按「Continuar con Google」，登入自己的 Google 帳號。</li>
+        <li>掃描於巴拉圭時間 <b>2026/11/10 00:00 至 11/14 23:59:59</b> 自動開放，登入後即可使用，不必輸入團隊密鑰。</li>
         <li>按「Escanear tarjeta de presentación」，依裝置提供的選項拍攝清晰名片或選取圖片。掃描需要網路連線。</li>
         <li>核對辨識結果、補上評級，再按「Registrar visitante」。只有掃描名片，尚未完成訪客登錄。</li>
       </ol>
-      <button type="button" class="guia-accion" data-guia-destino="ocr-token">前往掃描密鑰設定 →</button>
-      <p>密鑰只保留在目前分頁的工作階段；關閉分頁後，請準備再次輸入。若出現「Escaneo no autorizado」，請主管確認密鑰，期間仍可手動登錄。</p>
-      <p class="ayuda">管理員補充：到此 App 的 Apps Script 專案 → Project Settings → Script Properties → Edit script properties，在 OCR_ACCESS_TOKEN 儲存以密碼管理員產生的至少 16 字元隨機密鑰（建議 24–32 字元），再私下提供給同仁。儲存後不必重新部署。主管報告密鑰及 AI 服務金鑰用途不同，此處只填團隊掃描密鑰。</p>
+      <button type="button" class="guia-accion" data-guia-destino="scan-estado">查看掃描開放狀態 →</button>
+      <p>期限外自動關閉掃描；手動登錄仍可於活動前後補登。若登入過期，請使用同一帳號重新登入。</p>
+      <p class="ayuda">全團隊每天最多 300 次掃描請求，重新拍攝或再次辨識均計入次數。AI 服務金鑰由管理員保留在伺服器。</p>
     </details>
     <details class="guia-detalle">
       <summary>2. A/B/C 評級與標準廠房需求</summary>
@@ -607,6 +612,7 @@
       <p>恢復網路後，在同一裝置、同一瀏覽器保持或重新開啟 App，等待自動補傳；也可按登錄按鈕下方的「Reenviar … registro(s) pendiente(s)」。全部確認後，待傳按鈕會消失。</p>
       <p class="guia-nota">待傳完成前，勿清除瀏覽器資料，也不要使用無痕模式。勿改用另一台裝置重新手動登錄同一訪客，以免重複建檔。</p>
       <p>若出現「pendiente de revisión」、錯誤持續或無法儲存在裝置，請保留裝置與表單內容，將錯誤訊息交給主管。必須先連網開啟 App，才能在之後斷線時繼續使用已載入的頁面。</p>
+      <p>待傳資料只能由原帳號補傳；舊版沒有綁定帳號的待傳資料，請交由管理員確認處理。</p>
     </details>
     <details class="guia-detalle">
       <summary>4. 多人登錄、QR Code 與地圖</summary>
@@ -615,14 +621,14 @@
       <p>「Mapas」提供衛星圖及配置圖，可左右滑動或開啟全螢幕；目前可用土地及廠房仍請向園區團隊確認。</p>
     </details>
     <details class="guia-detalle">
-      <summary>5. 查看與寄送報告（主管使用）</summary>
-      <p>到「Registro」下方的「Reportes (supervisión)」，輸入管理員提供的「Clave de supervisión」，選擇活動並查看當日或累計報告。</p>
+      <summary>5. 查看、匯出、列印及寄送報告（管理員使用）</summary>
+      <p>僅 <b>jaimehuang168@gmail.com</b> 可查看、匯出、列印及寄送報告。登入該 Google 帳號後，「Registro」下方才會出現「Reportes (administración)」。選擇活動即可查看當日或累計報告。</p>
       <p>下載 PDF、客戶資料卡或寄送時，可選「Hoy」（今天）、「Rango de fechas」（日期範圍）或「Todo el evento」（整場活動）。預設範圍是 2026/11/10–11/14；整場活動包含前後補登資料。</p>
       <p>「Enviar reporte」會要求確認，並寄到管理員已設定的收件人。每登錄一位訪客後，不必另外寄送報告。</p>
     </details>
     <details class="guia-detalle">
       <summary>6. 找不到按鈕或需要更正已送出的資料</summary>
-      <p>若看不到說明或掃描設定，更新前請先保留未送出的表單內容並處理待傳。之後重新整理頁面，或按「Nueva versión disponible」更新提示。</p>
+      <p>若看不到 Google 登入或說明，更新前請先保留未送出的表單內容並處理待傳。之後重新整理頁面，或按「Nueva versión disponible」更新提示。報表區僅管理員帳號可見。</p>
       <p>此畫面用於新增登錄。已確認的資料若需更正，請提供訪客姓名、日期與更正內容給主管，不要以再次新增代替修改。</p>
     </details>
   </div>
@@ -632,6 +638,7 @@
 
 <div id="aviso" role="status"></div>
 
+<script src="google-session.js"></script>
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
@@ -644,18 +651,46 @@ eventoInfo.textContent = 'EXPO PBW · 10–14 de noviembre de 2026 · Hora de Pa
 eventoInfo.style.cssText = 'font-size:.85rem;color:var(--gris);line-height:1.5';
 f.prepend(eventoInfo);
 
-/* 展會名與推廣員存在裝置上，一天只需填一次 */
-['evento','promotor'].forEach(k=>{
-  try { $(k).value = localStorage.getItem('ptitp_'+k) || ''; } catch(e) { /* form remains usable */ }
-  $(k).addEventListener('change', ()=>{try {localStorage.setItem('ptitp_'+k, $(k).value);}catch(e){aviso('No se pudo guardar la preferencia del dispositivo',true);}});
-});
 $('evento').value = EVENTO.nombre;
 $('evento').readOnly = true;
 $('rep-desde').value = EVENTO.desde;
 $('rep-hasta').value = EVENTO.hasta;
 
+let enviando=false,escaneando=false,ultimoUid='',estadoUid='',revisionFormulario=0;
+f.addEventListener('input',()=>{revisionFormulario++;});
+const sesion=window.PtitpGoogleSession({apiUrl:API_URL,onChange:s=>{pintarSesion(s);if(s.user&&navigator.onLine)reintentar();}});
+function pintarSesion(s){
+  const uid=s.user?.uid||'';
+  if(uid!==estadoUid){revisionFormulario++;estadoUid=uid;}
+  if(s.user&&ultimoUid&&ultimoUid!==s.user.uid) limpiar();
+  if(s.user)ultimoUid=s.user.uid;
+  $('login-google').hidden=!!s.user;$('login-google').disabled=s.loading||!s.configured;
+  $('salir-google').hidden=!s.user;
+  $('salir-google').disabled=enviando||escaneando;
+  $('sesion-estado').textContent=s.error||(s.loading?'Comprobando el acceso…':s.user?'Sesión verificada con Google':'Iniciá sesión para registrar visitantes');
+  $('sesion-usuario').hidden=!s.user;
+  $('sesion-usuario').textContent=s.user?s.user.nombre+' · '+s.user.email:'';
+  $('promotor').value=s.user?.nombre||s.user?.email||'';
+  [...f.elements].forEach(el=>{el.disabled=!s.user||enviando||escaneando;});
+  $('enviar').disabled=!s.user||enviando;
+  $('scan-btn').disabled=!s.user||!s.ocr?.activo||escaneando;
+  $('scan-estado').textContent=s.ocr?.activo?'Escaneo habilitado al iniciar sesión con Google. Verificá los datos antes de registrar.':'Escaneo disponible solo del 10 al 14 de noviembre de 2026, hora de Paraguay. Podés registrar manualmente después de iniciar sesión.';
+  $('reportes').hidden=!s.user?.admin;
+  pintarCola();
+}
+$('login-google').addEventListener('click',async()=>{
+  try{await sesion.signIn();}catch(e){aviso(e.code==='auth/popup-closed-by-user'?'Inicio de sesión cancelado':e.code==='auth/popup-blocked'?'Permití la ventana de Google e intentá de nuevo':'No se pudo iniciar sesión con Google. Reintentá o avisá al coordinador.',true);}
+});
+$('salir-google').addEventListener('click',async()=>{
+  if($('nombre').value.trim()&&!window.confirm('Hay un formulario sin enviar. ¿Descartarlo y cerrar sesión? Los registros pendientes se conservan.'))return;
+  limpiar();await sesion.signOut();
+});
+
 function datos(){
+  const usuario=sesion.getSnapshot().user;
   return {
+    operadorUid:usuario?.uid||'',
+    operadorEmail:usuario?.email||'',
     requestId: (window.crypto && typeof window.crypto.randomUUID === 'function')
       ? window.crypto.randomUUID()
       : 'req_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10),
@@ -691,16 +726,18 @@ function aviso(msg, err){
 
 /* 送出：Content-Type 用 text/plain 避開 CORS preflight（GAS 標準做法） */
 async function enviar(payload){
+  const idToken=await sesion.getIdToken(payload.operadorUid);
   const r = await fetchConTiempo(API_URL, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload),
+    body: JSON.stringify({...payload,idToken}),
   });
   if(r.ok === false) throw new Error('Servicio temporalmente no disponible');
   const j = await r.json();
   if(!j.ok){
     const err = new Error(j.error||'Error del servidor');
     err.retryable = j.retryable === true;
+    err.authRequired = j.authRequired === true;
     throw err;
   }
 }
@@ -725,7 +762,8 @@ function migrarCola(){
   if(anterior.length) localStorage.removeItem(COLA);
 }
 function guardarPendiente(p){
-  localStorage.setItem(PREFIJO_COLA+p.requestId,JSON.stringify(p));
+  const {idToken,token,...registro}=p;
+  localStorage.setItem(PREFIJO_COLA+p.requestId,JSON.stringify(registro));
 }
 function getCola(){
   migrarCola();
@@ -746,16 +784,23 @@ function pintarCola(){
   const b = $('pendientes-btn');
   b.style.display = n ? 'block' : 'none';
   b.textContent = `⟳ Reenviar ${n} registro(s) pendiente(s)`;
+  const uid=sesion.getSnapshot().user?.uid;
+  const propios=getCola().filter(p=>p.operadorUid===uid&&uid).length;
+  b.disabled=!propios;
+  $('pendientes-info').hidden=!n;
+  $('pendientes-info').textContent=n>propios?'Hay pendientes de otra cuenta o de una versión anterior. Conservá este navegador e iniciá sesión con la cuenta original; si no tienen cuenta asociada, avisá al administrador.':'Los pendientes pertenecen a esta cuenta. No borres los datos del navegador hasta confirmarlos.';
 }
 
 let reenvio = null;
 function reintentar(manual=false){
   if(reenvio) return reenvio;
   reenvio = (async()=>{
-    const cola = getCola().filter(p=>manual || !p._error);
+    const uid=sesion.getSnapshot().user?.uid;
+    const cola = getCola().filter(p=>uid&&p.operadorUid===uid&&(manual || !p._error));
     for(const p of cola){
       try{ await enviar(p); confirmarPendiente(p); }
       catch(e){
+        if(e.authRequired){if(sesion.getSnapshot().user?.uid===uid){sesion.invalidate();aviso(e.message,true);}break;}
         if(e.retryable===false){p._error=e.message;guardarPendiente(p);aviso('Registro pendiente de revisión: '+e.message,true);}
         else break;
       }
@@ -772,76 +817,79 @@ window.addEventListener('storage',pintarCola);
 f.addEventListener('submit', async e=>{
   e.preventDefault();
   if($('enviar').disabled) return;
+  if(!sesion.getSnapshot().user)return aviso('Iniciá sesión con Google',true);
   if(!$('nombre').value.trim()) return aviso('Falta el nombre del visitante', true);
   if(!f.querySelector('input[name=calif]:checked')) return aviso('Falta la calificación A/B/C', true);
   if(!$('evento').value.trim() || !$('promotor').value.trim())
     return aviso('Complete evento y promotor', true);
 
   const p = datos();
+  const revision=revisionFormulario;
+  const actual=()=>sesion.getSnapshot().user?.uid===p.operadorUid&&revisionFormulario===revision;
   try {guardarPendiente(p);pintarCola();}
   catch(err){return aviso('No se pudo guardar en este dispositivo. Conserve el formulario y libere espacio antes de reintentar.',true);}
-  $('enviar').disabled = true; $('enviar').textContent = 'Enviando…';
+  enviando=true;pintarSesion(sesion.getSnapshot());$('enviar').textContent = 'Enviando…';
   try{
     await enviar(p);
     confirmarPendiente(p);
-    aviso(`Registrado ✔ ${p.nombre} (${p.calificacion.charAt(0)})`);
-    limpiar();
+    if(actual()){aviso(`Registrado ✔ ${p.nombre} (${p.calificacion.charAt(0)})`);limpiar();}
   }catch(err){
-    if(err.retryable !== false){
-      aviso('Pendiente de confirmación: guardado en este dispositivo. Se reintentará automáticamente.', true);
-      limpiar();
+    if(err.authRequired){
+      if(actual()){limpiar();sesion.invalidate();aviso('Registro pendiente conservado. Volvé a iniciar sesión con la misma cuenta.',true);}
+    }else if(err.retryable !== false){
+      if(actual()){aviso('Pendiente de confirmación: guardado en este dispositivo. Se reintentará automáticamente.', true);limpiar();}
     }else{
-      confirmarPendiente(p);
-      aviso(err.message || 'Datos inválidos', true);
+      p._error=err.message||'Datos inválidos';guardarPendiente(p);pintarCola();
+      if(actual())aviso(p._error,true);
     }
   }finally{
-    $('enviar').disabled = false; $('enviar').textContent = 'Registrar visitante';
-    window.scrollTo({top:0});
+    enviando=false;pintarSesion(sesion.getSnapshot());$('enviar').textContent = 'Registrar visitante';
+    if(sesion.getSnapshot().user?.uid===p.operadorUid&&!$('nombre').value)window.scrollTo({top:0});
   }
 });
 
 function limpiar(){
+  revisionFormulario++;
   const ev = $('evento').value, pr = $('promotor').value;
-  const clave = $('ocr-token').value;
   f.reset();
   $('evento').value = ev; $('promotor').value = pr;
-  $('ocr-token').value = clave;
   $('tarjetaUrl').value = ''; $('tarjeta-thumb').hidden = true; $('tarjeta-thumb').src = '';
 }
 
 /* ═══ 掃描名片：拍照/選圖 → 壓縮 → 後端辨識 → 自動填欄（推廣員核對後再送出） ═══ */
 $('scan-btn').addEventListener('click', ()=>$('tarjeta-file').click());
 $('tarjeta-file').addEventListener('change', escanearTarjeta);
-const claveScan = $('ocr-token');
-try {claveScan.value=sessionStorage.getItem('ptitp_ocr_token')||'';}catch(e){}
-claveScan.addEventListener('change',()=>{try{sessionStorage.setItem('ptitp_ocr_token',claveScan.value);}catch(e){}});
+try{sessionStorage.removeItem('ptitp_ocr_token');sessionStorage.removeItem('ptitp_rep_token');}catch(e){}
 
 async function escanearTarjeta(){
   const file = $('tarjeta-file').files[0];
   if(!file) return;
-  if(claveScan.value.trim().length<16){
-    $('ocr-ajustes').open=true;claveScan.focus();
-    return aviso('La clave de escaneo debe tener al menos 16 caracteres. Pedila a tu coordinador.',true);
-  }
+  const usuario=sesion.getSnapshot().user;
+  if(!usuario||!sesion.getSnapshot().ocr?.activo)return aviso('Escaneo disponible con Google solo del 10 al 14 de noviembre de 2026.',true);
+  const revision=revisionFormulario;
+  const actual=()=>sesion.getSnapshot().user?.uid===usuario.uid&&revisionFormulario===revision;
   const b = $('scan-btn');
-  b.disabled = true; b.textContent = '📷 Analizando tarjeta…';
+  escaneando=true;pintarSesion(sesion.getSnapshot());b.textContent = '📷 Analizando tarjeta…';
   try{
+    const idToken=await sesion.getIdToken(usuario.uid);
     const {b64, thumb} = await comprimirImagen(file);
+    if(!actual())return;
     $('tarjeta-thumb').src = thumb; $('tarjeta-thumb').hidden = false;
     const r = await fetchConTiempo(API_URL, {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ accion:'ocrTarjeta', token:claveScan.value.trim(), imagen:b64, mime:'image/jpeg',
+      body: JSON.stringify({ accion:'ocrTarjeta', idToken, imagen:b64, mime:'image/jpeg',
                              promotor: $('promotor').value.trim() }),
     });
     const j = await r.json();
+    if(!actual())return;
     if(j.imagen) $('tarjetaUrl').value = j.imagen; // 影像已留存，辨識失敗也保留連結
-    if(!j.ok) throw new Error(j.error||'');
+    if(!j.ok){if(j.authRequired)sesion.invalidate();throw new Error(j.error||'');}
     aplicarDatosTarjeta(j.datos || {});
     aviso('Tarjeta analizada ✔ Verifique y complete los datos');
   }catch(err){
-    aviso(err.message || 'No se pudo analizar la tarjeta — complete manualmente', true);
+    if(actual())aviso(err.message || 'No se pudo analizar la tarjeta — complete manualmente', true);
   }finally{
-    b.disabled = false; b.textContent = '📷 Escanear tarjeta de presentación';
+    escaneando=false;pintarSesion(sesion.getSnapshot());b.textContent = '📷 Escanear tarjeta de presentación';
     $('tarjeta-file').value = '';
   }
 }
@@ -941,28 +989,26 @@ document.querySelectorAll('[data-guia-idioma]').forEach(b=>{
 document.querySelectorAll('[data-guia-destino]').forEach(b=>{
   b.addEventListener('click',()=>{
     mostrarPestana('tab-registro');
-    if(b.dataset.guiaDestino==='ocr-token') $('ocr-ajustes').open=true;
-    $(b.dataset.guiaDestino).focus();
+    const destino=b.dataset.guiaDestino==='login-google'&&sesion.getSnapshot().user?'promotor':b.dataset.guiaDestino;
+    $(destino).focus();
   });
 });
 
 /* 報告按鈕（主管用） */
-const tokenGuardado = sessionStorage.getItem('ptitp_rep_token') || '';
-$('rep-token').value = tokenGuardado;
-$('rep-token').addEventListener('change', ()=>sessionStorage.setItem('ptitp_rep_token', $('rep-token').value));
-function qsAdmin(){
-  const token = $('rep-token').value.trim();
-  if(token.length < 16){ aviso('Ingrese la clave de supervisión', true); return null; }
-  sessionStorage.setItem('ptitp_rep_token', token);
-  return token;
+function esAdmin(){
+  if(sesion.getSnapshot().user?.admin)return true;
+  aviso('Solo administración puede exportar o imprimir reportes',true);return false;
 }
-function abrirReporte(params){
-  const token=qsAdmin();if(!token)return;
-  const form=document.createElement('form');
-  form.method='POST';form.action=API_URL;form.target='_blank';form.rel='noopener noreferrer';
-  const input=document.createElement('input');input.type='hidden';input.name='reportRequest';
-  input.value=JSON.stringify({accion:'abrirReporte',...params,evento:$('rep-evento').value,token});
-  form.append(input);document.body.append(form);form.submit();form.remove();
+async function abrirReporte(params){
+  if(!esAdmin())return;
+  try{
+    const idToken=await sesion.getIdToken();
+    const form=document.createElement('form');
+    form.method='POST';form.action=API_URL;form.target='_blank';form.rel='noopener noreferrer';
+    const input=document.createElement('input');input.type='hidden';input.name='reportRequest';
+    input.value=JSON.stringify({accion:'abrirReporte',...params,evento:$('rep-evento').value,idToken});
+    form.append(input);document.body.append(form);form.submit();form.remove();
+  }catch(e){if(e.authRequired)sesion.invalidate();aviso(e.message||'No se pudo abrir el reporte',true);}
 }
 document.getElementById('ver-hoy').addEventListener('click', ()=>{
   abrirReporte({action:'reporte'});
@@ -993,24 +1039,23 @@ function qsTipoReporte(){
 }
 
 document.getElementById('pdf-reporte').addEventListener('click', ()=>{
-  const t = qsTipoReporte(), a = qsAdmin();
-  if(!t || !a) return;
+  const t = qsTipoReporte();
+  if(!t || !esAdmin()) return;
   abrirReporte({action:'reportePdf',...Object.fromEntries(new URLSearchParams(t.qs))});
 });
 
 document.getElementById('fichas-btn').addEventListener('click', ()=>{
-  const t = qsTipoReporte(), a = qsAdmin();
-  if(!t || !a) return;
+  const t = qsTipoReporte();
+  if(!t || !esAdmin()) return;
   abrirReporte({action:'fichas',...Object.fromEntries(new URLSearchParams(t.qs))});
 });
 
 document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
-  const t = qsTipoReporte(), a = qsAdmin();
-  if(!t || !a) return;
+  const t = qsTipoReporte();
+  if(!t || !esAdmin()) return;
   const payload = {
     accion: 'enviarReporteA',
     evento: $('rep-evento').value,
-    token: $('rep-token').value.trim(),
     tipo: document.querySelector('input[name=repTipo]:checked').value,
   };
   if(payload.tipo === 'rango'){
@@ -1023,6 +1068,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
   const b = document.getElementById('enviar-reporte');
   b.disabled = true; b.textContent = '✉️ Enviando…';
   try{
+    payload.idToken=await sesion.getIdToken();
     const r = await fetch(API_URL, {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify(payload),
@@ -1037,7 +1083,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.11.2';
+const APP_VERSION = '1.12.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
@@ -1070,6 +1116,14 @@ function estadoRed(){
 window.addEventListener('online', estadoRed);
 window.addEventListener('offline', estadoRed);
 estadoRed(); pintarCola();
+pintarSesion(sesion.getSnapshot());sesion.start();
+// Recheck once at the event boundaries; the server always enforces the actual window.
+setInterval(()=>{
+  const s=sesion.getSnapshot();if(!s.user||!navigator.onLine||!s.ocr?.desde)return;
+  const partes=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Asuncion',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const hoy=['year','month','day'].map(k=>partes.find(p=>p.type===k).value).join('-');
+  if((hoy>=s.ocr.desde&&hoy<=s.ocr.hasta)!==s.ocr.activo)sesion.refresh();
+},60000);
 </script>
 </body>
 </html>

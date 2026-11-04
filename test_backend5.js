@@ -19,7 +19,10 @@ const props={};
 global.PropertiesService={getScriptProperties:()=>({getProperty:k=>props[k]||null,setProperty:(k,v)=>props[k]=v})};
 global.DriveApp={getFoldersByName:()=>({hasNext:()=>false}),createFolder:()=>({})};
 global.UrlFetchApp={fetch:()=>({})};
+const {installGasAuth,withIdentity}=require('./test_helpers/gas-auth.cjs');
+const GOOGLE_ID_TOKEN=installGasAuth(globalThis,{activeOcr:false});
 eval(fs.readFileSync('Code.gs','utf8'));
+doPost=withIdentity(doPost,GOOGLE_ID_TOKEN);
 
 let pass=0,fail=0;const check=(c,n)=>{c?(pass++,console.log('✅',n)):(fail++,console.log('❌',n))};
 

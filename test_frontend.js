@@ -12,7 +12,7 @@ const { JSDOM } = require('jsdom');
 const html = fs.readFileSync('index.html','utf8')
   /* URL 已內建 */;
 
-const dom = new JSDOM(html, { runScripts:'dangerously', url:'https://jaimehuang168.github.io/ptitp-expo-leads/', pretendToBeVisual:true });
+const dom = new JSDOM(html, { runScripts:'dangerously', url:'https://jaimehuang168.github.io/ptitp-expo-leads/', pretendToBeVisual:true,beforeParse(w){require('./test_helpers/browser-auth.cjs').installBrowserAuth(w);} });
 const { window } = dom;
 const { document } = window;
 window.scrollTo = ()=>{};

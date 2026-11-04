@@ -4,6 +4,7 @@ const {JSDOM}=require('jsdom');
 const tick=()=>new Promise(r=>setTimeout(r,10));
 let resolveRequest, calls=0;
 const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://example.test/',runScripts:'dangerously',beforeParse(w){
+  require('./test_helpers/browser-auth.cjs').installBrowserAuth(w);
   w.scrollTo=()=>{};
   Object.defineProperty(w.navigator,'onLine',{value:false,configurable:true});
   w.fetch=async(url,opts)=>{
@@ -14,8 +15,9 @@ const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://example.t
 const w=dom.window;
 w.eval('window.setCola = setCola; window.getCola = getCola;');
 (async()=>{
-  const first={requestId:'queue_first_001',nombre:'First',calificacion:'A'};
-  const second={requestId:'queue_second_002',nombre:'Second',calificacion:'B'};
+  await tick();
+  const first={operadorUid:'operator-uid',requestId:'queue_first_001',nombre:'First',calificacion:'A'};
+  const second={operadorUid:'operator-uid',requestId:'queue_second_002',nombre:'Second',calificacion:'B'};
   w.setCola([first]);
   const run=w.reintentar();await tick();
   w.setCola([...w.getCola(),second]);

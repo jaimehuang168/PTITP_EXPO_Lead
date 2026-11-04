@@ -15,9 +15,10 @@ const ctx = vm.createContext({console, Date, Math, JSON,
   Utilities:{formatDate:(date,tz,fmt)=>fmt==='yyyy-MM-dd'?'2026-11-10':'2026-11-10 10:00:00'},
   Logger:{log:()=>{}}
 });
+const GOOGLE_ID_TOKEN=require('./test_helpers/gas-auth.cjs').installGasAuth(ctx,{activeOcr:true});
 vm.runInContext(fs.readFileSync('Code.gs','utf8'),ctx);
 rows.push(vm.runInContext('HEADERS',ctx));
-const post=d=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify(d)}}).text);
+const post=d=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify({idToken:GOOGLE_ID_TOKEN,...d})}}).text);
 const failures=[];
 function test(name,fn){try{fn();console.log('PASS',name);}catch(e){failures.push(name);console.error('FAIL',name,e.message);locked=false;}}
 const lead={nombre:'Test visitor',calificacion:'A - Caliente',evento:'EXPO PBW',promotor:'Operator'};
@@ -44,9 +45,9 @@ test('public configuration announces PBW dates without credentials',()=>{
   assert.equal(result.evento,'EXPO PBW');assert.equal(result.desde,'2026-11-10');assert.equal(result.hasta,'2026-11-14');
   assert(!JSON.stringify(result).includes('secret'));
 });
-test('OCR requires its own credential before quota or Drive work',()=>{
-  const result=post({accion:'ocrTarjeta',imagen:'AAAA',mime:'image/jpeg'});
-  assert.equal(result.ok,false);assert.match(result.error,/autoriz|clave/i);assert.equal(quotaWrites,0);
+test('OCR requires verified Google identity before quota or Drive work',()=>{
+  const result=post({accion:'ocrTarjeta',idToken:'',imagen:'AAAA',mime:'image/jpeg'});
+  assert.equal(result.ok,false);assert.match(result.error,/sesi.n|Google/i);assert.equal(quotaWrites,0);
 });
 test('OCR larger than old 120k cap reaches bounded image validation',()=>{
   const result=post({accion:'ocrTarjeta',token:props.OCR_ACCESS_TOKEN,imagen:'A'.repeat(160000),mime:'text/html'});
@@ -57,12 +58,12 @@ test('malformed image content cannot reserve scanning quota',()=>{
   assert.equal(result.ok,false);assert.match(result.error,/contenido/);assert.equal(quotaWrites,0);
 });
 test('GET cannot accept reusable supervisor credentials',()=>{
-  const result=JSON.parse(ctx.doGet({parameter:{action:'reporte',token:props.REPORT_ADMIN_TOKEN}}).text);
+  const result=JSON.parse(ctx.doGet({parameter:{action:'reporte',idToken:GOOGLE_ID_TOKEN}}).text);
   assert.equal(result.ok,false);assert.match(result.error,/POST/);
 });
 test('POST reports authorize before rendering and do not echo credentials',()=>{
-  const request={accion:'abrirReporte',action:'fichas',tipo:'expo',evento:'EXPO PBW',token:props.REPORT_ADMIN_TOKEN};
-  const denied=post({...request,token:'wrong'});assert.equal(denied.ok,false);
+  const request={accion:'abrirReporte',action:'fichas',tipo:'expo',evento:'EXPO PBW',idToken:GOOGLE_ID_TOKEN};
+  const denied=post({...request,idToken:'wrong'});assert.equal(denied.ok,false);
   const rendered=ctx.doPost({parameter:{reportRequest:JSON.stringify(request)},postData:{contents:'form-urlencoded'}});
   assert(rendered.html.includes('Fichas de Leads'));assert(!rendered.html.includes(props.REPORT_ADMIN_TOKEN));
 });

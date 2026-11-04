@@ -22,7 +22,8 @@ const CONFIG = {
   EVENTO_DEFAULT: 'EXPO PBW',
   EVENTO_DESDE: '2026-11-10',
   EVENTO_HASTA: '2026-11-14',
-  VERSION: '1.11.0',
+  VERSION: '1.12.0',
+  ADMIN_EMAIL: 'jaimehuang168@gmail.com',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
   OCR_MODEL: 'claude-haiku-4-5',
@@ -39,6 +40,7 @@ const HEADERS = [
   'Calificación', 'Observaciones', 'Próximos pasos',
   'Fecha límite seguimiento', 'Responsable seguimiento', 'Estado',
   'Tarjeta (imagen)', 'LeadID', 'RequestID',
+  'Registrado por (email)', 'Google UID', 'Nombre de cuenta',
 ];
 
 // ══════════ 初始化：第一次執行 setup() 建立表頭 ══════════
@@ -55,7 +57,7 @@ function setup() {
   } else {
     // 遷移：舊表補上新增欄標頭
     let hdr = sh.getDataRange().getValues()[0];
-    ['Tarjeta (imagen)', 'LeadID', 'RequestID'].forEach(col => {
+    ['Tarjeta (imagen)', 'LeadID', 'RequestID', 'Registrado por (email)', 'Google UID', 'Nombre de cuenta'].forEach(col => {
       if (hdr.indexOf(col) === -1) {
         sh.getRange(1, hdr.length + 1).setValue(col);
         hdr = hdr.concat([col]);
@@ -107,22 +109,26 @@ function doPost(e) {
   if (d.accion !== 'ocrTarjeta' && JSON.stringify(d).length > 120000)
     return _json({ ok: false, error: 'Solicitud demasiado grande' });
   if (d.accion === 'abrirReporte') {
-    const auth = _autorizarToken(d.token);
-    if (!auth.ok) return _json({ ok: false, error: auth.error });
     return _respuestaReporte({parameter:d});
   }
 
   // 名片辨識分支（不佔用問卷寫入的鎖）
   if (d.accion === 'ocrTarjeta') return _ocrTarjeta(d);
   if (d.accion === 'enviarReporteA') {
-    const auth = _autorizarToken(d.token);
-    if (!auth.ok) return _json({ ok: false, error: auth.error });
+    const auth = _autorizarAdministrador(d.idToken);
+    if (!auth.ok) return _json(auth);
     return _enviarReporteAdmin(d);
   }
 
+  const auth = _autorizarOperador(d.idToken);
+  if (!auth.ok) return _json(auth);
+  if (d.accion === 'sesion') return _json({ok:true,usuario:auth.usuario,ocr:_estadoEscaneo()});
+  if (d.operadorUid && d.operadorUid !== auth.usuario.uid)
+    return _json({ok:false,authRequired:true,retryable:false,error:'Iniciá sesión con la cuenta que creó este registro pendiente'});
   const validado = _validarLead(d);
   if (validado.error) return _json({ ok: false, error: validado.error });
   d = validado.datos;
+  d.promotor = _textoSeguro((auth.usuario.nombre || auth.usuario.email).slice(0,100));
 
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000))
@@ -139,7 +145,8 @@ function doPost(e) {
     if (rid && _requestIdExiste(sh, rid))
       return _json({ ok: true, duplicate: true, msg: 'Lead ya registrado' });
 
-    sh.appendRow([
+    const cabecera = _columnasAuditoria(sh);
+    const fila = [
       Utilities.formatDate(now, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd HH:mm:ss'),
       fecha,
       d.evento || CONFIG.EVENTO_DEFAULT,
@@ -166,7 +173,11 @@ function doPost(e) {
       d.tarjetaUrl || '', // 名片影像的 Drive 連結
       _nuevoLeadID(), // 與 CRM 追蹤系統的關聯鍵
       rid,
-    ]);
+    ];
+    while(fila.length < cabecera.length) fila.push('');
+    [['Registrado por (email)',auth.usuario.email],['Google UID',auth.usuario.uid],['Nombre de cuenta',auth.usuario.nombre]]
+      .forEach(([col,value])=>{fila[cabecera.indexOf(col)]=_textoSeguro(value);});
+    sh.appendRow(fila);
 
     SpreadsheetApp.flush();
     return _json({ ok: true, msg: 'Lead registrado', requestId: rid });
@@ -181,9 +192,11 @@ function doPost(e) {
 // ══════════ 名片辨識：存 Drive + Claude 視覺辨識 → 結構化欄位 ══════════
 function _ocrTarjeta(d) {
   try {
-    const expected = String(PropertiesService.getScriptProperties().getProperty('OCR_ACCESS_TOKEN') || '');
-    if (expected.length < 16 || String(d.token || '') !== expected)
-      return _json({ ok: false, error: 'Escaneo no autorizado: ingrese la clave de escaneo del equipo' });
+    const auth = _autorizarOperador(d.idToken);
+    if (!auth.ok) return _json(auth);
+    const permiso = _estadoEscaneo();
+    if (!permiso.activo) return _json({ok:false,retryable:false,error:'Escaneo disponible solo del 10 al 14 de noviembre de 2026 (hora de Paraguay)'});
+    d.promotor = auth.usuario.nombre || auth.usuario.email;
     if (!d.imagen) return _json({ ok: false, error: 'Falta la imagen' });
     if (typeof d.imagen !== 'string' || d.imagen.length > CONFIG.OCR_MAX_BASE64 ||
         !/^[A-Za-z0-9+/]+={0,2}$/.test(d.imagen))
@@ -271,15 +284,15 @@ function _carpetaTarjetas() {
 }
 
 // ══════════ 網頁查看報告 ══════════
-//   <WebAppURL>?action=reporte&token=...     當日報告（可加 &fecha=2026-07-08）
-//   <WebAppURL>?action=reporteExpo&token=... 整個展期累計報告
-//   <WebAppURL>?action=enviarReporte        手動觸發：寫入 Reportes 分頁 + 寄 Email
+// Report HTML/PDF/fichas are opened with authenticated POST requests only.
+// Google credentials never appear in report URLs.
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
   if (['reporte','reporteExpo','reporteRango','fichas','fichasPdf','reportePdf'].indexOf(action) !== -1)
     return _json({ok:false,error:'Abra el reporte desde el formulario (POST)'});
   if (action === 'config') return _json({ok:true,evento:CONFIG.EVENTO_DEFAULT,
-    desde:CONFIG.EVENTO_DESDE,hasta:CONFIG.EVENTO_HASTA,zona:CONFIG.ZONA_HORARIA,version:CONFIG.VERSION});
+    desde:CONFIG.EVENTO_DESDE,hasta:CONFIG.EVENTO_HASTA,zona:CONFIG.ZONA_HORARIA,version:CONFIG.VERSION,
+    auth:_configuracionGoogle(),ocr:_estadoEscaneo()});
   return _respuestaReporte(e);
 }
 
@@ -289,7 +302,7 @@ function _respuestaReporte(e) {
                     'reportePdf'];
   if (privadas.indexOf(action) !== -1) {
     const auth = _autorizarReporte(e);
-    if (!auth.ok) return _json({ ok: false, error: auth.error });
+    if (!auth.ok) return _json(auth);
   }
 
   if (action === 'reporte') {
@@ -458,22 +471,76 @@ function _validarEmails(raw) {
     .slice(0, 10).join(',');
 }
 
-// 報告與寄信功能使用 Script Property「REPORT_ADMIN_TOKEN」作為管理端 bearer token。
-// Token 不可寫入公開的 GitHub Pages 原始碼；由使用者在頁面輸入並只存 sessionStorage。
-function _autorizarReporte(e) {
-  return _autorizarToken(e && e.parameter && e.parameter.token);
+// Only verified Google identity is authoritative. Legacy shared keys grant no access.
+function _configuracionGoogle(){
+  const props=PropertiesService.getScriptProperties();
+  const projectId=String(props.getProperty('FIREBASE_PROJECT_ID')||'').trim();
+  const apiKey=String(props.getProperty('FIREBASE_WEB_API_KEY')||'').trim();
+  return {required:true,configured:!!projectId&&!!apiKey,firebase:{projectId,apiKey,authDomain:projectId?projectId+'.firebaseapp.com':''}};
 }
 
-function _autorizarToken(token) {
+function _estadoEscaneo(){
+  const hoy=Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'yyyy-MM-dd');
+  return {activo:hoy>=CONFIG.EVENTO_DESDE&&hoy<=CONFIG.EVENTO_HASTA,
+    desde:CONFIG.EVENTO_DESDE,hasta:CONFIG.EVENTO_HASTA,zona:CONFIG.ZONA_HORARIA,limiteDiario:CONFIG.OCR_LIMITE_DIARIO};
+}
+
+function _autorizarOperador(idToken){
+  const denied={ok:false,authRequired:true,retryable:false,error:'Iniciá sesión con Google para continuar'};
   try {
-    const esperado = String(PropertiesService.getScriptProperties().getProperty('REPORT_ADMIN_TOKEN') || '');
-    if (esperado.length < 16)
-      return { ok: false, error: 'Acceso administrativo no configurado' };
-    const recibido = String(token || '');
-    return recibido === esperado ? { ok: true } : { ok: false, error: 'No autorizado' };
-  } catch (err) {
-    return { ok: false, error: 'No autorizado' };
+    if(typeof idToken!=='string'||idToken.length>10000||!/^[-\w]+\.[-\w]+\.[-\w]+$/.test(idToken)) return denied;
+    const cfg=_configuracionGoogle();
+    if(!cfg.configured) return {ok:false,authRequired:false,retryable:true,error:'Inicio de sesión no configurado; avisá al coordinador'};
+    const partes=idToken.split('.');
+    const decode=s=>JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(s)).getDataAsString());
+    const header=decode(partes[0]), claims=decode(partes[1]), now=Math.floor(Date.now()/1000);
+    if(header.alg!=='RS256'||!header.kid||claims.aud!==cfg.firebase.projectId||
+      claims.iss!=='https://securetoken.google.com/'+cfg.firebase.projectId||
+      typeof claims.sub!=='string'||!claims.sub||claims.sub.length>128||
+      typeof claims.exp!=='number'||claims.exp<=now||typeof claims.iat!=='number'||claims.iat>now+60||
+      typeof claims.auth_time!=='number'||claims.auth_time>now+60||
+      claims.email_verified!==true||!claims.email||claims.firebase?.sign_in_provider!=='google.com') return denied;
+    // Google validates the credential. Merely decoding its claims never grants access.
+    let response;
+    try{
+      response=UrlFetchApp.fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+encodeURIComponent(cfg.firebase.apiKey),{
+        method:'post',contentType:'application/json',payload:JSON.stringify({idToken}),muteHttpExceptions:true
+      });
+    }catch(networkError){return {ok:false,authRequired:false,retryable:true,error:'No se pudo verificar la sesión. Conservá los pendientes y reintentá'};}
+    const status=response.getResponseCode();
+    if(status===429||status>=500) return {ok:false,authRequired:false,retryable:true,error:'No se pudo verificar la sesión. Conservá los pendientes y reintentá'};
+    if(status!==200) return denied;
+    const user=JSON.parse(response.getContentText()).users?.[0];
+    if(!user||user.localId!==claims.sub||user.disabled||user.emailVerified!==true||
+      typeof user.email!=='string'||user.email.toLowerCase()!==String(claims.email).toLowerCase()||
+      Number(user.validSince||0)>claims.auth_time||
+      !user.providerUserInfo?.some(p=>p.providerId==='google.com')) return denied;
+    const email=user.email.trim().toLowerCase();
+    const allowed=String(PropertiesService.getScriptProperties().getProperty('AUTH_ALLOWED_EMAILS')||'').split(/[,;\s]+/).map(e=>e.trim().toLowerCase()).filter(Boolean);
+    if(allowed.length&&!allowed.includes(email)) return {...denied,error:'Esta cuenta no está habilitada para registrar'};
+    return {ok:true,usuario:{uid:user.localId,email,nombre:String(user.displayName||email).slice(0,160),admin:email===CONFIG.ADMIN_EMAIL}};
+  } catch(err){
+    // Do not log credentials or remote payloads.
+    return denied;
   }
+}
+
+function _columnasAuditoria(sh){
+  const cabecera=sh.getDataRange().getValues()[0].slice();
+  ['Registrado por (email)','Google UID','Nombre de cuenta'].forEach(col=>{
+    if(!cabecera.includes(col)){sh.getRange(1,cabecera.length+1).setValue(col);cabecera.push(col);}
+  });
+  return cabecera;
+}
+
+function _autorizarReporte(e) {
+  return _autorizarAdministrador(e && e.parameter && e.parameter.idToken);
+}
+
+function _autorizarAdministrador(idToken){
+  const auth=_autorizarOperador(idToken);
+  if(!auth.ok) return auth;
+  return auth.usuario.admin?auth:{ok:false,retryable:false,error:'Solo administración puede consultar, exportar o imprimir reportes'};
 }
 
 function _enviarReporteAdmin(p) {

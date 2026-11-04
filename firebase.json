@@ -1,0 +1,13 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "PTITP EXPO Registro",
+        "supportEmail": "jaimehuang168@gmail.com",
+        "authorizedRedirectUris": [
+          "https://ptitp-expo-registro.firebaseapp.com/__/auth/handler"
+        ]
+      }
+    }
+  }
+}
