@@ -16,6 +16,7 @@
     if(snapshot.busy)text=snapshot.switching?'Cargando actividad…':snapshot.scanning?'Analizando tarjeta…':'Guardando registro…';
     else if(!snapshot.user)text='Iniciá sesión con Google';
     else if(!snapshot.eventoSeleccionado)text='Elegí una actividad disponible';
+    else if(snapshot.registroDisponible===false)text='Actividad cerrada · carga por administración';
     else if(feedback){text=feedback.text;tone=feedback.tone;}
     else if(hasDraft())text='Borrador · todavía sin guardar';
     else if(ownPending){text=ownPending===1?'1 registro pendiente de confirmación':ownPending+' registros pendientes';tone='pending';}

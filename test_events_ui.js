@@ -1,8 +1,8 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom');const {installBrowserAuth}=require('./test_helpers/browser-auth.cjs');
 const tick=()=>new Promise(resolve=>setTimeout(resolve,30));let failed=0;
-const catalog=()=>[{id:'pbw-2026',nombre:'EXPO PBW',desde:'2026-11-10',hasta:'2026-11-14',visible:true,ocrHabilitado:true,ocrDesde:'2026-11-06',ocrHasta:'2026-11-14',revision:1},{id:'future-2027',nombre:'Feria futura',desde:'2027-03-10',hasta:'2027-03-14',visible:true,ocrHabilitado:false,ocrDesde:'',ocrHasta:'',revision:1}];
-async function test(name,run,{url='https://example.test/',admin=false}={}){
+const catalog=()=>[{id:'pbw-2026',nombre:'EXPO PBW',desde:'2026-11-10',hasta:'2026-11-14',visible:true,ocrHabilitado:true,ocrDesde:'2026-11-06',ocrHasta:'2026-11-14',revision:1},{id:'future-2027',nombre:'Feria futura',desde:'2027-03-10',hasta:'2027-03-14',visible:true,ocrHabilitado:false,ocrDesde:'',ocrHasta:'',revision:1},{id:'historical-2026',nombre:'Feria anterior',desde:'2026-06-01',hasta:'2026-06-05',visible:true,ocrHabilitado:false,revision:1}];
+async function test(name,run,{url='https://example.test/?evento=pbw-2026',admin=false}={}){
   let dom,auth;const sent=[],events=catalog();let mode='ok',opened;
   try{
     dom=new JSDOM(fs.readFileSync('index.html','utf8'),{runScripts:'dangerously',pretendToBeVisual:true,url,beforeParse(w){
@@ -60,6 +60,26 @@ async function test(name,run,{url='https://example.test/',admin=false}={}){
     d.getElementById('rep-evento').value='future-2027';d.getElementById('rep-evento').dispatchEvent(new w.Event('change'));
     release('renewed-fixture');await tick();
     assert.equal(c.opened.eventoId,'pbw-2026');assert.equal(c.opened.desde,'2026-11-10');assert.equal(c.opened.hasta,'2026-11-14');
+  },{admin:true});
+  await test('the general link automatically opens the newest activity',async(w,d)=>{
+    assert.equal(d.getElementById('evento-selector').value,'future-2027');assert.equal(d.getElementById('ev-default'),null);
+  },{url:'https://example.test/'});
+  await test('past links block general input even for administrators until back-office entry',async(w,d,c)=>{
+    assert.equal(d.getElementById('enviar').disabled,true);assert(d.getElementById('evento-error').textContent);
+    d.getElementById('admin-entry').click();await tick();assert.equal(d.getElementById('enviar').disabled,false);assert.equal(d.getElementById('admin-registro-banner').hidden,false);
+    d.getElementById('nombre').value='Historical dated visitor';d.getElementById('fecha-visita').value='2026-06-03';d.querySelector('[name=calif]').checked=true;d.getElementById('enviar').click();await tick();
+    assert.equal(c.sent.at(-1).modoRegistro,'administracion');assert.equal(c.sent.at(-1).eventoId,'historical-2026');assert.equal(c.sent.at(-1).fechaVisita,'2026-06-03');
+  },{admin:true,url:'https://example.test/?evento=historical-2026'});
+  await test('operators cannot open back-office entry and account changes close its mode',async(w,d,c)=>{
+    d.getElementById('rep-evento').value='historical-2026';d.getElementById('rep-evento').dispatchEvent(new w.Event('change'));d.getElementById('admin-entry').click();await tick();
+    c.auth.setUser(c.auth.user('next-operator','other@example.com'));await tick();assert.equal(d.getElementById('admin-registro-banner').hidden,true);assert.equal(d.getElementById('enviar').disabled,true);
+    d.getElementById('admin-entry').click();await tick();assert.equal(d.getElementById('enviar').disabled,true);
+  },{admin:true});
+  await test('queued historical back-office entries retain their mode after returning to general entry',async(w,d,c)=>{
+    d.getElementById('rep-evento').value='historical-2026';d.getElementById('rep-evento').dispatchEvent(new w.Event('change'));d.getElementById('admin-entry').click();await tick();
+    c.setMode('offline');d.getElementById('nombre').value='Pending historical';d.querySelector('[name=calif]').checked=true;d.getElementById('enviar').click();await tick();
+    assert.equal(w.eval('getCola()')[0].modoRegistro,'administracion');d.getElementById('admin-exit').click();await tick();assert.equal(d.getElementById('evento').value,'Feria futura');
+    c.setMode('ok');await w.reintentar(true);assert.equal(c.sent.at(-1).modoRegistro,'administracion');assert.equal(c.sent.at(-1).eventoId,'historical-2026');
   },{admin:true});
   process.exitCode=failed?1:0;
 })().catch(error=>{console.error(error);process.exitCode=1;});

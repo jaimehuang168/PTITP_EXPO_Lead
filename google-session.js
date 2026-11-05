@@ -17,7 +17,7 @@
     const notify=()=>options.onChange?.(getSnapshot());
     function applyConfig(config){
       state={...state,eventos:Array.isArray(config.eventos)?config.eventos:[],eventoSeleccionado:config.eventoSeleccionado||null,
-        eventoDefaultId:config.eventoDefaultId||'',eventoError:config.eventoError||'',ocr:config.ocr||{activo:false},eventLoading:false};
+        eventoDefaultId:config.eventoDefaultId||'',eventoError:config.eventoError||'',fechaLocal:config.fechaLocal||'',ocr:config.ocr||{activo:false},eventLoading:false};
       if(!requestedId)requestedId=state.eventoSeleccionado?.id||state.eventoDefaultId;
     }
     function configUrl(id){const url=new URL(options.apiUrl);url.searchParams.set('action','config');if(id)url.searchParams.set('eventoId',id);return url.toString();}
