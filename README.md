@@ -2,6 +2,17 @@
 
 目前正式網站：https://jaimehuang168.github.io/PTITP_EXPO_Lead/
 
+## 1.13.0：手機優先登錄介面
+
+採用已確認的手機設計：深綠存檔、深藍掃描及導覽、統一 IBM Plex Sans、18px 輸入文字、52px 欄位與固定底部「Guardar y continuar」。登入後以頁首帳號按鈕查看 Email 或登出。
+
+- 常用聯絡資料優先；其他聯絡、組織及追蹤資料可展開，保留所有既有欄位。
+- 土地與標準廠房分開勾選，選取後展開面積與時程；收合不會清除資料。
+- Registro、Materiales、Ayuda，以及管理員專用 Reportes；原 QR、地圖及中西文教學完整保留。
+- 存檔與名片辨識互相鎖定，避免兩個流程交錯；登出或更新前會檢查包括 Email 在內的未送出資料。
+- 只有伺服器確認後才顯示已存入 Google Sheets；待傳仍保留原帳號歸屬。Google 驗證、OCR 日期／額度及後端權限沿用 1.12.0，本次不用重新部署 Apps Script。
+- 發布時需一起更新 index.html、mobile.css、mobile-ui.js、version.json；google-session.js 保持原邏輯。
+
 ## 1.12.0：Google 登入與活動掃描
 
 本版本改用 Google 帳號登入。登入專案為 ptitp-expo-registro，使用免費 Spark 方案。
