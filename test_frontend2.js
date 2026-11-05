@@ -35,7 +35,7 @@ const clickEnviar=()=>{$('enviar-reporte').click();return sleep(25)};
   authControl.setUser(authControl.user('operator-uid','jaimehuang168@gmail.com'));await sleep(25);
   $('ver-hoy').click();$('ver-expo').click();
   await sleep(25);
-  check(opened[0].idToken==='firebase-fixture-operator-uid'&&opened[1].idToken==='firebase-fixture-operator-uid'&&opened[0].evento==='EXPO PBW','R3 預覽使用管理員 Google 身分與活動');
+  check(opened[0].idToken==='firebase-fixture-operator-uid'&&opened[1].idToken==='firebase-fixture-operator-uid'&&opened[0].eventoId==='pbw-2026','R3 預覽使用管理員 Google 身分與活動');
   await clickEnviar();
   check(fetched.length===1&&fetched[0].method==='POST'&&fetched[0].body.accion==='enviarReporteA'&&fetched[0].body.tipo==='dia','R3 當日報告使用 POST 呼叫正確');
   check(!('emails' in fetched[0].body)&&fetched[0].body.idToken==='firebase-fixture-operator-uid','R3 不傳任意收件人且附 Google 身分');

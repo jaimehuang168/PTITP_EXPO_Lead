@@ -35,7 +35,7 @@ test('eight requests plus ambiguous retries create exactly eight rows and flush 
   assert.equal(rows.length,9);assert.equal(locked,false);
 });
 test('reports filter event independently from date and keep historical rows intact',()=>{
-  const old=[...rows[1]];old[2]='Expo Paraguay 2026'; rows.push(old);
+  const old=[...rows[1]];old[2]='Expo Paraguay 2026';old[rows[0].indexOf('Evento ID')]=''; rows.push(old);
   assert.equal(ctx._construirReporteAgregado(null,null,'EXPO PBW').total,8);
   assert.equal(ctx._fichasSegunTipo({tipo:'expo',evento:'EXPO PBW'}).leads.length,8);
   assert.equal(rows.length,10);

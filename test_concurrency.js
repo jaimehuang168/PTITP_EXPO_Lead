@@ -19,7 +19,7 @@ if(isMainThread){
   const state=new Int32Array(workerData.shared);let owned=false,dirty=false;
   const source=fs.readFileSync('Code.gs','utf8');let headers;
   const ctx=vm.createContext({Date,Math,JSON,
-    SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>sheet}),flush:()=>{assert(owned);if(dirty){Atomics.add(state,3,1);dirty=false;}}},
+    SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:name=>name==='Leads'?sheet:null}),flush:()=>{assert(owned);if(dirty){Atomics.add(state,3,1);dirty=false;}}},
     LockService:{getScriptLock:()=>({tryLock(ms){const end=Date.now()+ms;while(Atomics.compareExchange(state,0,0,1)!==0){if(Date.now()>end)return false;Atomics.wait(state,0,1,20);}owned=true;return true;},releaseLock(){assert(owned&&!dirty);owned=false;Atomics.store(state,0,0);Atomics.notify(state,0);}})},
     Utilities:{formatDate:()=> '2026-11-10'},Logger:{log:()=>{}},
     ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({text,setMimeType(){return this;}})}

@@ -27,7 +27,8 @@ w.eval('window.setCola = setCola; window.getCola = getCola;');
   assert.equal(w.getCola().length,1,'newly queued entry survives an in-flight flush');
   assert.equal(w.getCola()[0].requestId,second.requestId);
   assert.equal(w.document.getElementById('evento').value,'EXPO PBW');
-  assert(w.document.body.textContent.includes('10–14 de noviembre de 2026'));
+  assert(w.document.querySelector('.registration-dates').textContent.includes('2026'),'event period comes from the selected catalog entry');
+  assert.equal(w.document.getElementById('rep-desde').value,'2026-11-10');
   // A page closing during the request must already have a durable copy.
   const d=w.document;d.getElementById('nombre').value='Durable';d.getElementById('promotor').value='Operator';
   d.querySelector('input[name=calif]').checked=true;

@@ -55,7 +55,7 @@ const check = (cond, name) => { cond ? (pass++, console.log('✅', name)) : (fai
 
 // T1: setup
 setup();
-check(sheets['Leads'] && sheets['Leads'].rows[0].length === 29, 'T1 setup() 建立 Leads 表頭 (29 欄)');
+check(sheets['Leads'] && sheets['Leads'].rows[0].length === 30, 'T1 setup() 建立 Leads 表頭 (30 欄，追加 Evento ID)');
 check(sheets['Reportes'] && sheets['Reportes'].rows.length === 1, 'T1 setup() 建立 Reportes 表頭');
 
 // T2: doPost 模擬 6 筆問卷

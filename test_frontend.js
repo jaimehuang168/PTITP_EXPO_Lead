@@ -40,7 +40,7 @@ window.fetch = async (url, opts) => {
   const submit=()=>{ $('f').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})); return sleep(30); };
 
   // F2 必填驗證
-  $('evento').value='Expo Paraguay 2026'; $('promotor').value='María González';
+  await sleep(25); // Public catalog and verified session supply immutable metadata.
   await submit();
   check(sent.length===0, 'F2 缺姓名時不送出');
   $('nombre').value='Carlos Benítez';
@@ -83,7 +83,7 @@ window.fetch = async (url, opts) => {
 
   // F4 送出後清空但保留 evento/promotor
   check($('nombre').value==='' && $('observaciones').value==='', 'F4 送出後訪客欄位清空');
-  check($('evento').value==='Expo Paraguay 2026' && $('promotor').value==='María González', 'F4 evento/promotor 保留');
+  check($('evento').value==='EXPO PBW' && $('promotor').value==='María González', 'F4 evento/promotor 保留');
   check(window.localStorage.getItem('ptitp_cola')===null || window.localStorage.getItem('ptitp_cola')==='[]', 'F4 成功送出不進離線佇列');
 
   // F5 斷線情境
