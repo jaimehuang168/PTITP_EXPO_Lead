@@ -23,7 +23,7 @@ const CONFIG = {
   EVENTO_DEFAULT: 'EXPO PBW',
   EVENTO_DESDE: '2026-11-10',
   EVENTO_HASTA: '2026-11-14',
-  VERSION: '1.14.0',
+  VERSION: '1.15.0',
   ADMIN_EMAIL: 'jaimehuang168@gmail.com',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
@@ -133,6 +133,10 @@ function doPost(e) {
     return _json({ok:false,authRequired:true,retryable:false,error:'Iniciá sesión con la cuenta que creó este registro pendiente'});
   const seleccion=_eventoRegistro(d);
   if(seleccion.error)return _json({ok:false,retryable:false,error:seleccion.error});
+  const desdeAdministracion=d.modoRegistro==='administracion'&&auth.usuario.admin===true;
+  const fechaVisita=desdeAdministracion&&typeof d.fechaVisita==='string'?d.fechaVisita:'';
+  if(d.fechaVisita&&(!desdeAdministracion||!_fechaValida(fechaVisita)))
+    return _json({ok:false,retryable:false,error:'La fecha de visita solo se puede indicar con una fecha válida desde administración'});
   const validado = _validarLead(d);
   if (validado.error) return _json({ ok: false, error: validado.error });
   d = validado.datos;
@@ -148,20 +152,23 @@ function doPost(e) {
     if (sh.getLastRow() === 0) sh.appendRow(HEADERS);
 
     const now = new Date();
-    const fecha = Utilities.formatDate(now, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+    const hoy = Utilities.formatDate(now, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
 
     const rid = d.requestId || '';
     if (rid && _requestIdExiste(sh, rid))
       return _json({ ok: true, duplicate: true, msg: 'Lead ya registrado' });
+    if(fechaVisita&&fechaVisita>hoy)return _json({ok:false,retryable:false,error:'La fecha de visita no puede ser futura'});
     const vigente=seleccion.evento?_leerEventos().find(e=>e.id===seleccion.evento.id):null;
     if(seleccion.evento&&(!vigente||!vigente.visible))
-      return _json({ok:false,retryable:false,error:'Actividad archivada. Conservá el pendiente y pedí al administrador que la habilite para completarlo.'});
+      return _json({ok:false,retryable:false,error:'Actividad archivada. Conservá el pendiente y pedí a administración que revise su carga.'});
+    if((!vigente||_eventoPasado(vigente,hoy))&&!desdeAdministracion)
+      return _json({ok:false,retryable:false,error:'Actividad finalizada o histórica. Conservá los datos; solo administración puede cargarlos desde Reportes → Cargar desde administración.'});
     if(vigente){d.evento=_textoSeguro(vigente.nombre);d.eventoId=vigente.id;}
 
     const cabecera = _columnasAuditoria(sh);
     const fila = [
       Utilities.formatDate(now, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd HH:mm:ss'),
-      fecha,
+      fechaVisita||hoy,
       d.evento || CONFIG.EVENTO_DEFAULT,
       d.promotor || '',
       d.nombre || '',
@@ -401,8 +408,7 @@ function _htmlReporte(texto, titulo) {
 // ══════════ 每日報告（可手動執行，或由觸發器每晚自動執行） ══════════
 function generarReporteDiario() {
   const fecha = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-  const id=PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
-  const evento=_leerEventos().find(e=>e.id===id);
+  const evento=_eventoMasReciente(_leerEventos());
   if(!evento)throw new Error('Revise la actividad predeterminada antes de generar el reporte');
   const rpt = _construirReporte(fecha,_filtroEvento(evento));
 
@@ -527,12 +533,21 @@ function _leerEventos(){
   }).filter(e=>e.nombre);
 }
 function _configuracionEventos(eventoId){
-  const eventos=_leerEventos(),defaultId=PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
+  const hoy=Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'yyyy-MM-dd');
+  const eventos=_leerEventos().map(e=>({...e,pasado:_eventoPasado(e,hoy),permiteRegistro:e.visible&&!_eventoPasado(e,hoy)}));
+  const defaultId=_eventoMasReciente(eventos)?.id||'';
   const id=eventoId||defaultId;
   const evento=typeof id==='string'?eventos.find(e=>e.id===id&&e.visible):null;
-  return {eventos:eventos.map(e=>({...e,predeterminado:e.id===defaultId})),eventoDefaultId:defaultId,
+  return {eventos:eventos.map(e=>({...e,predeterminado:e.id===defaultId})),eventoDefaultId:defaultId,fechaLocal:hoy,
     eventoSeleccionado:evento||null,eventoError:evento?'':'Actividad no disponible. Elegí otra actividad.',
     evento:evento?.nombre||'',desde:evento?.desde||'',hasta:evento?.hasta||'',ocr:_estadoEscaneo(id)};
+}
+function _eventoMasReciente(eventos){
+  return eventos.filter(e=>e.visible).reduce((latest,e)=>!latest||String(e.desde||'')>=String(latest.desde||'')?e:latest,null);
+}
+function _eventoPasado(evento,hoy){
+  hoy=hoy||Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'yyyy-MM-dd');
+  return !_fechaValida(evento.hasta)||hoy>evento.hasta;
 }
 function _eventoRegistro(raw){
   const eventos=_leerEventos();
@@ -541,7 +556,7 @@ function _eventoRegistro(raw){
     return evento?{evento}:{error:'Actividad no encontrada. Conservá el registro y consultá al administrador.'};
   }
   const nombre=String(raw.evento||'').trim();
-  const id=PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
+  const id=_eventoMasReciente(eventos)?.id||'';
   const evento=nombre?eventos.find(e=>e.legacyNombre===nombre):eventos.find(e=>e.id===id);
   return{evento:evento||null}; // Legacy queued labels are preserved, never reassigned to another exhibition.
 }
@@ -574,7 +589,6 @@ function _guardarEvento(d){
     const index=values.findIndex((row,i)=>i>0&&String(row[0])===id);
     if(index<0)sh.appendRow(_filaEvento(evento));else sh.getRange(index+1,1,1,EVENT_HEADERS.length).setValues([_filaEvento(evento)]);
     SpreadsheetApp.flush();
-    if(raw.predeterminado===true&&evento.visible)PropertiesService.getScriptProperties().setProperty('EVENTO_DEFAULT_ID',id);
     return _json({ok:true,..._configuracionEventos(id),evento});
   }catch(err){Logger.log('Event settings error: '+String(err));return _json({ok:false,retryable:true,error:'No se pudo guardar la actividad. Conservá los datos y reintentá.'});}
   finally{lock.releaseLock();}
@@ -601,10 +615,10 @@ function _tituloEventoFiltro(filtro){return typeof filtro==='object'&&filtro?fil
 
 function _estadoEscaneo(eventoId){
   const eventos=_leerEventos();
-  const id=eventoId||PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
+  const id=eventoId||_eventoMasReciente(eventos)?.id||'';
   const evento=eventos.find(e=>e.id===id);
   const hoy=Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'yyyy-MM-dd');
-  return {activo:!!evento&&evento.visible&&evento.ocrHabilitado&&hoy>=evento.ocrDesde&&hoy<=evento.ocrHasta,
+  return {activo:!!evento&&evento.visible&&!_eventoPasado(evento,hoy)&&evento.ocrHabilitado&&hoy>=evento.ocrDesde&&hoy<=evento.ocrHasta,
     desde:evento?.ocrDesde||'',hasta:evento?.ocrHasta||'',zona:CONFIG.ZONA_HORARIA,limiteDiario:CONFIG.OCR_LIMITE_DIARIO};
 }
 

@@ -67,12 +67,12 @@ test('invalid links do not silently select PBW and defaults remain administrator
   const created=h.save(sample({predeterminado:true}));assert(created.ok);assert.equal(h.config().eventoSeleccionado.id,created.evento.id);assert.equal(h.config().ocr.activo,false);
 });
 test('legacy pending records are retained and known names receive a stable event ID',()=>{
-  const h=harness();assert(h.post({evento:'EXPO PBW',nombre:'Legacy queued',calificacion:'A'},h.operator).ok);assert(h.post({evento:'Historical custom event',nombre:'Custom queued',calificacion:'C'},h.operator).ok);
+  const h=harness();assert(h.post({evento:'EXPO PBW',nombre:'Legacy queued',calificacion:'A'},h.operator).ok);assert(h.post({evento:'Historical custom event',nombre:'Custom queued',calificacion:'C',modoRegistro:'administracion'},h.admin).ok);
   const rows=h.sheets.Leads.rows,H=rows[0];assert.equal(rows[1][H.indexOf('Evento ID')],'pbw-2026');assert.equal(rows[2][H.indexOf('Evento')],'Historical custom event');
 });
 test('unknown legacy labels cannot be reassigned to a new same-name exhibition',()=>{
   const h=harness(),created=h.save(sample({nombre:'Historical custom event'}));assert(created.ok);
-  assert(h.post({evento:'Historical custom event',nombre:'Old queued visitor',calificacion:'A'},h.operator).ok);
+  assert(h.post({evento:'Historical custom event',nombre:'Old queued visitor',calificacion:'A',modoRegistro:'administracion'},h.admin).ok);
   const rows=h.sheets.Leads.rows;assert.equal(rows[1][rows[0].indexOf('Evento ID')],'');
 });
 test('legacy named report requests still open lead cards',()=>{
@@ -85,5 +85,46 @@ test('archive state is rechecked after obtaining the write lock; duplicate confi
   const archive=()=>{const row=h.sheets.Eventos.rows.find(row=>row[0]===created.evento.id);row[7]=false;};
   h.onLock(archive);const blocked=h.post({...payload,nombre:'Must not append',requestId:'archived_waiting_002'},h.operator);assert.equal(blocked.ok,false);
   assert.equal(h.sheets.Leads.rows.length,2);assert.equal(h.post(payload,h.operator).duplicate,true);
+});
+test('default automatically follows the latest available official start date',()=>{
+  const h=harness(),later=h.save(sample({id:'later-2028',desde:'2028-05-01',hasta:'2028-05-05'}));assert(later.ok);
+  h.save(sample({id:'older-2027',predeterminado:true}));h.props.EVENTO_DEFAULT_ID='pbw-2026';
+  assert.equal(h.config().eventoSeleccionado.id,'later-2028');
+  const archived=h.save({...later.evento,visible:false});assert(archived.ok);assert.equal(h.config().eventoSeleccionado.id,'older-2027');
+});
+test('historical entry requires the verified administrator and explicit back-office mode',()=>{
+  const h=harness('2026-11-15T03:00:00Z');
+  const payload={eventoId:'pbw-2026',nombre:'Historical backfill',calificacion:'A'};
+  assert.equal(h.config('pbw-2026').eventoSeleccionado.permiteRegistro,false);
+  assert.equal(h.post(payload,h.operator).ok,false);
+  assert.equal(h.post({...payload,modoRegistro:'administracion'},h.operator).ok,false,'operator cannot forge back-office mode');
+  assert.equal(h.post(payload,h.admin).ok,false,'admin must intentionally enter through back office');
+  assert(h.post({...payload,modoRegistro:'administracion'},h.admin).ok);
+  const rows=h.sheets.Leads.rows,H=rows[0];assert.equal(rows[1][H.indexOf('Registrado por (email)')],'jaimehuang168@gmail.com');
+});
+test('unknown legacy labels cannot bypass historical restrictions',()=>{
+  const h=harness(),payload={evento:'Unconfigured historical label',nombre:'Queued old',calificacion:'B'};
+  assert.equal(h.post(payload,h.operator).ok,false);
+  assert(h.post({...payload,modoRegistro:'administracion'},h.admin).ok);
+});
+test('event end is checked under the write lock and confirmed retries remain acknowledged',()=>{
+  const h=harness(),payload={eventoId:'pbw-2026',nombre:'Confirmed before closure',calificacion:'A',requestId:'end_confirmed_001'};
+  assert(h.post(payload,h.operator).ok);h.save(sample());
+  h.onLock(()=>{h.sheets.Eventos.rows.find(row=>row[0]==='pbw-2026')[3]='2026-11-10';});
+  assert.equal(h.post({...payload,requestId:'end_waiting_002'},h.operator).ok,false);
+  assert.equal(h.post(payload,h.operator).duplicate,true);assert.equal(h.sheets.Leads.rows.length,2);
+});
+test('official final day remains open until Paraguay midnight and historical OCR stays off',()=>{
+  const before=harness('2026-11-15T02:59:59Z');assert(before.post({eventoId:'pbw-2026',nombre:'Last minute',calificacion:'A'},before.operator).ok);
+  const after=harness('2026-11-15T03:00:00Z'),event=after.config('pbw-2026').eventoSeleccionado;
+  assert(after.save({...event,ocrHasta:'2026-11-20'}).ok);
+  assert.equal(after.config('pbw-2026').ocr.activo,false);assert.equal(after.post({accion:'ocrTarjeta',eventoId:'pbw-2026',imagen:'/9j/AAAA',mime:'image/jpeg'},after.operator).ok,false);assert.equal(after.calls.claude,0);assert.equal(after.calls.drive,0);
+});
+test('back-office visit dates are validated and preserve the actual input timestamp',()=>{
+  const h=harness('2026-11-20T15:00:00Z'),payload={eventoId:'pbw-2026',nombre:'Historical dated visit',calificacion:'A',modoRegistro:'administracion'};
+  assert.equal(h.post({...payload,fechaVisita:'2026-02-31'}).ok,false);
+  assert.equal(h.post({...payload,fechaVisita:'2026-11-21'}).ok,false);
+  assert(h.post({...payload,fechaVisita:'2026-11-12'}).ok);
+  const rows=h.sheets.Leads.rows,H=rows[0];assert.equal(rows.at(-1)[H.indexOf('Fecha')],'2026-11-12');assert.match(rows.at(-1)[H.indexOf('Timestamp')],/^2026-11-20/);
 });
 process.exitCode=failed?1:0;

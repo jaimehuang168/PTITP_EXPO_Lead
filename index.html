@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#006B5E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="mobile.css">
+<link rel="stylesheet" href="mobile.css?v=1.15.0">
 </head>
 <body>
 <a class="skip-link" href="#tab-registro">Ir al formulario</a>
@@ -141,6 +141,14 @@
 </div>
 <p class="event-dates registration-dates">Cargando las fechas de la actividad…</p>
 <form id="f" novalidate="">
+<div id="admin-registro-banner" class="admin-entry-banner" hidden>
+<p>
+<strong>Carga desde administración</strong> · Solo para la cuenta administradora. Estás registrando en la actividad seleccionada.</p>
+<label for="fecha-visita">Fecha real de la visita (opcional)</label>
+<input type="date" id="fecha-visita">
+<p class="ayuda">Si la dejás vacía, se usa hoy. La hora real de carga siempre queda registrada.</p>
+<button type="button" id="admin-exit" class="secondary-button">Volver al registro general</button>
+</div>
 <div class="scan-entry">
 <button type="button" id="scan-btn" class="scan-button">
 <svg class="icon" aria-hidden="true">
@@ -519,7 +527,8 @@
 <p>Para el equipo de promoción de PTITP. Iniciá sesión con tu propia cuenta de Google antes de registrar visitantes; cada registro conserva tu email verificado.</p>
 <p class="guia-nota">
 <strong data-event-period>Seleccioná una actividad</strong>
-<br>Hora de Paraguay. Se permite completar registros antes y después del evento.</p>
+<br>Hora de Paraguay. Al finalizar la actividad, la carga queda reservada a administración.</p>
+<p>El enlace general abre la actividad disponible con la fecha de inicio más reciente. Las actividades anteriores siguen disponibles en los reportes.</p>
 <ol class="guia-pasos">
 <li>
 <strong>Elegí la actividad e iniciá sesión.</strong> Revisá <b>Actividad de este registro</b> o usá el enlace que compartió administración. Tocá <b>Continuar con Google</b> y elegí tu cuenta. Tu nombre y email se completan automáticamente; revisalos si compartís el dispositivo.</li>
@@ -542,7 +551,7 @@
 <li>Verificá los datos reconocidos, completá la evaluación y tocá <b>Guardar y continuar</b>. Escanear por sí solo no registra al visitante.</li>
 </ol>
 <button type="button" class="guia-accion" data-guia-destino="scan-estado">Ver disponibilidad del escaneo →</button>
-<p>Fuera de ese período el escaneo queda deshabilitado automáticamente. El registro manual sigue disponible para completar datos antes o después del evento. Si tu sesión vence, volvé a ingresar con la misma cuenta.</p>
+<p>Fuera del período de escaneo, podés cargar manualmente mientras la actividad siga abierta. Después de su fecha final, solo administración puede completar datos. Si tu sesión vence, volvé a ingresar con la misma cuenta.</p>
 <p class="ayuda">El límite es de 300 solicitudes de escaneo por día para todo el equipo. Cada nueva foto o intento cuenta para ese límite. La administración mantiene la clave del proveedor de IA en el servidor.</p>
 </details>
 <details class="guia-detalle">
@@ -575,7 +584,8 @@
 <summary>5. Consultar, exportar e imprimir reportes (administración)</summary>
 <p>Solo <b>jaimehuang168@gmail.com</b> puede consultar, exportar, imprimir o enviar reportes. Al iniciar sesión con esa cuenta de Google, aparece la pestaña <b>Reportes</b> en la navegación. Elegí el evento y la vista de hoy o acumulada.</p>
 <p>Para PDF, fichas o envío, elegí <b>Hoy</b>, <b>Rango de fechas</b> o <b>Todo el evento</b>. Las fechas iniciales corresponden a la actividad elegida. <b>Ver período oficial</b> excluye capacitación y carga anterior o posterior; todo el evento las incluye.</p>
-<p>En <b>Administrar actividades → Nueva actividad</b>, completá nombre y fechas y tocá <b>Guardar actividad</b>. Copiá su enlace para el equipo. Cada edición conserva su propia identidad, aunque repita el nombre. El escaneo empieza deshabilitado: habilitalo solo para el período que necesites. Archivar cierra nuevos registros y conserva los reportes. Para reenviar un pendiente aún sin confirmar, reabrí la actividad.</p>
+<p>En <b>Administrar actividades → Nueva actividad</b>, completá nombre y fechas y tocá <b>Guardar actividad</b>. Copiá su enlace para el equipo. Cada edición conserva su propia identidad, aunque repita el nombre. El escaneo empieza deshabilitado: habilitalo solo para el período que necesites. Archivar cierra nuevos registros y conserva los reportes. Si un pendiente pertenece a una actividad finalizada, conservalo y pedí su carga desde administración.</p>
+<p>Para cargar datos históricos, elegí la actividad en <b>Evento del reporte</b> y tocá <b>Cargar desde administración</b>. Se abre el formulario con una indicación de administración. Podés indicar la fecha real de la visita; si la dejás vacía, se usa hoy. <b>Volver al registro general</b> sale de ese modo y abre la actividad más reciente. Los pendientes de una actividad finalizada se conservan y requieren revisión de administración.</p>
 <p>
 <b>Enviar reporte</b> solicita confirmación y envía a los destinatarios configurados por administración. No es necesario enviarlo después de registrar a cada visitante.</p>
 </details>
@@ -591,7 +601,8 @@
 <p>供 PTITP 推廣團隊使用。請先登入自己的 Google 帳號，每筆資料都會記錄已驗證的 Email。</p>
 <p class="guia-nota">
 <strong data-event-period>請先選擇活動</strong>
-<br>採巴拉圭時間，活動前後仍可補登。</p>
+<br>採巴拉圭時間，活動結束後僅管理員可從後臺補登。</p>
+<p>一般連結會自動開啟正式開始日期最新且可用的活動；歷史活動仍可查詢報表。</p>
 <ol class="guia-pasos">
 <li>
 <strong>選擇活動並登入 Google。</strong>確認「Actividad de este registro」的活動，或使用管理員提供的專屬連結。按「Continuar con Google」選擇自己的帳號；姓名與 Email 自動帶入。共用裝置時，先確認顯示的是自己的帳號。</li>
@@ -614,7 +625,7 @@
 <li>核對辨識結果、補上評級，再按「Guardar y continuar」。只有掃描名片，尚未完成訪客登錄。</li>
 </ol>
 <button type="button" class="guia-accion" data-guia-destino="scan-estado">查看掃描開放狀態 →</button>
-<p>期限外自動關閉掃描；手動登錄仍可於活動前後補登。若登入過期，請使用同一帳號重新登入。</p>
+<p>掃描期限外可手動登錄，但活動結束後僅管理員可從後臺補登。若登入過期，請使用同一帳號重新登入。</p>
 <p class="ayuda">全團隊每天最多 300 次掃描請求，重新拍攝或再次辨識均計入次數。AI 服務金鑰由管理員保留在伺服器。</p>
 </details>
 <details class="guia-detalle">
@@ -644,7 +655,8 @@
 <summary>5. 查看、匯出、列印及寄送報告（管理員使用）</summary>
 <p>僅 <b>jaimehuang168@gmail.com</b> 可查看、匯出、列印及寄送報告。登入該 Google 帳號後，導覽列才會出現「Reportes」分頁。選擇活動即可查看當日或累計報告。</p>
 <p>下載 PDF、客戶資料卡或寄送時，可選「Hoy」（今天）、「Rango de fechas」（日期範圍）或「Todo el evento」（整場活動）。預設日期會依所選活動變動。「Ver período oficial」僅計算正式活動期間；整場活動包含訓練及前後補登。</p>
-<p>到「Administrar actividades → Nueva actividad」填寫名稱與日期，按「Guardar actividad」儲存，再複製活動連結給團隊。每屆展覽各自保存，即使名稱相同也能分開統計。新活動預設關閉掃描，需要時再設定開放期間。封存會停止新登錄並保留報表；尚未確認的待傳資料，須先重新開放該活動才能補傳。</p>
+<p>到「Administrar actividades → Nueva actividad」填寫名稱與日期，按「Guardar actividad」儲存，再複製活動連結給團隊。每屆展覽各自保存，即使名稱相同也能分開統計。新活動預設關閉掃描，需要時再設定開放期間。封存會停止新登錄並保留報表；已結束活動的待傳資料請保留，交由管理員從後臺補登。</p>
+<p>補登歷史資料時，在「Evento del reporte」選活動，再按「Cargar desde administración」。表單會標示後臺補登模式，可指定實際接觸日期；留空則使用今天，實際輸入時間仍保留。按「Volver al registro general」可退出並回到最新活動。一般帳號在活動結束後尚未確認的待傳資料會保留，請交管理員處理。</p>
 <p>「Enviar reporte」會要求確認，並寄到管理員已設定的收件人。每登錄一位訪客後，不必另外寄送報告。</p>
 </details>
 <details class="guia-detalle">
@@ -673,6 +685,8 @@
 <button type="button" id="ver-periodo" class="secondary-button" disabled>Ver período oficial</button>
 <button type="button" id="ver-expo" class="secondary-button">📊 Ver reporte acumulado del evento</button>
 </div>
+<button type="button" id="admin-entry" class="secondary-button">Cargar desde administración</button>
+<p class="ayuda">Para completar una actividad anterior, elegila arriba y usá este acceso. Las actividades archivadas deben habilitarse primero en Administrar actividades.</p>
 <p class="ayuda">Exportación, PDF, fichas e impresión: acceso exclusivo de jaimehuang168@gmail.com mediante Google. Los envíos usan los destinatarios configurados en la hoja “Config”.</p>
 <label>Tipo de reporte</label>
 <div class="chips" id="rep-tipo">
@@ -722,9 +736,8 @@
 </div>
 <label class="event-check">
 <input type="checkbox" id="ev-visible" checked>Disponible para nuevos registros</label>
-<p class="ayuda">Al desmarcarla, se archiva: conserva sus datos y reportes, y cierra el registro y su enlace. Para reenviar pendientes sin confirmar, volvé a habilitarla.</p>
-<label class="event-check">
-<input type="checkbox" id="ev-default">Abrir esta actividad en el enlace general</label>
+<p class="ayuda">Al desmarcarla, se archiva: conserva sus datos y reportes, y cierra el registro y su enlace. Para cargar desde administración, habilitala primero; los pendientes de actividades finalizadas requieren revisión de administración.</p>
+<p class="ayuda">El enlace general abre automáticamente la actividad disponible con la fecha de inicio más reciente. Las actividades finalizadas solo admiten carga desde administración.</p>
 <label class="event-check">
 <input type="checkbox" id="ev-ocr">Habilitar escaneo de tarjetas</label>
 <p class="ayuda">El escaneo usa IA con costo. En cada actividad nueva empieza apagado. Al habilitarlo, indicá el período, incluida la capacitación. Todas las actividades comparten el límite de 300 solicitudes por día.</p>
@@ -761,7 +774,7 @@
 <div id="aviso" role="status">
 </div>
 
-<script src="mobile-ui.js"></script><script src="google-session.js"></script><script src="event-ui.js"></script>
+<script src="mobile-ui.js?v=1.15.0"></script><script src="google-session.js?v=1.15.0"></script><script src="event-ui.js?v=1.15.0"></script>
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
@@ -775,11 +788,12 @@ $('mobile-metadata').querySelector('.detail-content').append(eventoInfo);
 
 $('evento').readOnly = true;
 
-let enviando=false,escaneando=false,cambiandoEvento=false,iniciando=false,ultimoUid='',estadoUid='',estadoEventoId='',revisionFormulario=0;
+let enviando=false,escaneando=false,cambiandoEvento=false,registroAdministracion=false,iniciando=false,ultimoUid='',estadoUid='',estadoEventoId='',revisionFormulario=0;
 f.addEventListener('input',()=>{revisionFormulario++;});
 const sesion=window.PtitpGoogleSession({apiUrl:API_URL,eventId:new URL(location.href).searchParams.get('evento')||'',onChange:s=>{pintarSesion(s);if(s.user&&navigator.onLine)reintentar();}});
 function pintarSesion(s){
   const uid=s.user?.uid||'';
+  if(registroAdministracion&&!s.user?.admin){registroAdministracion=false;revisionFormulario++;}
   if(uid!==estadoUid){revisionFormulario++;estadoUid=uid;}
   const eventoId=s.eventoSeleccionado?.id||'';
   if(eventoId!==estadoEventoId){revisionFormulario++;estadoEventoId=eventoId;}
@@ -788,31 +802,46 @@ function pintarSesion(s){
   $('login-google').hidden=!!s.user;$('login-google').disabled=s.loading||!s.configured||iniciando;
   $('salir-google').hidden=!s.user;
   const busy=enviando||escaneando||cambiandoEvento||s.eventLoading;
+  const registroDisponible=!!s.eventoSeleccionado&&(s.eventoSeleccionado.permiteRegistro===true||registroAdministracion&&s.user?.admin&&s.eventoSeleccionado.visible);
   $('salir-google').disabled=busy;
   $('sesion-estado').textContent=s.error||(s.loading?'Comprobando el acceso…':s.user?'Sesión verificada con Google':'Iniciá sesión para registrar visitantes');
   $('sesion-usuario').hidden=!s.user;
   $('sesion-usuario').textContent=s.user?s.user.nombre+' · '+s.user.email:'';
   $('promotor').value=s.user?.nombre||s.user?.email||'';
-  [...f.elements].forEach(el=>{el.disabled=!s.user||!eventoId||busy;});
-  $('enviar').disabled=!s.user||!eventoId||busy;
-  $('scan-btn').disabled=!s.user||!eventoId||!s.ocr?.activo||busy;
+  [...f.elements].forEach(el=>{el.disabled=!s.user||!registroDisponible||busy;});
+  $('enviar').disabled=!s.user||!registroDisponible||busy;
+  $('scan-btn').disabled=!s.user||!registroDisponible||!s.ocr?.activo||busy;
+  $('fecha-visita').disabled=!registroAdministracion||busy;
+  $('fecha-visita').max=s.fechaLocal||'';
+  $('admin-registro-banner').hidden=!registroAdministracion;
   $('scan-estado').textContent=window.PtitpEvents.ocrMessage(s);
   $('reportes').hidden=!s.user?.admin;
-  window.PtitpEvents.render({...s,busy});
-  window.PtitpMobile?.renderSession({...s,busy,scanning:escaneando,switching:cambiandoEvento||s.eventLoading});
+  window.PtitpEvents.render({...s,busy,administracion:registroAdministracion,registroDisponible});
+  window.PtitpMobile?.renderSession({...s,busy,registroDisponible,scanning:escaneando,switching:cambiandoEvento||s.eventLoading});
   pintarCola();
 }
-async function cambiarEvento(id){
-  const previous=sesion.getSnapshot().eventoSeleccionado?.id||'';
-  if(enviando||escaneando||cambiandoEvento||!id||id===previous){$('evento-selector').value=previous;return;}
+async function cambiarEvento(id,desdeAdministracion=false){
+  const snapshot=sesion.getSnapshot(),previous=snapshot.eventoSeleccionado?.id||'',uid=snapshot.user?.uid;
+  if(desdeAdministracion&&!snapshot.user?.admin)return false;
+  if(enviando||escaneando||cambiandoEvento||!id||id===previous&&desdeAdministracion===registroAdministracion){$('evento-selector').value=previous;return false;}
   if(window.PtitpMobile?.hasDraft()&&!window.confirm('Hay un formulario sin enviar. ¿Descartarlo y cambiar de actividad? Los pendientes conservan su actividad original.')){$('evento-selector').value=previous;return;}
   cambiandoEvento=true;pintarSesion(sesion.getSnapshot());
   try{
     if(await sesion.selectEvent(id)){
+      if(desdeAdministracion&&(sesion.getSnapshot().user?.uid!==uid||!sesion.getSnapshot().user?.admin))return false;
+      registroAdministracion=desdeAdministracion;revisionFormulario++;
       limpiar();const url=new URL(location.href);url.searchParams.set('evento',id);history.replaceState(null,'',url);
+      return true;
     }
   }finally{cambiandoEvento=false;pintarSesion(sesion.getSnapshot());}
 }
+$('admin-entry').addEventListener('click',async()=>{
+  if(!esAdmin())return;
+  const id=$('rep-evento').value,event=sesion.getSnapshot().eventos.find(e=>e.id===id);
+  if(!event?.visible)return aviso('Elegí una actividad disponible; si está archivada, habilitala primero en administración.',true);
+  if(await cambiarEvento(id,true)){mostrarPestana('tab-registro');$('nombre').focus();}
+});
+$('admin-exit').addEventListener('click',()=>cambiarEvento(sesion.getSnapshot().eventoDefaultId,false));
 $('login-google').addEventListener('click',async()=>{
   if(iniciando)return;iniciando=true;$('login-google').disabled=true;
   try{await sesion.signIn();}catch(e){console.warn('[PTITP] Google sign-in error',e?.code||e?.name||'unknown');aviso(e.code==='auth/popup-closed-by-user'?'Inicio de sesión cancelado':e.code==='auth/popup-blocked'?'Permití la ventana de Google e intentá de nuevo':'No se pudo iniciar sesión con Google. Reintentá o avisá al coordinador.',true);}
@@ -833,6 +862,8 @@ function datos(){
       : 'req_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10),
     evento: $('evento').value.trim(),
     eventoId:sesion.getSnapshot().eventoSeleccionado?.id||'',
+    modoRegistro:registroAdministracion?'administracion':'general',
+    fechaVisita:registroAdministracion?$('fecha-visita').value:'',
     promotor: $('promotor').value.trim(),
     nombre: $('nombre').value.trim(),
     empresa: $('empresa').value.trim(),
@@ -1225,7 +1256,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.15.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
@@ -1273,9 +1304,11 @@ estadoRed(); pintarCola();
 pintarSesion(sesion.getSnapshot());sesion.start();
 // Recheck once at the event boundaries; the server always enforces the actual window.
 setInterval(()=>{
-  const s=sesion.getSnapshot();if(!s.user||!navigator.onLine||!s.ocr?.desde)return;
+  const s=sesion.getSnapshot();if(!navigator.onLine)return;
   const partes=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Asuncion',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
   const hoy=['year','month','day'].map(k=>partes.find(p=>p.type===k).value).join('-');
+  if(s.fechaLocal&&hoy!==s.fechaLocal){sesion.reloadEvents();return;}
+  if(!s.user||!s.ocr?.desde)return;
   if((hoy>=s.ocr.desde&&hoy<=s.ocr.hasta)!==s.ocr.activo)sesion.refresh();
 },60000);
 </script>

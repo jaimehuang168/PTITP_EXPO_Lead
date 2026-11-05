@@ -68,6 +68,9 @@ test('OCR starts and ends at Paraguay midnight with no outside quota or paid wor
     assert.equal(r.ok,active,when);if(!active){assert.equal(quotaWrites,q);assert.equal(claudeCalls,c);assert.equal(driveWrites,d);}
   }
 });
-test('manual registration still accepts authenticated pre and post-event entries',()=>{for(const when of ['2026-11-09T15:00:00Z','2026-11-16T15:00:00Z']){now=Date.parse(when);assert.equal(post({...lead,idToken:operator()}).ok,true);}});
+test('pre-event manual registration stays open; post-event entry requires the administrator back office',()=>{
+  now=Date.parse('2026-11-09T15:00:00Z');assert.equal(post({...lead,idToken:operator()}).ok,true);
+  now=Date.parse('2026-11-16T15:00:00Z');assert.equal(post({...lead,idToken:operator()}).ok,false);assert.equal(post({...lead,idToken:admin()}).ok,false);assert.equal(post({...lead,idToken:admin(),modoRegistro:'administracion'}).ok,true);
+});
 test('legacy OCR secret cannot bypass Google login',()=>assert.equal(post({accion:'ocrTarjeta',token:'legacy-secret-123456',imagen:'/9j/AAAA',mime:'image/jpeg'}).ok,false));
 console.log(`${passed} passed / ${failures} failed`);process.exitCode=failures?1:0;
