@@ -93,7 +93,7 @@
 <img src="PTITP_LOGO.png" alt="PTITP" width="47" height="47">
 <div>
 <p class="brand-title">Registro</p>
-<p class="brand-event">EXPO PBW 2026</p>
+<p class="brand-event">Actividades PTITP</p>
 </div>
 </div>
 <button type="button" class="account-button" id="mobile-account" aria-controls="acceso" aria-expanded="false" hidden="">
@@ -131,7 +131,15 @@
 <h1>Nuevo visitante</h1>
 <button class="text-button" type="button" id="mobile-manual">Ingreso manual</button>
 </div>
-<p class="event-dates registration-dates">Escaneo: 6–14 nov. · Hora de Paraguay</p>
+<div class="activity-picker">
+<label for="evento-selector">Actividad de este registro</label>
+<select id="evento-selector" disabled>
+<option value="">Cargando actividades…</option>
+</select>
+<p id="evento-error" class="activity-error" role="alert" hidden>
+</p>
+</div>
+<p class="event-dates registration-dates">Cargando las fechas de la actividad…</p>
 <form id="f" novalidate="">
 <div class="scan-entry">
 <button type="button" id="scan-btn" class="scan-button">
@@ -148,7 +156,7 @@
 <input type="file" id="tarjeta-file" accept="image/*" capture="environment" hidden="">
 <img id="tarjeta-thumb" alt="Tarjeta" hidden="">
 <input type="hidden" id="tarjetaUrl">
-<p id="scan-estado" class="ayuda" tabindex="-1">Iniciá sesión con Google para escanear. Disponible del 6 al 14 de noviembre de 2026, hora de Paraguay.</p>
+<p id="scan-estado" class="ayuda" tabindex="-1">Iniciá sesión y elegí una actividad para consultar el escaneo.</p>
 </div>
 <section class="form-section">
 <div class="section-heading">
@@ -510,11 +518,11 @@
 <h2>Tu primer registro, paso a paso</h2>
 <p>Para el equipo de promoción de PTITP. Iniciá sesión con tu propia cuenta de Google antes de registrar visitantes; cada registro conserva tu email verificado.</p>
 <p class="guia-nota">
-<strong>EXPO PBW · 10–14 de noviembre de 2026</strong>
+<strong data-event-period>Seleccioná una actividad</strong>
 <br>Hora de Paraguay. Se permite completar registros antes y después del evento.</p>
 <ol class="guia-pasos">
 <li>
-<strong>Iniciá sesión.</strong> Tocá <b>Continuar con Google</b> y elegí tu cuenta. Tu nombre y email se completan automáticamente; revisalos si compartís el dispositivo.</li>
+<strong>Elegí la actividad e iniciá sesión.</strong> Revisá <b>Actividad de este registro</b> o usá el enlace que compartió administración. Tocá <b>Continuar con Google</b> y elegí tu cuenta. Tu nombre y email se completan automáticamente; revisalos si compartís el dispositivo.</li>
 <li>
 <strong>Registrá al visitante.</strong> Completá su nombre y apellido; agregá empresa, teléfono con código de país y email. Podés escribirlos o escanear una tarjeta y corregir el resultado.</li>
 <li>
@@ -529,7 +537,7 @@
 <summary>1. Iniciar sesión y escanear una tarjeta</summary>
 <ol class="guia-pasos">
 <li>Iniciá sesión con tu propia cuenta mediante <b>Continuar con Google</b>.</li>
-<li>El escaneo se habilita automáticamente del <b>6/11/2026 a las 00:00 al 14/11/2026 a las 23:59:59, hora de Paraguay</b>. No tenés que ingresar una clave de equipo.</li>
+<li>Período de escaneo de la actividad: <b data-ocr-period>Consultá la actividad seleccionada</b>. Si administración lo habilitó, se abre a las 00:00 del primer día y cierra a las 23:59:59 del último, hora de Paraguay. No tenés que ingresar una clave de equipo.</li>
 <li>Tocá <b>Escanear tarjeta</b>, tomá una foto nítida o elegí una imagen, según tu dispositivo. Se necesita conexión.</li>
 <li>Verificá los datos reconocidos, completá la evaluación y tocá <b>Guardar y continuar</b>. Escanear por sí solo no registra al visitante.</li>
 </ol>
@@ -566,7 +574,8 @@
 <details class="guia-detalle">
 <summary>5. Consultar, exportar e imprimir reportes (administración)</summary>
 <p>Solo <b>jaimehuang168@gmail.com</b> puede consultar, exportar, imprimir o enviar reportes. Al iniciar sesión con esa cuenta de Google, aparece la pestaña <b>Reportes</b> en la navegación. Elegí el evento y la vista de hoy o acumulada.</p>
-<p>Para PDF, fichas o envío, elegí <b>Hoy</b>, <b>Rango de fechas</b> o <b>Todo el evento</b>. El rango inicial es 10–14/11/2026; todo el evento incluye registros anteriores y posteriores.</p>
+<p>Para PDF, fichas o envío, elegí <b>Hoy</b>, <b>Rango de fechas</b> o <b>Todo el evento</b>. Las fechas iniciales corresponden a la actividad elegida. <b>Ver período oficial</b> excluye capacitación y carga anterior o posterior; todo el evento las incluye.</p>
+<p>En <b>Administrar actividades → Nueva actividad</b>, completá nombre y fechas y tocá <b>Guardar actividad</b>. Copiá su enlace para el equipo. Cada edición conserva su propia identidad, aunque repita el nombre. El escaneo empieza deshabilitado: habilitalo solo para el período que necesites. Archivar cierra nuevos registros y conserva los reportes. Para reenviar un pendiente aún sin confirmar, reabrí la actividad.</p>
 <p>
 <b>Enviar reporte</b> solicita confirmación y envía a los destinatarios configurados por administración. No es necesario enviarlo después de registrar a cada visitante.</p>
 </details>
@@ -581,11 +590,11 @@
 <h2>第一次使用，照著步驟完成登錄</h2>
 <p>供 PTITP 推廣團隊使用。請先登入自己的 Google 帳號，每筆資料都會記錄已驗證的 Email。</p>
 <p class="guia-nota">
-<strong>EXPO PBW · 2026/11/10–11/14</strong>
+<strong data-event-period>請先選擇活動</strong>
 <br>採巴拉圭時間，活動前後仍可補登。</p>
 <ol class="guia-pasos">
 <li>
-<strong>登入 Google。</strong>按「Continuar con Google」選擇自己的帳號；姓名與 Email 自動帶入。共用裝置時，先確認顯示的是自己的帳號。</li>
+<strong>選擇活動並登入 Google。</strong>確認「Actividad de este registro」的活動，或使用管理員提供的專屬連結。按「Continuar con Google」選擇自己的帳號；姓名與 Email 自動帶入。共用裝置時，先確認顯示的是自己的帳號。</li>
 <li>
 <strong>填寫訪客資料。</strong>輸入姓名，補上公司、含國碼的電話與 Email。可手動填寫，或掃描名片後核對修正。</li>
 <li>
@@ -600,7 +609,7 @@
 <summary>1. 登入 Google 與掃描名片</summary>
 <ol class="guia-pasos">
 <li>按「Continuar con Google」，登入自己的 Google 帳號。</li>
-<li>掃描於巴拉圭時間 <b>2026/11/6 00:00 至 11/14 23:59:59</b> 自動開放，登入後即可使用，不必輸入團隊密鑰。</li>
+<li>本活動的掃描期間：<b data-ocr-period>依所選活動設定</b>。管理員啟用後，採巴拉圭時間首日 00:00 開放，末日 23:59:59 關閉。登入後即可使用，不必輸入團隊密鑰。</li>
 <li>按「Escanear tarjeta」，依裝置提供的選項拍攝清晰名片或選取圖片。掃描需要網路連線。</li>
 <li>核對辨識結果、補上評級，再按「Guardar y continuar」。只有掃描名片，尚未完成訪客登錄。</li>
 </ol>
@@ -634,7 +643,8 @@
 <details class="guia-detalle">
 <summary>5. 查看、匯出、列印及寄送報告（管理員使用）</summary>
 <p>僅 <b>jaimehuang168@gmail.com</b> 可查看、匯出、列印及寄送報告。登入該 Google 帳號後，導覽列才會出現「Reportes」分頁。選擇活動即可查看當日或累計報告。</p>
-<p>下載 PDF、客戶資料卡或寄送時，可選「Hoy」（今天）、「Rango de fechas」（日期範圍）或「Todo el evento」（整場活動）。預設範圍是 2026/11/10–11/14；整場活動包含前後補登資料。</p>
+<p>下載 PDF、客戶資料卡或寄送時，可選「Hoy」（今天）、「Rango de fechas」（日期範圍）或「Todo el evento」（整場活動）。預設日期會依所選活動變動。「Ver período oficial」僅計算正式活動期間；整場活動包含訓練及前後補登。</p>
+<p>到「Administrar actividades → Nueva actividad」填寫名稱與日期，按「Guardar actividad」儲存，再複製活動連結給團隊。每屆展覽各自保存，即使名稱相同也能分開統計。新活動預設關閉掃描，需要時再設定開放期間。封存會停止新登錄並保留報表；尚未確認的待傳資料，須先重新開放該活動才能補傳。</p>
 <p>「Enviar reporte」會要求確認，並寄到管理員已設定的收件人。每登錄一位訪客後，不必另外寄送報告。</p>
 </details>
 <details class="guia-detalle">
@@ -653,15 +663,14 @@
 <span class="admin-badge">Administración</span>
 </div>
 <fieldset id="reportes" hidden="" class="report-panel">
-<legend>EXPO PBW 2026</legend>
+<legend>Actividad seleccionada</legend>
 <label for="rep-evento">Evento del reporte</label>
 <select id="rep-evento">
-<option value="EXPO PBW">EXPO PBW · 10–14 noviembre 2026</option>
-<option value="Expo Paraguay 2026">Expo Paraguay 2026 · histórico</option>
-<option value="">Todos los eventos · histórico completo</option>
+<option value="">Todas las actividades · histórico completo</option>
 </select>
 <div class="rep-botones">
 <button type="button" id="ver-hoy" class="secondary-button">📄 Ver reporte de hoy</button>
+<button type="button" id="ver-periodo" class="secondary-button" disabled>Ver período oficial</button>
 <button type="button" id="ver-expo" class="secondary-button">📊 Ver reporte acumulado del evento</button>
 </div>
 <p class="ayuda">Exportación, PDF, fichas e impresión: acceso exclusivo de jaimehuang168@gmail.com mediante Google. Los envíos usan los destinatarios configurados en la hoja “Config”.</p>
@@ -687,8 +696,56 @@
 <button type="button" id="enviar-reporte" class="primary-button">✉️ Enviar reporte</button>
 <button type="button" id="pdf-reporte" class="secondary-button">📥 Descargar PDF</button>
 <button type="button" id="fichas-btn" class="secondary-button">📇 Fichas de leads (imprimir)</button>
-<p class="ayuda">El envío automático depende del período y la hora configurados en la hoja “Config”. El administrador debe habilitar el envío programado. “Todo el evento” incluye los registros completados fuera del período; use “Rango de fechas” para el 10–14 de noviembre.</p>
+<p class="ayuda">“Todo el evento” incluye capacitación y registros completados antes o después. “Período oficial” usa las fechas de la actividad. El envío automático conserva el período y la hora de la hoja “Config”; administración debe habilitarlo.</p>
 </fieldset>
+<details id="eventos-admin" class="event-admin report-panel" hidden>
+<summary>Administrar actividades</summary>
+<p class="ayuda">Creá una actividad para cada edición de una feria. Los registros se guardan en la misma planilla y los reportes se separan por actividad.</p>
+<label for="ev-select">Actividad para editar</label>
+<select id="ev-select">
+<option value="">Nueva actividad</option>
+</select>
+<button type="button" id="evento-nuevo" class="secondary-button">+ Nueva actividad</button>
+<button type="button" id="ev-refresh" class="secondary-button">Recargar actividades</button>
+<form id="evento-form">
+<label for="ev-nombre">Nombre de la actividad</label>
+<input id="ev-nombre" maxlength="120" required placeholder="Nombre de la feria y año">
+<div class="fila">
+<div>
+<label for="ev-desde">Inicio oficial</label>
+<input type="date" id="ev-desde" required>
+</div>
+<div>
+<label for="ev-hasta">Fin oficial</label>
+<input type="date" id="ev-hasta" required>
+</div>
+</div>
+<label class="event-check">
+<input type="checkbox" id="ev-visible" checked>Disponible para nuevos registros</label>
+<p class="ayuda">Al desmarcarla, se archiva: conserva sus datos y reportes, y cierra el registro y su enlace. Para reenviar pendientes sin confirmar, volvé a habilitarla.</p>
+<label class="event-check">
+<input type="checkbox" id="ev-default">Abrir esta actividad en el enlace general</label>
+<label class="event-check">
+<input type="checkbox" id="ev-ocr">Habilitar escaneo de tarjetas</label>
+<p class="ayuda">El escaneo usa IA con costo. En cada actividad nueva empieza apagado. Al habilitarlo, indicá el período, incluida la capacitación. Todas las actividades comparten el límite de 300 solicitudes por día.</p>
+<div class="fila" id="ev-ocr-fechas" hidden>
+<div>
+<label for="ev-ocr-desde">Escaneo desde</label>
+<input type="date" id="ev-ocr-desde">
+</div>
+<div>
+<label for="ev-ocr-hasta">Escaneo hasta</label>
+<input type="date" id="ev-ocr-hasta">
+</div>
+</div>
+<button type="submit" id="ev-save" class="primary-button">Guardar actividad</button>
+<label for="ev-link">Enlace de esta actividad para el equipo</label>
+<input id="ev-link" type="url" readonly placeholder="Disponible después de guardar">
+<button type="button" id="ev-copy" class="secondary-button" disabled>Copiar enlace</button>
+<p id="ev-status" class="ayuda" role="status">
+</p>
+</form>
+</details>
 </section>
 </main>
 <footer class="savebar" id="mobile-savebar">
@@ -704,46 +761,57 @@
 <div id="aviso" role="status">
 </div>
 
-<script src="mobile-ui.js"></script><script src="google-session.js"></script>
+<script src="mobile-ui.js"></script><script src="google-session.js"></script><script src="event-ui.js"></script>
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
 
 const $ = id => document.getElementById(id);
 const f = $('f');
-const EVENTO = {nombre:'EXPO PBW',desde:'2026-11-10',hasta:'2026-11-14'};
 const eventoInfo = document.createElement('p');
-eventoInfo.textContent = 'EXPO PBW · 10–14 de noviembre de 2026 · Hora de Paraguay. Se permite completar registros antes o después del evento.';
+eventoInfo.id='evento-info';
 eventoInfo.style.cssText = 'font-size:.85rem;color:var(--gris);line-height:1.5';
 $('mobile-metadata').querySelector('.detail-content').append(eventoInfo);
 
-$('evento').value = EVENTO.nombre;
 $('evento').readOnly = true;
-$('rep-desde').value = EVENTO.desde;
-$('rep-hasta').value = EVENTO.hasta;
 
-let enviando=false,escaneando=false,iniciando=false,ultimoUid='',estadoUid='',revisionFormulario=0;
+let enviando=false,escaneando=false,cambiandoEvento=false,iniciando=false,ultimoUid='',estadoUid='',estadoEventoId='',revisionFormulario=0;
 f.addEventListener('input',()=>{revisionFormulario++;});
-const sesion=window.PtitpGoogleSession({apiUrl:API_URL,onChange:s=>{pintarSesion(s);if(s.user&&navigator.onLine)reintentar();}});
+const sesion=window.PtitpGoogleSession({apiUrl:API_URL,eventId:new URL(location.href).searchParams.get('evento')||'',onChange:s=>{pintarSesion(s);if(s.user&&navigator.onLine)reintentar();}});
 function pintarSesion(s){
   const uid=s.user?.uid||'';
   if(uid!==estadoUid){revisionFormulario++;estadoUid=uid;}
+  const eventoId=s.eventoSeleccionado?.id||'';
+  if(eventoId!==estadoEventoId){revisionFormulario++;estadoEventoId=eventoId;}
   if(s.user&&ultimoUid&&ultimoUid!==s.user.uid) limpiar();
   if(s.user)ultimoUid=s.user.uid;
   $('login-google').hidden=!!s.user;$('login-google').disabled=s.loading||!s.configured||iniciando;
   $('salir-google').hidden=!s.user;
-  $('salir-google').disabled=enviando||escaneando;
+  const busy=enviando||escaneando||cambiandoEvento||s.eventLoading;
+  $('salir-google').disabled=busy;
   $('sesion-estado').textContent=s.error||(s.loading?'Comprobando el acceso…':s.user?'Sesión verificada con Google':'Iniciá sesión para registrar visitantes');
   $('sesion-usuario').hidden=!s.user;
   $('sesion-usuario').textContent=s.user?s.user.nombre+' · '+s.user.email:'';
   $('promotor').value=s.user?.nombre||s.user?.email||'';
-  [...f.elements].forEach(el=>{el.disabled=!s.user||enviando||escaneando;});
-  $('enviar').disabled=!s.user||enviando||escaneando;
-  $('scan-btn').disabled=!s.user||!s.ocr?.activo||enviando||escaneando;
-  $('scan-estado').textContent=s.ocr?.activo?'Escaneo habilitado al iniciar sesión con Google. Verificá los datos antes de registrar.':'Escaneo disponible solo del 6 al 14 de noviembre de 2026, hora de Paraguay. Podés registrar manualmente después de iniciar sesión.';
+  [...f.elements].forEach(el=>{el.disabled=!s.user||!eventoId||busy;});
+  $('enviar').disabled=!s.user||!eventoId||busy;
+  $('scan-btn').disabled=!s.user||!eventoId||!s.ocr?.activo||busy;
+  $('scan-estado').textContent=window.PtitpEvents.ocrMessage(s);
   $('reportes').hidden=!s.user?.admin;
-  window.PtitpMobile?.renderSession({...s,busy:enviando||escaneando,scanning:escaneando});
+  window.PtitpEvents.render({...s,busy});
+  window.PtitpMobile?.renderSession({...s,busy,scanning:escaneando,switching:cambiandoEvento||s.eventLoading});
   pintarCola();
+}
+async function cambiarEvento(id){
+  const previous=sesion.getSnapshot().eventoSeleccionado?.id||'';
+  if(enviando||escaneando||cambiandoEvento||!id||id===previous){$('evento-selector').value=previous;return;}
+  if(window.PtitpMobile?.hasDraft()&&!window.confirm('Hay un formulario sin enviar. ¿Descartarlo y cambiar de actividad? Los pendientes conservan su actividad original.')){$('evento-selector').value=previous;return;}
+  cambiandoEvento=true;pintarSesion(sesion.getSnapshot());
+  try{
+    if(await sesion.selectEvent(id)){
+      limpiar();const url=new URL(location.href);url.searchParams.set('evento',id);history.replaceState(null,'',url);
+    }
+  }finally{cambiandoEvento=false;pintarSesion(sesion.getSnapshot());}
 }
 $('login-google').addEventListener('click',async()=>{
   if(iniciando)return;iniciando=true;$('login-google').disabled=true;
@@ -764,6 +832,7 @@ function datos(){
       ? window.crypto.randomUUID()
       : 'req_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10),
     evento: $('evento').value.trim(),
+    eventoId:sesion.getSnapshot().eventoSeleccionado?.id||'',
     promotor: $('promotor').value.trim(),
     nombre: $('nombre').value.trim(),
     empresa: $('empresa').value.trim(),
@@ -899,7 +968,7 @@ f.addEventListener('submit', async e=>{
 
   const p = datos();
   const revision=revisionFormulario;
-  const actual=()=>sesion.getSnapshot().user?.uid===p.operadorUid&&revisionFormulario===revision;
+  const actual=()=>sesion.getSnapshot().user?.uid===p.operadorUid&&sesion.getSnapshot().eventoSeleccionado?.id===p.eventoId&&revisionFormulario===revision;
   try {guardarPendiente(p);pintarCola();}
   catch(err){return aviso('No se pudo guardar en este dispositivo. Conserve el formulario y libere espacio antes de reintentar.',true);}
   enviando=true;pintarSesion(sesion.getSnapshot());$('enviar').textContent = 'Enviando…';
@@ -940,9 +1009,10 @@ async function escanearTarjeta(){
   const file = $('tarjeta-file').files[0];
   if(!file) return;
   const usuario=sesion.getSnapshot().user;
-  if(!usuario||!sesion.getSnapshot().ocr?.activo)return aviso('Escaneo disponible con Google solo del 6 al 14 de noviembre de 2026.',true);
+  const actividad=sesion.getSnapshot().eventoSeleccionado;
+  if(!usuario||!actividad||!sesion.getSnapshot().ocr?.activo)return aviso('El escaneo no está disponible para esta actividad. Consultá las fechas o registrá manualmente.',true);
   const revision=revisionFormulario;
-  const actual=()=>sesion.getSnapshot().user?.uid===usuario.uid&&revisionFormulario===revision;
+  const actual=()=>sesion.getSnapshot().user?.uid===usuario.uid&&sesion.getSnapshot().eventoSeleccionado?.id===actividad.id&&revisionFormulario===revision;
   const b = $('scan-btn');
   escaneando=true;pintarSesion(sesion.getSnapshot());b.textContent = '📷 Analizando tarjeta…';
   try{
@@ -952,7 +1022,7 @@ async function escanearTarjeta(){
     $('tarjeta-thumb').src = thumb; $('tarjeta-thumb').hidden = false;
     const r = await fetchConTiempo(API_URL, {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ accion:'ocrTarjeta', idToken, imagen:b64, mime:'image/jpeg',
+      body: JSON.stringify({ accion:'ocrTarjeta', idToken, eventoId:actividad.id, imagen:b64, mime:'image/jpeg',
                              promotor: $('promotor').value.trim() }),
     });
     const j = await r.json();
@@ -1069,12 +1139,13 @@ function esAdmin(){
 }
 async function abrirReporte(params){
   if(!esAdmin())return;
+  const request={accion:'abrirReporte',...params,...window.PtitpEvents.reportFilter()};
   try{
     const idToken=await sesion.getIdToken();
     const form=document.createElement('form');
     form.method='POST';form.action=API_URL;form.target='_blank';form.rel='noopener noreferrer';
     const input=document.createElement('input');input.type='hidden';input.name='reportRequest';
-    input.value=JSON.stringify({accion:'abrirReporte',...params,evento:$('rep-evento').value,idToken});
+    input.value=JSON.stringify({...request,idToken});
     form.append(input);document.body.append(form);form.submit();form.remove();
   }catch(e){if(e.authRequired)sesion.invalidate();aviso(e.message||'No se pudo abrir el reporte',true);}
 }
@@ -1083,6 +1154,9 @@ document.getElementById('ver-hoy').addEventListener('click', ()=>{
 });
 document.getElementById('ver-expo').addEventListener('click', ()=>{
   abrirReporte({action:'reporteExpo'});
+});
+$('ver-periodo').addEventListener('click',()=>{
+  const e=window.PtitpEvents.officialPeriod();if(e?.desde&&e?.hasta)abrirReporte({action:'reporteRango',desde:e.desde,hasta:e.hasta});
 });
 
 /* 寄送報告：只寄到 Config 受控收件人，可寄 當日/日期範圍/全展期 */
@@ -1123,7 +1197,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
   if(!t || !esAdmin()) return;
   const payload = {
     accion: 'enviarReporteA',
-    evento: $('rep-evento').value,
+    ...window.PtitpEvents.reportFilter(),
     tipo: document.querySelector('input[name=repTipo]:checked').value,
   };
   if(payload.tipo === 'rango'){
@@ -1151,7 +1225,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.13.0';
+const APP_VERSION = '1.14.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
@@ -1164,12 +1238,12 @@ async function verificarVersion(){
 }
 document.getElementById('act-banner').addEventListener('click', ()=>{
   if(window.PtitpMobile?.hasDraft()&&!window.confirm('Hay un formulario sin enviar. ¿Descartarlo y actualizar? Los registros pendientes se conservan.'))return;
-  location.href = location.pathname + '?v=' + Date.now() + location.hash; // 帶參數強制抓新 HTML
+  const url=new URL(location.href);url.searchParams.set('v',Date.now());location.href=url.toString();
 });
 setInterval(verificarVersion, 3*60*1000);        // 每 3 分鐘
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) verificarVersion(); }); // 回到前景時
 verificarVersion();
-if(location.search.indexOf('v=') !== -1) history.replaceState(null, '', location.pathname + location.hash); // 清掉網址參數
+if(new URL(location.href).searchParams.has('v')){const url=new URL(location.href);url.searchParams.delete('v');history.replaceState(null,'',url);}
 
 /* 連線狀態指示 + 恢復連線自動重送 */
 function estadoRed(){
@@ -1185,6 +1259,16 @@ function estadoRed(){
 window.addEventListener('online', estadoRed);
 window.addEventListener('offline', estadoRed);
 window.PtitpMobile?.init({switchTab:mostrarPestana});
+window.PtitpEvents.init({getSnapshot:()=>sesion.getSnapshot(),selectEvent:cambiarEvento,reload:()=>sesion.reloadEvents(),saveEvent:async eventoConfig=>{
+  if(!esAdmin())throw new Error('Solo administración puede configurar actividades');
+  const uid=sesion.getSnapshot().user.uid,idToken=await sesion.getIdToken(uid);
+  const r=await fetchConTiempo(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion:'guardarEvento',eventoConfig,idToken})});
+  if(r.ok===false)throw new Error('Servicio temporalmente no disponible. Reintentá.');
+  const j=await r.json();
+  if(sesion.getSnapshot().user?.uid!==uid)throw new Error('La cuenta cambió. Volvé a abrir la configuración.');
+  if(!j.ok){if(j.authRequired)sesion.invalidate();throw new Error(j.error||'No se pudo guardar la actividad');}
+  return j;
+}});
 estadoRed(); pintarCola();
 pintarSesion(sesion.getSnapshot());sesion.start();
 // Recheck once at the event boundaries; the server always enforces the actual window.

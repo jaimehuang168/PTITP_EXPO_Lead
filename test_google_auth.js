@@ -17,7 +17,7 @@ const sheet={getLastRow:()=>rows.length,appendRow:r=>rows.push([...r]),getDataRa
 function localDate(d){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Asuncion',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);return ['year','month','day'].map(k=>p.find(v=>v.type===k).value).join('-');}
 const ctx=vm.createContext({console,Date:ClockDate,Math,JSON,
   PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]||'',setProperty:(k,v)=>{quotaWrites++;props[k]=v;}})},
-  SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>sheet}),flush(){}},
+  SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:name=>name==='Leads'?sheet:null}),flush(){}},
   LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},
   Utilities:{formatDate:(d,tz,fmt)=>localDate(d)+(fmt.includes('HH')?' 12:00:00':''),base64DecodeWebSafe:s=>Buffer.from(s,'base64url'),base64Decode:s=>Buffer.from(s,'base64'),newBlob:b=>({getDataAsString:()=>Buffer.from(b).toString()})},
   DriveApp:{getFoldersByName:()=>({hasNext:()=>true,next:()=>({createFile:()=>{driveWrites++;return{getUrl:()=> 'https://drive.google.com/file/d/test/view'};}})})},

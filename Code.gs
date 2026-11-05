@@ -15,6 +15,7 @@ const CONFIG = {
   SHEET_LEADS: 'Leads',
   SHEET_REPORTES: 'Reportes',
   SHEET_CONFIG: 'Config',
+  SHEET_EVENTOS: 'Eventos',
   // 備用收件人：正常情況請改用 Sheet 的「Config」分頁 B1 儲存格填寫（可多個，逗號分隔），
   // 那裡改完立即生效，不需要重新部署
   REPORT_EMAIL: '',
@@ -22,7 +23,7 @@ const CONFIG = {
   EVENTO_DEFAULT: 'EXPO PBW',
   EVENTO_DESDE: '2026-11-10',
   EVENTO_HASTA: '2026-11-14',
-  VERSION: '1.12.0',
+  VERSION: '1.14.0',
   ADMIN_EMAIL: 'jaimehuang168@gmail.com',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
@@ -43,6 +44,7 @@ const HEADERS = [
   'Fecha límite seguimiento', 'Responsable seguimiento', 'Estado',
   'Tarjeta (imagen)', 'LeadID', 'RequestID',
   'Registrado por (email)', 'Google UID', 'Nombre de cuenta',
+  'Evento ID',
 ];
 
 // ══════════ 初始化：第一次執行 setup() 建立表頭 ══════════
@@ -59,7 +61,7 @@ function setup() {
   } else {
     // 遷移：舊表補上新增欄標頭
     let hdr = sh.getDataRange().getValues()[0];
-    ['Tarjeta (imagen)', 'LeadID', 'RequestID', 'Registrado por (email)', 'Google UID', 'Nombre de cuenta'].forEach(col => {
+    ['Tarjeta (imagen)', 'LeadID', 'RequestID', 'Registrado por (email)', 'Google UID', 'Nombre de cuenta', 'Evento ID'].forEach(col => {
       if (hdr.indexOf(col) === -1) {
         sh.getRange(1, hdr.length + 1).setValue(col);
         hdr = hdr.concat([col]);
@@ -87,6 +89,7 @@ function setup() {
   if (!tiene('fecha inicio')) cfg.appendRow(['Fecha inicio reportes', '', 'yyyy-mm-dd · vacío = enviar todos los días']);
   if (!tiene('fecha fin'))    cfg.appendRow(['Fecha fin reportes', '', 'yyyy-mm-dd · vacío = sin límite']);
   if (!tiene('hora'))         cfg.appendRow(['Hora de envío (0-23)', 19, 'hora local Paraguay; se aplica de inmediato']);
+  _asegurarEventos(ss);
   Logger.log('✅ 初始化完成');
 }
 
@@ -116,6 +119,7 @@ function doPost(e) {
 
   // 名片辨識分支（不佔用問卷寫入的鎖）
   if (d.accion === 'ocrTarjeta') return _ocrTarjeta(d);
+  if (d.accion === 'guardarEvento') return _guardarEvento(d);
   if (d.accion === 'enviarReporteA') {
     const auth = _autorizarAdministrador(d.idToken);
     if (!auth.ok) return _json(auth);
@@ -124,12 +128,15 @@ function doPost(e) {
 
   const auth = _autorizarOperador(d.idToken);
   if (!auth.ok) return _json(auth);
-  if (d.accion === 'sesion') return _json({ok:true,usuario:auth.usuario,ocr:_estadoEscaneo()});
+  if (d.accion === 'sesion') return _json({ok:true,usuario:auth.usuario,..._configuracionEventos(d.eventoId)});
   if (d.operadorUid && d.operadorUid !== auth.usuario.uid)
     return _json({ok:false,authRequired:true,retryable:false,error:'Iniciá sesión con la cuenta que creó este registro pendiente'});
+  const seleccion=_eventoRegistro(d);
+  if(seleccion.error)return _json({ok:false,retryable:false,error:seleccion.error});
   const validado = _validarLead(d);
   if (validado.error) return _json({ ok: false, error: validado.error });
   d = validado.datos;
+  if(seleccion.evento){d.evento=_textoSeguro(seleccion.evento.nombre);d.eventoId=seleccion.evento.id;}
   d.promotor = _textoSeguro((auth.usuario.nombre || auth.usuario.email).slice(0,100));
 
   const lock = LockService.getScriptLock();
@@ -146,6 +153,10 @@ function doPost(e) {
     const rid = d.requestId || '';
     if (rid && _requestIdExiste(sh, rid))
       return _json({ ok: true, duplicate: true, msg: 'Lead ya registrado' });
+    const vigente=seleccion.evento?_leerEventos().find(e=>e.id===seleccion.evento.id):null;
+    if(seleccion.evento&&(!vigente||!vigente.visible))
+      return _json({ok:false,retryable:false,error:'Actividad archivada. Conservá el pendiente y pedí al administrador que la habilite para completarlo.'});
+    if(vigente){d.evento=_textoSeguro(vigente.nombre);d.eventoId=vigente.id;}
 
     const cabecera = _columnasAuditoria(sh);
     const fila = [
@@ -177,7 +188,7 @@ function doPost(e) {
       rid,
     ];
     while(fila.length < cabecera.length) fila.push('');
-    [['Registrado por (email)',auth.usuario.email],['Google UID',auth.usuario.uid],['Nombre de cuenta',auth.usuario.nombre]]
+    [['Registrado por (email)',auth.usuario.email],['Google UID',auth.usuario.uid],['Nombre de cuenta',auth.usuario.nombre],['Evento ID',d.eventoId||'']]
       .forEach(([col,value])=>{fila[cabecera.indexOf(col)]=_textoSeguro(value);});
     sh.appendRow(fila);
 
@@ -196,8 +207,8 @@ function _ocrTarjeta(d) {
   try {
     const auth = _autorizarOperador(d.idToken);
     if (!auth.ok) return _json(auth);
-    const permiso = _estadoEscaneo();
-    if (!permiso.activo) return _json({ok:false,retryable:false,error:'Escaneo disponible solo del 6 al 14 de noviembre de 2026 (hora de Paraguay)'});
+    const permiso = _estadoEscaneo(d.eventoId);
+    if (!permiso.activo) return _json({ok:false,retryable:false,error:'Escaneo no habilitado para esta actividad o fuera de su período (hora de Paraguay)'});
     d.promotor = auth.usuario.nombre || auth.usuario.email;
     if (!d.imagen) return _json({ ok: false, error: 'Falta la imagen' });
     if (typeof d.imagen !== 'string' || d.imagen.length > CONFIG.OCR_MAX_BASE64 ||
@@ -292,9 +303,8 @@ function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
   if (['reporte','reporteExpo','reporteRango','fichas','fichasPdf','reportePdf'].indexOf(action) !== -1)
     return _json({ok:false,error:'Abra el reporte desde el formulario (POST)'});
-  if (action === 'config') return _json({ok:true,evento:CONFIG.EVENTO_DEFAULT,
-    desde:CONFIG.EVENTO_DESDE,hasta:CONFIG.EVENTO_HASTA,zona:CONFIG.ZONA_HORARIA,version:CONFIG.VERSION,
-    auth:_configuracionGoogle(),ocr:_estadoEscaneo()});
+  if (action === 'config') return _json({ok:true,zona:CONFIG.ZONA_HORARIA,version:CONFIG.VERSION,
+    auth:_configuracionGoogle(),..._configuracionEventos(e.parameter.eventoId)});
   return _respuestaReporte(e);
 }
 
@@ -305,6 +315,9 @@ function _respuestaReporte(e) {
   if (privadas.indexOf(action) !== -1) {
     const auth = _autorizarReporte(e);
     if (!auth.ok) return _json(auth);
+    const normal=_parametrosEvento(e.parameter);
+    if(normal.error)return _json({ok:false,retryable:false,error:normal.error});
+    e={parameter:normal.params};
   }
 
   if (action === 'reporte') {
@@ -329,7 +342,7 @@ function _respuestaReporte(e) {
   // 可列印 Lead 資料卡：?action=fichas&tipo=dia|rango|expo[&fecha|&desde&hasta][&calif=A,B]
   if (action === 'fichas' || action === 'fichasPdf') {
     try {
-      const sel = _fichasSegunTipo(e.parameter);
+      const sel = _fichasSegunTipo(e.parameter,true);
       if (sel.error) return _json({ ok: false, error: sel.error });
       const html = _htmlFichas(sel.leads, sel.titulo, sel.evento, e.parameter, action === 'fichas');
       if (action === 'fichas')
@@ -388,7 +401,10 @@ function _htmlReporte(texto, titulo) {
 // ══════════ 每日報告（可手動執行，或由觸發器每晚自動執行） ══════════
 function generarReporteDiario() {
   const fecha = Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
-  const rpt = _construirReporte(fecha,CONFIG.EVENTO_DEFAULT);
+  const id=PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
+  const evento=_leerEventos().find(e=>e.id===id);
+  if(!evento)throw new Error('Revise la actividad predeterminada antes de generar el reporte');
+  const rpt = _construirReporte(fecha,_filtroEvento(evento));
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const rep = ss.getSheetByName(CONFIG.SHEET_REPORTES) || ss.insertSheet(CONFIG.SHEET_REPORTES);
@@ -481,10 +497,115 @@ function _configuracionGoogle(){
   return {required:true,configured:!!projectId&&!!apiKey,firebase:{projectId,apiKey,authDomain:projectId?projectId+'.firebaseapp.com':''}};
 }
 
-function _estadoEscaneo(){
+const EVENT_HEADERS=['ID','Nombre','Inicio','Fin','Escaneo habilitado','Escaneo inicio','Escaneo fin','Disponible','Nombre histórico','Versión'];
+function _eventosIniciales(){
+  return [
+    {id:'pbw-2026',nombre:CONFIG.EVENTO_DEFAULT,desde:CONFIG.EVENTO_DESDE,hasta:CONFIG.EVENTO_HASTA,ocrHabilitado:true,ocrDesde:CONFIG.OCR_DESDE,ocrHasta:CONFIG.OCR_HASTA,visible:true,legacyNombre:'EXPO PBW',revision:1},
+    {id:'expo-paraguay-2026',nombre:'Expo Paraguay 2026',desde:'',hasta:'',ocrHabilitado:false,ocrDesde:'',ocrHasta:'',visible:true,legacyNombre:'Expo Paraguay 2026',revision:1}
+  ];
+}
+function _booleanoEvento(value){return value===true||value===1||String(value).toLowerCase()==='true';}
+function _filaEvento(e){return[e.id,_textoSeguro(e.nombre),e.desde,e.hasta,e.ocrHabilitado,e.ocrDesde,e.ocrHasta,e.visible,e.legacyNombre,e.revision];}
+function _asegurarEventos(ss){
+  let sh=ss.getSheetByName(CONFIG.SHEET_EVENTOS);
+  if(!sh)sh=ss.insertSheet(CONFIG.SHEET_EVENTOS);
+  if(sh.getLastRow()===0){sh.appendRow(EVENT_HEADERS);_eventosIniciales().forEach(e=>sh.appendRow(_filaEvento(e)));sh.setFrozenRows(1);}
+  return sh;
+}
+function _leerEventos(){
+  const sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_EVENTOS);
+  if(!sh)return _eventosIniciales();
+  const values=sh.getDataRange().getValues();if(!values.length)return [];
+  const H={};values[0].forEach((name,index)=>H[name]=index);
+  if(H.ID==null||H.Nombre==null)throw new Error('Revise los encabezados de Eventos');
+  return values.slice(1).filter(row=>/^[a-zA-Z0-9_-]{3,80}$/.test(String(row[H.ID]||''))).map(row=>{
+    const desde=_fechaTexto(row[H.Inicio]),hasta=_fechaTexto(row[H.Fin]);
+    const ocrDesde=_fechaTexto(row[H['Escaneo inicio']]),ocrHasta=_fechaTexto(row[H['Escaneo fin']]);
+    return{id:String(row[H.ID]),nombre:String(row[H.Nombre]||'').trim(),desde,hasta,
+      ocrHabilitado:_booleanoEvento(row[H['Escaneo habilitado']])&&_fechaValida(ocrDesde)&&_fechaValida(ocrHasta)&&ocrDesde<=ocrHasta,
+      ocrDesde,ocrHasta,visible:_booleanoEvento(row[H.Disponible]),legacyNombre:String(row[H['Nombre histórico']]||''),revision:Number(row[H['Versión']])||1};
+  }).filter(e=>e.nombre);
+}
+function _configuracionEventos(eventoId){
+  const eventos=_leerEventos(),defaultId=PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
+  const id=eventoId||defaultId;
+  const evento=typeof id==='string'?eventos.find(e=>e.id===id&&e.visible):null;
+  return {eventos:eventos.map(e=>({...e,predeterminado:e.id===defaultId})),eventoDefaultId:defaultId,
+    eventoSeleccionado:evento||null,eventoError:evento?'':'Actividad no disponible. Elegí otra actividad.',
+    evento:evento?.nombre||'',desde:evento?.desde||'',hasta:evento?.hasta||'',ocr:_estadoEscaneo(id)};
+}
+function _eventoRegistro(raw){
+  const eventos=_leerEventos();
+  if(raw.eventoId){
+    const evento=typeof raw.eventoId==='string'&&eventos.find(e=>e.id===raw.eventoId);
+    return evento?{evento}:{error:'Actividad no encontrada. Conservá el registro y consultá al administrador.'};
+  }
+  const nombre=String(raw.evento||'').trim();
+  const id=PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
+  const evento=nombre?eventos.find(e=>e.legacyNombre===nombre):eventos.find(e=>e.id===id);
+  return{evento:evento||null}; // Legacy queued labels are preserved, never reassigned to another exhibition.
+}
+function _guardarEvento(d){
+  const auth=_autorizarAdministrador(d.idToken);if(!auth.ok)return _json(auth);
+  const raw=d.eventoConfig;
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return _json({ok:false,error:'Configuración inválida'});
+  const lock=LockService.getScriptLock();if(!lock.tryLock(30000))return _json({ok:false,retryable:true,error:'Sistema ocupado; reintente'});
+  try{
+    const eventos=_leerEventos();
+    const id=raw.id||'evt_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
+    if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{3,80}$/.test(id))return _json({ok:false,error:'ID de actividad inválido'});
+    const anterior=eventos.find(e=>e.id===id);
+    if(!anterior&&raw.revision&&Number(raw.revision)!==0)return _json({ok:false,conflict:true,error:'La actividad cambió. Volvé a cargar la configuración.'});
+    const nombre=typeof raw.nombre==='string'?raw.nombre.trim():'';
+    if(!nombre||nombre.length>120||/[\x00-\x1f]/.test(nombre))return _json({ok:false,error:'Escribí un nombre válido (máximo 120 caracteres)'});
+    const desde=String(raw.desde||''),hasta=String(raw.hasta||'');
+    const sinFechaHistorica=!!anterior?.legacyNombre&&!desde&&!hasta;
+    if(!sinFechaHistorica&&(!_fechaValida(desde)||!_fechaValida(hasta)||desde>hasta))return _json({ok:false,error:'Fechas oficiales inválidas'});
+    const ocrDesde=String(raw.ocrDesde||''),ocrHasta=String(raw.ocrHasta||''),ocrHabilitado=raw.ocrHabilitado===true;
+    if((ocrHabilitado||ocrDesde||ocrHasta)&&(!_fechaValida(ocrDesde)||!_fechaValida(ocrHasta)||ocrDesde>ocrHasta))return _json({ok:false,error:'Fechas de escaneo inválidas'});
+    const evento={id,nombre,desde,hasta,ocrHabilitado,ocrDesde,ocrHasta,visible:raw.visible!==false,legacyNombre:anterior?.legacyNombre||'',revision:(anterior?.revision||0)+1};
+    if(anterior&&Number(raw.revision||0)!==anterior.revision){
+      const igual=['nombre','desde','hasta','ocrHabilitado','ocrDesde','ocrHasta','visible'].every(k=>evento[k]===anterior[k]);
+      if(!(Number(raw.revision||0)===0&&anterior.revision===1&&igual))return _json({ok:false,conflict:true,error:'La actividad cambió en otra sesión. Volvé a cargarla antes de guardar.'});
+      return _json({ok:true,..._configuracionEventos(id),evento:anterior});
+    }
+    if(!anterior&&eventos.length>=100)return _json({ok:false,error:'Se alcanzó el máximo de actividades configuradas'});
+    const sh=_asegurarEventos(SpreadsheetApp.getActiveSpreadsheet()),values=sh.getDataRange().getValues();
+    const index=values.findIndex((row,i)=>i>0&&String(row[0])===id);
+    if(index<0)sh.appendRow(_filaEvento(evento));else sh.getRange(index+1,1,1,EVENT_HEADERS.length).setValues([_filaEvento(evento)]);
+    SpreadsheetApp.flush();
+    if(raw.predeterminado===true&&evento.visible)PropertiesService.getScriptProperties().setProperty('EVENTO_DEFAULT_ID',id);
+    return _json({ok:true,..._configuracionEventos(id),evento});
+  }catch(err){Logger.log('Event settings error: '+String(err));return _json({ok:false,retryable:true,error:'No se pudo guardar la actividad. Conservá los datos y reintentá.'});}
+  finally{lock.releaseLock();}
+}
+function _filtroEvento(evento){return{id:evento.id,nombre:evento.nombre,legacyNombre:evento.legacyNombre};}
+function _parametrosEvento(p){
+  const params={...(p||{})};
+  if(params.eventoId){const evento=typeof params.eventoId==='string'&&_leerEventos().find(e=>e.id===params.eventoId);if(!evento)return{error:'Actividad no encontrada'};params.evento=_filtroEvento(evento);}
+  else if(params.evento&&typeof params.evento!=='string')return{error:'Filtro de actividad inválido'};
+  else params.evento=_prepararFiltroEvento(params.evento);
+  return{params};
+}
+function _prepararFiltroEvento(filtro){
+  if(typeof filtro!=='string'||!filtro)return filtro;
+  const legado=_leerEventos().find(e=>e.legacyNombre===filtro);return legado?_filtroEvento(legado):filtro;
+}
+function _coincideEvento(row,H,filtro){
+  if(!filtro)return true;
+  if(typeof filtro==='string')return String(row[H.Evento])===filtro;
+  const id=H['Evento ID']==null?'':String(row[H['Evento ID']]||'');
+  return id?id===filtro.id:!!filtro.legacyNombre&&String(row[H.Evento])===filtro.legacyNombre;
+}
+function _tituloEventoFiltro(filtro){return typeof filtro==='object'&&filtro?filtro.nombre:(filtro||'Todos los eventos');}
+
+function _estadoEscaneo(eventoId){
+  const eventos=_leerEventos();
+  const id=eventoId||PropertiesService.getScriptProperties().getProperty('EVENTO_DEFAULT_ID')||'pbw-2026';
+  const evento=eventos.find(e=>e.id===id);
   const hoy=Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'yyyy-MM-dd');
-  return {activo:hoy>=CONFIG.OCR_DESDE&&hoy<=CONFIG.OCR_HASTA,
-    desde:CONFIG.OCR_DESDE,hasta:CONFIG.OCR_HASTA,zona:CONFIG.ZONA_HORARIA,limiteDiario:CONFIG.OCR_LIMITE_DIARIO};
+  return {activo:!!evento&&evento.visible&&evento.ocrHabilitado&&hoy>=evento.ocrDesde&&hoy<=evento.ocrHasta,
+    desde:evento?.ocrDesde||'',hasta:evento?.ocrHasta||'',zona:CONFIG.ZONA_HORARIA,limiteDiario:CONFIG.OCR_LIMITE_DIARIO};
 }
 
 function _autorizarOperador(idToken){
@@ -529,7 +650,7 @@ function _autorizarOperador(idToken){
 
 function _columnasAuditoria(sh){
   const cabecera=sh.getDataRange().getValues()[0].slice();
-  ['Registrado por (email)','Google UID','Nombre de cuenta'].forEach(col=>{
+  ['Registrado por (email)','Google UID','Nombre de cuenta','Evento ID'].forEach(col=>{
     if(!cabecera.includes(col)){sh.getRange(1,cabecera.length+1).setValue(col);cabecera.push(col);}
   });
   return cabecera;
@@ -547,6 +668,7 @@ function _autorizarAdministrador(idToken){
 
 function _enviarReporteAdmin(p) {
   try {
+    const normal=_parametrosEvento(p);if(normal.error)return _json({ok:false,error:normal.error});p=normal.params;
     const emails = _getReportEmails();
     if (!emails) return _json({ ok: false, error: 'No hay destinatarios configurados' });
     const sel = _reporteSegunTipo(p || {});
@@ -663,7 +785,8 @@ function _reporteSegunTipo(p) {
 }
 
 // ══════════ Lead 資料卡（Fichas）：完整欄位、可列印設計 ══════════
-function _fichasSegunTipo(p) {
+function _fichasSegunTipo(p,normalizado=false) {
+  if(!normalizado){const normal=_parametrosEvento(p);if(normal.error)return{error:normal.error};p=normal.params;}
   const tipo = p.tipo || 'expo';
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
@@ -691,7 +814,7 @@ function _fichasSegunTipo(p) {
   const califs = String(p.calif || '').toUpperCase().split(',').filter(c => c && 'ABC'.indexOf(c) !== -1);
 
   const orden = { A: 0, B: 1, C: 2 };
-  const leads = datos.slice(1).filter(r => !p.evento || String(r[H['Evento']]) === p.evento).filter(filtro).map(r => ({
+  const leads = datos.slice(1).filter(r => _coincideEvento(r,H,p.evento)).filter(filtro).map(r => ({
     fecha: _fechaTexto(r[H['Fecha']]),
     evento: r[H['Evento']] || '', promotor: r[H['Promotor']] || '',
     nombre: r[H['Nombre']] || '', empresa: r[H['Empresa']] || '', cargo: r[H['Cargo']] || '',
@@ -709,7 +832,7 @@ function _fichasSegunTipo(p) {
   })).filter(l => !califs.length || califs.indexOf(l.calif) !== -1)
     .sort((a, b) => (orden[a.calif] - orden[b.calif]) || (a.fecha < b.fecha ? -1 : 1));
 
-  return { leads, titulo, archivo, evento: (leads[0] && leads[0].evento) || CONFIG.EVENTO_DEFAULT };
+  return { leads, titulo, archivo, evento: typeof p.evento==='object'?p.evento.nombre:(p.evento||'Todos los eventos') };
 }
 
 // 資料卡 HTML：瀏覽器（含網頁字型與列印工具列）與 GAS PDF（Helvetica）雙用
@@ -904,16 +1027,17 @@ Generado autom&aacute;ticamente &mdash; Sistema de Captaci&oacute;n PTITP &nbsp;
 
 // ══════════ 報告產生核心 ══════════
 function _construirReporte(fecha, eventoFiltro) {
+  eventoFiltro=_prepararFiltroEvento(eventoFiltro);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
   const data = sh.getDataRange().getValues();
   const H = {};
   data[0].forEach((h, i) => H[h] = i);
 
-  const rows = data.slice(1).filter(r => !eventoFiltro || String(r[H['Evento']]) === eventoFiltro)
+  const rows = data.slice(1).filter(r => _coincideEvento(r,H,eventoFiltro))
     .filter(r => _fechaTexto(r[H['Fecha']]) === fecha);
 
-  const evento = rows.length ? rows[0][H['Evento']] : CONFIG.EVENTO_DEFAULT;
+  const evento = _tituloEventoFiltro(eventoFiltro);
   const byCal = { A: [], B: [], C: [] };
   const byPais = {}, byInteres = {}, byPromotor = {};
 
@@ -996,12 +1120,13 @@ function _construirReporteExpo(evento) { return _construirReporteAgregado(null, 
 function _construirReporteRango(desde, hasta, evento) { return _construirReporteAgregado(desde, hasta, evento); }
 
 function _construirReporteAgregado(desde, hasta, eventoFiltro) {
+  eventoFiltro=_prepararFiltroEvento(eventoFiltro);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName(CONFIG.SHEET_LEADS);
   const data = sh.getDataRange().getValues();
   const H = {};
   data[0].forEach((h, i) => H[h] = i);
-  let rows = data.slice(1).filter(r => !eventoFiltro || String(r[H['Evento']]) === eventoFiltro);
+  let rows = data.slice(1).filter(r => _coincideEvento(r,H,eventoFiltro));
   if (desde && hasta) {
     rows = rows.filter(r => {
       const f = _fechaTexto(r[H['Fecha']]);
@@ -1009,7 +1134,7 @@ function _construirReporteAgregado(desde, hasta, eventoFiltro) {
     });
   }
 
-  const evento = rows.length ? rows[0][H['Evento']] : CONFIG.EVENTO_DEFAULT;
+  const evento = _tituloEventoFiltro(eventoFiltro);
   const byCal = { A: [], B: [], C: [] };
   const byPais = {}, byInteres = {}, byPromotor = {}, byDia = {};
 

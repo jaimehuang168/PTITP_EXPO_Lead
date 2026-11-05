@@ -13,8 +13,9 @@
   function render(){
     const status=$('mobile-save-status');if(!status)return;
     let text,tone='';
-    if(snapshot.busy)text=snapshot.scanning?'Analizando tarjeta…':'Guardando registro…';
+    if(snapshot.busy)text=snapshot.switching?'Cargando actividad…':snapshot.scanning?'Analizando tarjeta…':'Guardando registro…';
     else if(!snapshot.user)text='Iniciá sesión con Google';
+    else if(!snapshot.eventoSeleccionado)text='Elegí una actividad disponible';
     else if(feedback){text=feedback.text;tone=feedback.tone;}
     else if(hasDraft())text='Borrador · todavía sin guardar';
     else if(ownPending){text=ownPending===1?'1 registro pendiente de confirmación':ownPending+' registros pendientes';tone='pending';}
