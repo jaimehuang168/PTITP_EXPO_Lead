@@ -73,6 +73,23 @@ async function test(name,run){
     try{assert.equal(d.getElementById('scan-btn').disabled,true,'a second card cannot race with an unfinished save');}
     finally{finish?.();await tick();}
   });
+  await test('confirmed queue retry replaces the earlier pending feedback with a server-confirmed status',async(w,d)=>{
+    let fail=true;w.fetch=async()=>{if(fail)throw new TypeError('network down');return{ok:true,json:async()=>({ok:true})};};
+    d.getElementById('nombre').value='Offline mobile visitor';d.querySelector('input[name=calif]').checked=true;
+    d.getElementById('enviar').click();await tick();
+    assert.equal(w.eval('getCola()').length,1);assert.match(d.getElementById('mobile-save-status').textContent,/Pendiente/);
+    fail=false;await w.reintentar(true);
+    assert.equal(w.eval('getCola()').length,0);
+    assert.doesNotMatch(d.getElementById('mobile-save-status').textContent,/Pendiente/);
+    assert.match(d.getElementById('mobile-save-status').textContent,/confirmado.*Google Sheets/);
+  });
+  await test('keyboard adjustment does not scroll back to a field after the user focuses a rating',async(w,d)=>{
+    let scrolls=0;const name=d.getElementById('nombre');name.scrollIntoView=()=>{scrolls++;};
+    d.getElementById('mobile-savebar').getBoundingClientRect=()=>({top:0});
+    name.focus();d.querySelector('input[name=calif]').focus();
+    await new Promise(resolve=>setTimeout(resolve,190));
+    assert.equal(scrolls,0,'an obsolete keyboard adjustment must not move the screen away from the current control');
+  });
   await test('sign-out asks before discarding an email-only draft and cancel preserves the account and field',async(w,d,controller)=>{
     let confirmations=0;w.confirm=()=>{confirmations++;return false;};
     d.getElementById('email').value='unsent@example.com';d.getElementById('email').dispatchEvent(new w.Event('input',{bubbles:true}));

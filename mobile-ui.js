@@ -48,7 +48,10 @@
     $('mobile-rating-description').textContent={A:'Proyecto concreto y posibilidad de decidir. Seguimiento prioritario.',B:'Interés real; todavía hay detalles o plazos por definir.',C:'Consulta inicial o búsqueda de información general.'}[choice]||'Elegí según el interés y la posibilidad de avanzar.';
   }
   function status(text,tone){feedback={text,tone};render();}
-  function renderQueue(total,own){ownPending=own;render();}
+  function renderQueue(total,own){
+    if(ownPending>0&&own===0&&feedback?.tone==='pending')feedback=null;
+    ownPending=own;render();
+  }
   function reset(){feedback=null;$('espacio-detalle').open=false;updateSpace();render();}
   function resize(){
     const viewport=root.visualViewport;
@@ -69,6 +72,7 @@
     $('f').addEventListener('focusin',event=>{
       if(!event.target.matches('input:not([type=radio]):not([type=checkbox]),select,textarea'))return;
       setTimeout(()=>{
+        if(root.document.activeElement!==event.target)return;
         resize();const rect=event.target.getBoundingClientRect(),bar=$('mobile-savebar').getBoundingClientRect();
         if(rect.bottom>bar.top-12||rect.top<8)event.target.scrollIntoView?.({block:'center',behavior:'smooth'});
       },150);
