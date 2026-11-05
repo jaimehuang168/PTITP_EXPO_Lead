@@ -6,3 +6,5 @@ _crops/
 .playwright-mcp/
 test-demo-*.png
 node_modules/
+.preview/
+.superpowers/

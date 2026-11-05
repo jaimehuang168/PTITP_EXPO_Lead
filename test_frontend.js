@@ -33,7 +33,7 @@ window.fetch = async (url, opts) => {
   // F1 基本元素
   check(document.getElementById('f'), 'F1 表單存在');
   check(document.querySelectorAll('.calif input').length===3, 'F1 A/B/C 三個分級按鈕');
-  check(document.querySelectorAll('#intereses input').length===7, 'F1 興趣選項 7 個');
+  check(document.querySelectorAll('#intereses input').length===8, 'F1 興趣選項 8 個，土地與標準廠房分開');
   check(document.querySelectorAll('#proximosPasos input').length===6, 'F1 後續動作選項 6 個');
 
   const $=id=>document.getElementById(id);
