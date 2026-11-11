@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const version = '1.18.1';
+  const version = '1.19.0';
   const base = new URL('./', self.location.href);
   const cachePrefix = 'ptitp-expo-offline:' + base.pathname + ':';
   const cacheName = cachePrefix + version;
@@ -11,8 +11,8 @@
   const assets = new Map();
 
   for (const name of [
-    'mobile.css', 'presentation.css', 'mobile-ui.js', 'google-session.js',
-    'event-ui.js', 'presentation.js', 'pdf-sharing.js', 'offline.js'
+    'mobile.css', 'presentation.css', 'visit-reports.css', 'mobile-ui.js', 'google-session.js',
+    'event-ui.js', 'presentation.js', 'pdf-sharing.js', 'visit-reports.js', 'offline.js'
   ]) {
     const url = versioned(name);
     assets.set(url, url);
