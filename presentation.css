@@ -107,3 +107,30 @@ dialog.presentation-dialog[open]{display:grid;grid-template-rows:auto minmax(0,1
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.offline-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 20px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.offline-panel > div {
+  flex: 1 1 220px;
+}
+
+#offline-registration-status {
+  margin-top: 3px;
+}
+
+.network-status.sin-conexion {
+  background: #fbe4e4;
+  color: #7a1f1f;
+}
