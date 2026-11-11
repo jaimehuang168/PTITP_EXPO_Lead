@@ -2,6 +2,12 @@
 
 目前正式網站：https://jaimehuang168.github.io/PTITP_EXPO_Lead/
 
+## 1.17.0：分享園區簡報 PDF
+
+- **Materiales** 提供西文及巴西葡文原始 PDF，可預覽或下載。**Presentación** 內可直接前往。
+- 支援檔案分享的手機可先按 **Preparar PDF**，備妥後按 **Compartir PDF**，再依系統選單使用 Bluetooth、Quick Share 或 AirDrop。也可下載後從手機的「檔案」分享。
+- 展示入口：`#materiales`。首次準備選定的 PDF 需要網路。
+
 ## 1.16.0：訪客展示分頁
 
 - **Presentación** 分頁提供 7 張原始宣傳圖，可直接按 **Comenzar presentación**，或點選特定主題。

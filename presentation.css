@@ -28,3 +28,82 @@ dialog.presentation-dialog[open]{display:grid;grid-template-rows:auto minmax(0,1
 #presentation-counter{font-size:16px;white-space:nowrap}
 @media(max-width:560px){.presentation-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.presentation-card>span{padding:11px}.presentation-card strong{font-size:15px}nav.tabs{gap:5px}nav.tabs button{font-size:15px;padding-inline:10px}.presentation-viewer-header{gap:6px 10px;padding-block:8px}.presentation-viewer-header h2{font-size:17px}.presentation-zoom>span{font-size:13px}.presentation-viewer-footer{gap:8px}}
 @media(max-width:374px){nav.tabs{gap:3px}nav.tabs button{font-size:14px;padding-inline:9px}.presentation-zoom{gap:6px}.presentation-zoom>span{margin-left:0}.presentation-viewer-header,.presentation-viewer-footer{padding-inline:10px}}
+
+#abrir-materiales-pdf {
+  margin-bottom: 16px;
+}
+
+.park-pdfs {
+  margin-bottom: 24px;
+}
+
+.park-pdfs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.park-pdf {
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.park-pdf h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: var(--blue);
+}
+
+.park-pdf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.park-pdf-actions .primary-button {
+  flex-basis: 100%;
+  min-height: 48px;
+}
+
+.park-pdf-actions a {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.park-pdf-status {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.park-pdf-status:empty {
+  margin-top: 0;
+}
+
+.park-pdf-help {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.park-pdf-help summary {
+  display: list-item;
+  padding-block: 12px;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+.park-pdf-help p + p {
+  margin-top: 8px;
+}
+
+@media (max-width: 560px) {
+  .park-pdfs-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

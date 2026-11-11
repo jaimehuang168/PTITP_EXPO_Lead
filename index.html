@@ -10,8 +10,8 @@
 <meta name="theme-color" content="#006B5E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="mobile.css?v=1.16.0">
-<link rel="stylesheet" href="presentation.css?v=1.16.0">
+<link rel="stylesheet" href="mobile.css?v=1.17.0">
+<link rel="stylesheet" href="presentation.css?v=1.17.0">
 </head>
 <body>
 <a class="skip-link" href="#tab-registro">Ir al formulario</a>
@@ -447,6 +447,7 @@
 <p class="intro">Información del parque y actividades PBW 2026. Elegí una lámina para mostrarla completa o comenzá desde la primera.</p>
 <button type="button" id="presentation-start" class="primary-button">Comenzar presentación</button>
 <p class="presentation-help">Usá Anterior y Siguiente para recorrer las 7 láminas. Podés ampliar las imágenes y los códigos QR.</p>
+<button type="button" id="abrir-materiales-pdf" class="subtle-button" aria-controls="tab-materiales">Ver y compartir PDF</button>
 <div id="presentation-gallery" class="presentation-gallery" aria-label="Láminas para visitantes">
 </div>
 </section>
@@ -454,6 +455,36 @@
 <div class="page-heading">
 <h1>Materiales para compartir</h1>
 </div>
+<section class="park-pdfs" aria-labelledby="park-pdfs-title">
+<h2 id="park-pdfs-title">Presentaciones del parque</h2>
+<div class="park-pdfs-grid">
+<article class="park-pdf" data-pdf-card aria-labelledby="park-pdf-es">
+<h3 id="park-pdf-es">Español</h3>
+<p class="hint">PDF · 26 páginas · 2,7 MB</p>
+<div class="park-pdf-actions">
+<button type="button" class="primary-button" data-pdf-share hidden>Preparar PDF</button>
+<a class="subtle-button" href="assets/pdfs/PTITP_Parque_Tecnologico_Inteligente_ES_1019.pdf" target="_blank" rel="noopener">Ver PDF</a>
+<a class="subtle-button" href="assets/pdfs/PTITP_Parque_Tecnologico_Inteligente_ES_1019.pdf" download="PTITP_Parque_Tecnologico_Inteligente_ES_1019.pdf">Descargar PDF</a>
+</div>
+<p class="park-pdf-status" role="status"></p>
+</article>
+<article class="park-pdf" data-pdf-card aria-labelledby="park-pdf-pt">
+<h3 id="park-pdf-pt" lang="pt-BR">Português (Brasil)</h3>
+<p class="hint">PDF · 25 páginas · 2,6 MB</p>
+<div class="park-pdf-actions">
+<button type="button" class="primary-button" data-pdf-share hidden>Preparar PDF</button>
+<a class="subtle-button" href="assets/pdfs/PTITP_Parque_Tecnologico_Inteligente_PT-BR_1020.pdf" target="_blank" rel="noopener">Ver PDF</a>
+<a class="subtle-button" href="assets/pdfs/PTITP_Parque_Tecnologico_Inteligente_PT-BR_1020.pdf" download="PTITP_Parque_Tecnologico_Inteligente_PT-BR_1020.pdf">Descargar PDF</a>
+</div>
+<p class="park-pdf-status" role="status"></p>
+</article>
+</div>
+<details class="park-pdf-help">
+<summary>Cómo compartir con un teléfono cercano</summary>
+<p>Activá Bluetooth y Wi-Fi en ambos teléfonos. Tocá <b>Preparar PDF</b> y, cuando esté listo, <b>Compartir PDF</b>. Elegí Bluetooth o Quick Share en Android, o AirDrop en iPhone, según las opciones del teléfono. La otra persona acepta el archivo en su dispositivo.</p>
+<p>También podés usar <b>Descargar PDF</b> y compartir el archivo desde Archivos o Descargas.</p>
+</details>
+</section>
 <p class="intro">Mostrá el QR al visitante o consultá los mapas del parque.</p>
 <section id="tab-qr" class="material-qr">
 <div class="qr-grid">
@@ -588,6 +619,7 @@
 <summary>4. Trabajar en equipo, mostrar QR y mapas</summary>
 <p>
 <b>Presentación:</b> elegí una de las 7 láminas para mostrarla al visitante. La vista completa permite cambiar de imagen y ampliar los textos o códigos QR. Tocá <b>Cerrar</b> para volver; tu registro sin enviar se conserva. Las láminas PBW indican las fechas de esa campaña.</p>
+<p><b>Compartir un PDF:</b> en <b>Materiales</b>, elegí Español o Português (Brasil). Tocá <b>Preparar PDF</b> y luego <b>Compartir PDF</b>. También podés descargarlo y compartirlo desde Archivos.</p>
 <p>Para el equipo de 6–8 personas, cada promotor usa su propio dispositivo y su propio nombre. Acuerden quién registra a cada visitante para evitar duplicados. Los pendientes se guardan en cada dispositivo y navegador.</p>
 <p>
 <b>Materiales · códigos QR:</b> mostrale al visitante el formulario en su idioma o el folleto. Son enlaces externos; no asumas que completar uno equivale a guardar este registro.</p>
@@ -662,6 +694,7 @@
 <details class="guia-detalle">
 <summary>4. 多人登錄、QR Code 與地圖</summary>
 <p>「Presentación」分頁提供 7 張宣傳圖，可全畫面展示、前後切換及放大文字與 QR。按「Cerrar」關閉後會回到展示分頁，尚未送出的登錄草稿仍保留。PBW 圖片標示的是該次宣傳活動日期。</p>
+<p>在「Materiales」選擇西文或葡文簡報，按「Preparar PDF」，檔案備妥後按「Compartir PDF」。從手機選單選擇 Bluetooth、Quick Share 或 AirDrop，也可以下載後從「檔案」分享。</p>
 <p>6–8 位同仁各用自己的裝置及姓名登錄，事先分配同一訪客由誰負責，避免重複。待傳資料分別保留於各自裝置的瀏覽器。</p>
 <p>「Materiales」分頁可展示各語言詢問表及簡介 QR 供訪客掃描。這些是外部連結，填完外部表單不代表已完成此 App 的登錄。</p>
 <p>「Materiales」也提供衛星圖及配置圖，可左右滑動或開啟全螢幕；目前可用土地及廠房仍請向園區團隊確認。</p>
@@ -811,7 +844,11 @@
 <div id="aviso" role="status">
 </div>
 
-<script src="mobile-ui.js?v=1.16.0"></script><script src="google-session.js?v=1.16.0"></script><script src="event-ui.js?v=1.16.0"></script><script src="presentation.js?v=1.16.0"></script>
+<script src="mobile-ui.js?v=1.17.0"></script>
+<script src="google-session.js?v=1.17.0"></script>
+<script src="event-ui.js?v=1.17.0"></script>
+<script src="presentation.js?v=1.17.0"></script>
+<script src="pdf-sharing.js?v=1.17.0"></script>
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
@@ -1182,7 +1219,16 @@ pestanas.forEach(b=>{
     e.preventDefault();mostrarPestana(visibles[siguiente].dataset.tab);visibles[siguiente].focus();
   });
 });
-mostrarPestana(location.hash==='#guia' ? 'tab-guia' : location.hash==='#presentacion'?'tab-presentacion':'tab-registro');
+const pestanaInicial = {
+  '#guia': 'tab-guia',
+  '#presentacion': 'tab-presentacion',
+  '#materiales': 'tab-materiales'
+}[location.hash];
+mostrarPestana(pestanaInicial || 'tab-registro');
+$('abrir-materiales-pdf').addEventListener('click', () => {
+  mostrarPestana('tab-materiales');
+  $('boton-tab-materiales').focus();
+});
 $('abrir-guia').addEventListener('click',()=>{
   mostrarPestana('tab-guia');
   $('boton-tab-guia').focus();
@@ -1294,7 +1340,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.16.0';
+const APP_VERSION = '1.17.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
