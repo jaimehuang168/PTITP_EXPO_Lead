@@ -6,7 +6,6 @@ let resolveRequest, calls=0;
 const dom=new JSDOM(fs.readFileSync('index.html','utf8'),{url:'https://example.test/',runScripts:'dangerously',beforeParse(w){
   require('./test_helpers/browser-auth.cjs').installBrowserAuth(w);
   w.scrollTo=()=>{};
-  Object.defineProperty(w.navigator,'onLine',{value:false,configurable:true});
   w.fetch=async(url,opts)=>{
     if(!opts?.body)return {ok:true,json:async()=>({ok:true})};
     calls++;return new Promise(resolve=>{resolveRequest=()=>resolve({ok:true,json:async()=>({ok:true})});});

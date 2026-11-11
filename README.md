@@ -2,6 +2,12 @@
 
 目前正式網站：https://jaimehuang168.github.io/PTITP_EXPO_Lead/
 
+## 1.18.0：離線使用與客戶登錄
+
+- 出發前用 Google 登入、選好活動，再按 **Preparar sin conexión**。看到材料及登錄已備妥後，同一手機和瀏覽器可離線開啟 App、兩份 PDF、展示圖及地圖。
+- 斷線時手動填寫並按 **Guardar en el dispositivo**。待傳資料儲存在手機，重新開啟仍保留。恢復網路並使用原帳號時自動補傳，Google Sheets 確認後才移除待傳紀錄。
+- 初次準備及 Google 登入需要網路。帳號失效時需用原帳號重新登入。活動結束後仍待傳的資料由管理員依既有流程處理。
+
 ## 1.17.0：分享園區簡報 PDF
 
 - **Materiales** 提供西文及巴西葡文原始 PDF，可預覽或下載。**Presentación** 內可直接前往。

@@ -9,9 +9,9 @@
 <link rel="apple-touch-icon" href="icon-512.png">
 <meta name="theme-color" content="#006B5E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="mobile.css?v=1.17.0">
-<link rel="stylesheet" href="presentation.css?v=1.17.0">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="mobile.css?v=1.18.0">
+<link rel="stylesheet" href="presentation.css?v=1.18.0">
 </head>
 <body>
 <a class="skip-link" href="#tab-registro">Ir al formulario</a>
@@ -127,6 +127,13 @@
 <button type="button" id="salir-google" hidden="">Cerrar sesión</button>
 <p class="ayuda">Cada registro queda asociado a tu cuenta de Google. Usá tu propia cuenta en los dispositivos compartidos.</p>
 <p class="network-status" id="estado-red">Red disponible · el registro se confirma al guardar</p>
+</section>
+<section class="offline-panel" aria-label="Uso sin conexión">
+<button type="button" id="offline-prepare" class="subtle-button" hidden>Preparar sin conexión</button>
+<div>
+<p id="offline-status" role="status">Prepará este dispositivo con conexión.</p>
+<p id="offline-registration-status" class="hint" hidden></p>
+</div>
 </section>
 <section id="tab-registro" class="tab activa">
 <div class="page-heading registration-heading">
@@ -608,6 +615,8 @@
 </details>
 <details class="guia-detalle">
 <summary>3. Sin conexión o registros pendientes</summary>
+<p>Antes de salir, iniciá sesión con Google, elegí la actividad y tocá <b>Preparar sin conexión</b>. Esperá que el registro y los materiales figuren listos. Usá este mismo navegador para abrir el app, registrar visitantes y compartir los PDF sin conexión.</p>
+<p>Sin red, usá el ingreso manual y tocá <b>Guardar en el dispositivo</b>. Al volver la conexión, mantené abierto el app con la cuenta original para que los pendientes se envíen. Si la sesión venció, iniciá sesión de nuevo con esa cuenta. Los registros se quitan de los pendientes después de confirmarse en Google Sheets.</p>
 <p>
 <b>Red disponible</b> indica conexión de red; la confirmación de cada registro llega al enviarlo. <b>Pendiente de confirmación</b> significa que la copia quedó guardada en este navegador y todavía necesita confirmación del servidor.</p>
 <p>Recuperá la conexión, mantené o volvé a abrir esta app en el mismo navegador y dispositivo, y esperá el reenvío automático. También podés tocar el botón <b>pendiente(s)</b> junto al estado, encima de <b>Guardar y continuar</b>. Al confirmarse todos, ese botón desaparece.</p>
@@ -844,11 +853,11 @@
 <div id="aviso" role="status">
 </div>
 
-<script src="mobile-ui.js?v=1.17.0"></script>
-<script src="google-session.js?v=1.17.0"></script>
-<script src="event-ui.js?v=1.17.0"></script>
-<script src="presentation.js?v=1.17.0"></script>
-<script src="pdf-sharing.js?v=1.17.0"></script>
+<script src="mobile-ui.js?v=1.18.0"></script>
+<script src="google-session.js?v=1.18.0"></script>
+<script src="event-ui.js?v=1.18.0"></script>
+<script src="presentation.js?v=1.18.0"></script>
+<script src="pdf-sharing.js?v=1.18.0"></script>
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
@@ -864,8 +873,112 @@ $('evento').readOnly = true;
 
 let enviando=false,escaneando=false,cambiandoEvento=false,registroAdministracion=false,iniciando=false,ultimoUid='',estadoUid='',estadoEventoId='',revisionFormulario=0;
 f.addEventListener('input',()=>{revisionFormulario++;});
-const sesion=window.PtitpGoogleSession({apiUrl:API_URL,eventId:new URL(location.href).searchParams.get('evento')||'',onChange:s=>{pintarSesion(s);if(s.user&&navigator.onLine)reintentar();}});
+const CLAVE_OFFLINE = 'ptitp_offline_registro_v1';
+let paqueteOffline = false;
+
+function fechaParaguay() {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Asuncion', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  return ['year', 'month', 'day'].map(tipo => partes.find(parte => parte.type === tipo).value).join('-');
+}
+
+function perfilOffline(usuario, evento) {
+  if (!usuario?.uid || typeof usuario.uid !== 'string' || typeof usuario.email !== 'string' ||
+      !evento?.id || typeof evento.id !== 'string' || typeof evento.nombre !== 'string' ||
+      evento.visible !== true || evento.permiteRegistro !== true ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(evento.hasta || '') || evento.hasta < fechaParaguay()) return null;
+  return {
+    usuario: {
+      uid: usuario.uid, email: usuario.email,
+      nombre: typeof usuario.nombre === 'string' ? usuario.nombre : usuario.email,
+      admin: false
+    },
+    evento: {
+      id: evento.id, nombre: evento.nombre, desde: evento.desde, hasta: evento.hasta,
+      visible: true, permiteRegistro: true
+    }
+  };
+}
+
+function leerPerfilOffline() {
+  try {
+    const guardado = JSON.parse(localStorage.getItem(CLAVE_OFFLINE));
+    const id = new URL(location.href).searchParams.get('evento');
+    if (!guardado || (id && id !== guardado.evento?.id)) return null;
+    return perfilOffline(guardado.usuario, guardado.evento);
+  } catch {
+    return null;
+  }
+}
+
+function quitarPerfilOffline() {
+  try { localStorage.removeItem(CLAVE_OFFLINE); } catch { /* storage unavailable */ }
+}
+
+function comprobarPropietarioOffline(uid) {
+  try {
+    const perfil = JSON.parse(localStorage.getItem(CLAVE_OFFLINE));
+    if (perfil && perfil.usuario?.uid !== uid) quitarPerfilOffline();
+  } catch {
+    quitarPerfilOffline();
+  }
+}
+
+function sinConexion(s = sesion.getSnapshot()) {
+  return !navigator.onLine || s.networkUnavailable === true;
+}
+
+function guardarPerfilOffline(s) {
+  if (!paqueteOffline || !s.user || sinConexion(s) || registroAdministracion) return;
+  const perfil = perfilOffline(s.user, s.eventoSeleccionado);
+  if (!perfil) {
+    quitarPerfilOffline();
+    return;
+  }
+  try {
+    const serializado = JSON.stringify(perfil);
+    if (localStorage.getItem(CLAVE_OFFLINE) !== serializado) localStorage.setItem(CLAVE_OFFLINE, serializado);
+  } catch { /* The offline status reflects whether the profile was saved. */ }
+}
+
+function vistaRegistro(s = sesion.getSnapshot()) {
+  if (!sinConexion(s)) return s;
+  const perfil = s.user
+    ? perfilOffline(s.user, registroAdministracion ? null : s.eventoSeleccionado)
+    : leerPerfilOffline();
+  return {
+    ...s, offline: true, offlineOnly: !s.user && !!perfil, loading: false, eventLoading: false,
+    user: perfil?.usuario || null, eventos: perfil ? [perfil.evento] : [],
+    eventoSeleccionado: perfil?.evento || null, fechaLocal: fechaParaguay(), ocr: { activo: false },
+    eventoError: s.user && !perfil ? 'La actividad no admite nuevas cargas sin conexión.' : ''
+  };
+}
+
+const sesion=window.PtitpGoogleSession({
+  apiUrl: API_URL,
+  eventId: new URL(location.href).searchParams.get('evento') || '',
+  onInvalidated: quitarPerfilOffline,
+  onAccountSeen: comprobarPropietarioOffline,
+  onChange: s => {
+    pintarSesion(s);
+    if (s.user && !sinConexion(s)) reintentar();
+  }
+});
+
 function pintarSesion(s){
+  guardarPerfilOffline(s);
+  s = vistaRegistro(s);
+  const red = $('estado-red');
+  red.textContent = s.offline
+    ? s.user ? 'Sin conexión · los registros se guardan en este dispositivo' : 'Sin conexión · materiales guardados disponibles'
+    : 'Red disponible · los envíos se confirman al registrar';
+  red.classList.toggle('sin-conexion', !!s.offline);
+  const preparado = leerPerfilOffline();
+  $('offline-registration-status').hidden = !paqueteOffline;
+  $('offline-registration-status').textContent = preparado
+    ? 'Registro sin conexión listo para ' + preparado.evento.nombre + '.'
+    : 'Con conexión, iniciá sesión con Google y elegí una actividad para habilitar el registro local.';
   const uid=s.user?.uid||'';
   if(registroAdministracion&&!s.user?.admin){registroAdministracion=false;revisionFormulario++;}
   if(uid!==estadoUid){revisionFormulario++;estadoUid=uid;}
@@ -873,29 +986,35 @@ function pintarSesion(s){
   if(eventoId!==estadoEventoId){revisionFormulario++;estadoEventoId=eventoId;}
   if(s.user&&ultimoUid&&ultimoUid!==s.user.uid) limpiar();
   if(s.user)ultimoUid=s.user.uid;
-  $('login-google').hidden=!!s.user;$('login-google').disabled=s.loading||!s.configured||iniciando;
+  $('login-google').hidden=!!s.user;$('login-google').disabled=s.offline||s.loading||!s.configured||iniciando;
   $('salir-google').hidden=!s.user;
+  $('salir-google').textContent = s.offlineOnly ? 'Quitar acceso sin conexión' : 'Cerrar sesión';
   const busy=enviando||escaneando||cambiandoEvento||s.eventLoading;
   const registroDisponible=!!s.eventoSeleccionado&&(s.eventoSeleccionado.permiteRegistro===true||registroAdministracion&&s.user?.admin&&s.eventoSeleccionado.visible);
   $('salir-google').disabled=busy;
-  $('sesion-estado').textContent=s.error||(s.loading?'Comprobando el acceso…':s.user?'Sesión verificada con Google':'Iniciá sesión para registrar visitantes');
+  $('sesion-estado').textContent = s.offline
+    ? s.user ? 'Acceso local · los envíos requieren la cuenta original' : 'Conectate para habilitar el registro con Google'
+    : s.error || (s.loading ? 'Comprobando el acceso…' : s.user ? 'Sesión verificada con Google' : 'Iniciá sesión para registrar visitantes');
   $('sesion-usuario').hidden=!s.user;
   $('sesion-usuario').textContent=s.user?s.user.nombre+' · '+s.user.email:'';
   $('promotor').value=s.user?.nombre||s.user?.email||'';
   [...f.elements].forEach(el=>{el.disabled=!s.user||!registroDisponible||busy;});
   $('enviar').disabled=!s.user||!registroDisponible||busy;
+  if (!enviando) $('enviar').textContent = s.offline ? 'Guardar en el dispositivo' : 'Guardar y continuar';
   $('scan-btn').disabled=!s.user||!registroDisponible||!s.ocr?.activo||busy;
   $('fecha-visita').disabled=!registroAdministracion||busy;
   $('fecha-visita').max=s.fechaLocal||'';
   $('admin-registro-banner').hidden=!registroAdministracion;
-  $('scan-estado').textContent=window.PtitpEvents.ocrMessage(s);
+  $('scan-estado').textContent=s.offline?'Ingresá los datos manualmente. El escaneo requiere conexión.':window.PtitpEvents.ocrMessage(s);
   $('reportes').hidden=!s.user?.admin;
   window.PtitpEvents.render({...s,busy,administracion:registroAdministracion,registroDisponible});
+  if (s.offline) $('evento-selector').disabled = true;
   window.PtitpMobile?.renderSession({...s,busy,registroDisponible,scanning:escaneando,switching:cambiandoEvento||s.eventLoading});
   pintarCola();
 }
 async function cambiarEvento(id,desdeAdministracion=false){
   const snapshot=sesion.getSnapshot(),previous=snapshot.eventoSeleccionado?.id||'',uid=snapshot.user?.uid;
+  if (sinConexion(snapshot)) return false;
   if(desdeAdministracion&&!snapshot.user?.admin)return false;
   if(enviando||escaneando||cambiandoEvento||!id||id===previous&&desdeAdministracion===registroAdministracion){$('evento-selector').value=previous;return false;}
   if(window.PtitpMobile?.hasDraft()&&!window.confirm('Hay un formulario sin enviar. ¿Descartarlo y cambiar de actividad? Los pendientes conservan su actividad original.')){$('evento-selector').value=previous;return;}
@@ -926,8 +1045,8 @@ $('salir-google').addEventListener('click',async()=>{
   limpiar();await sesion.signOut();
 });
 
-function datos(){
-  const usuario=sesion.getSnapshot().user;
+function datos(snapshot = vistaRegistro()){
+  const usuario=snapshot.user;
   return {
     operadorUid:usuario?.uid||'',
     operadorEmail:usuario?.email||'',
@@ -935,7 +1054,7 @@ function datos(){
       ? window.crypto.randomUUID()
       : 'req_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10),
     evento: $('evento').value.trim(),
-    eventoId:sesion.getSnapshot().eventoSeleccionado?.id||'',
+    eventoId:snapshot.eventoSeleccionado?.id||'',
     modoRegistro:registroAdministracion?'administracion':'general',
     fechaVisita:registroAdministracion?$('fecha-visita').value:'',
     promotor: $('promotor').value.trim(),
@@ -1028,9 +1147,9 @@ function pintarCola(){
   b.style.display = n ? 'block' : 'none';
   b.textContent = n===1?'1 pendiente':`${n} pendientes`;
   b.setAttribute('aria-label',`Reenviar ${n} registro(s) pendiente(s)`);
-  const uid=sesion.getSnapshot().user?.uid;
+  const uid=vistaRegistro().user?.uid;
   const propios=getCola().filter(p=>p.operadorUid===uid&&uid).length;
-  b.disabled=!propios;
+  b.disabled=!propios||sinConexion();
   window.PtitpMobile?.renderQueue(n,propios);
   $('pendientes-info').hidden=!n;
   $('pendientes-info').textContent=n>propios?'Hay pendientes de otra cuenta o de una versión anterior. Conservá este navegador e iniciá sesión con la cuenta original; si no tienen cuenta asociada, avisá al administrador.':'Los pendientes pertenecen a esta cuenta. No borres los datos del navegador hasta confirmarlos.';
@@ -1038,6 +1157,7 @@ function pintarCola(){
 
 let reenvio = null;
 function reintentar(manual=false){
+  if (sinConexion()) return Promise.resolve();
   if(reenvio) return reenvio;
   reenvio = (async()=>{
     const uid=sesion.getSnapshot().user?.uid;
@@ -1059,23 +1179,36 @@ function reintentar(manual=false){
   return reenvio;
 }
 $('pendientes-btn').addEventListener('click', ()=>reintentar(true));
-setInterval(()=>{if(navigator.onLine && !document.hidden) reintentar();},30000);
+setInterval(()=>{if(!document.hidden) reanudarConexion();},30000);
 window.addEventListener('storage',pintarCola);
 
 f.addEventListener('submit', async e=>{
   e.preventDefault();
   if($('enviar').disabled) return;
-  if(!sesion.getSnapshot().user)return aviso('Iniciá sesión con Google',true);
+  const snapshot = vistaRegistro();
+  if(!snapshot.user)return aviso('Iniciá sesión con Google',true);
+  if (snapshot.offline && (snapshot.user.uid !== estadoUid || snapshot.eventoSeleccionado?.id !== estadoEventoId)) {
+    pintarSesion(sesion.getSnapshot());
+    return aviso('Cambió la cuenta o la actividad. Revisá el formulario antes de guardar.', true);
+  }
   if(!$('nombre').value.trim()) return aviso('Falta el nombre del visitante', true);
   if(!f.querySelector('input[name=calif]:checked')) return aviso('Falta la calificación A/B/C', true);
   if(!$('evento').value.trim() || !$('promotor').value.trim())
     return aviso('Complete evento y promotor', true);
 
-  const p = datos();
+  const p = datos(snapshot);
   const revision=revisionFormulario;
   const actual=()=>sesion.getSnapshot().user?.uid===p.operadorUid&&sesion.getSnapshot().eventoSeleccionado?.id===p.eventoId&&revisionFormulario===revision;
   try {guardarPendiente(p);pintarCola();}
   catch(err){return aviso('No se pudo guardar en este dispositivo. Conserve el formulario y libere espacio antes de reintentar.',true);}
+  if (snapshot.offline) {
+    limpiar();
+    pintarSesion(sesion.getSnapshot());
+    window.PtitpMobile?.status('Guardado en el dispositivo · pendiente de envío','pending');
+    aviso('Registro guardado en este dispositivo. Se enviará al recuperar la conexión.');
+    window.scrollTo({top:0});
+    return;
+  }
   enviando=true;pintarSesion(sesion.getSnapshot());$('enviar').textContent = 'Enviando…';
   try{
     await enviar(p);
@@ -1091,7 +1224,7 @@ f.addEventListener('submit', async e=>{
       if(actual())aviso(p._error,true);
     }
   }finally{
-    enviando=false;pintarSesion(sesion.getSnapshot());$('enviar').textContent = 'Guardar y continuar';
+    enviando=false;pintarSesion(sesion.getSnapshot());
     if(sesion.getSnapshot().user?.uid===p.operadorUid&&!$('nombre').value)window.scrollTo({top:0});
   }
 });
@@ -1249,7 +1382,7 @@ document.querySelectorAll('[data-guia-destino]').forEach(b=>{
 
 /* 報告按鈕（主管用） */
 function esAdmin(){
-  if(sesion.getSnapshot().user?.admin)return true;
+  if(!sinConexion()&&sesion.getSnapshot().user?.admin)return true;
   aviso('Solo administración puede exportar o imprimir reportes',true);return false;
 }
 async function abrirReporte(params){
@@ -1340,7 +1473,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.18.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
@@ -1361,18 +1494,26 @@ verificarVersion();
 if(new URL(location.href).searchParams.has('v')){const url=new URL(location.href);url.searchParams.delete('v');history.replaceState(null,'',url);}
 
 /* 連線狀態指示 + 恢復連線自動重送 */
-function estadoRed(){
-  const s = $('estado-red');
-  if(navigator.onLine){
-    s.textContent='● Red disponible · los envíos se confirman al registrar';
-    s.style.background='var(--verde-claro)'; s.style.color='var(--tinta)'; reintentar();
-  }else{
-    s.innerHTML='<span style="color:#C62828">●</span> Sin conexión — los registros se guardan localmente';
-    s.style.background='#FBE4E4'; s.style.color='#7A1F1F';
-  }
+async function reanudarConexion() {
+  if (!navigator.onLine) return;
+  const snapshot = sesion.getSnapshot();
+  if (!snapshot.user || snapshot.networkUnavailable) await sesion.start();
+  await reintentar();
 }
-window.addEventListener('online', estadoRed);
-window.addEventListener('offline', estadoRed);
+window.addEventListener('online', () => {
+  pintarSesion(sesion.getSnapshot());
+  reanudarConexion();
+});
+window.addEventListener('offline', () => pintarSesion(sesion.getSnapshot()));
+window.addEventListener('ptitp-offline-package', event => {
+  paqueteOffline = event.detail.ready === true;
+  pintarSesion(sesion.getSnapshot());
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  pintarSesion(sesion.getSnapshot());
+  reanudarConexion();
+});
 window.PtitpMobile?.init({switchTab:mostrarPestana});
 window.PtitpPresentation?.init();
 window.PtitpEvents.init({getSnapshot:()=>sesion.getSnapshot(),selectEvent:cambiarEvento,reload:()=>sesion.reloadEvents(),saveEvent:async eventoConfig=>{
@@ -1385,18 +1526,18 @@ window.PtitpEvents.init({getSnapshot:()=>sesion.getSnapshot(),selectEvent:cambia
   if(!j.ok){if(j.authRequired)sesion.invalidate();throw new Error(j.error||'No se pudo guardar la actividad');}
   return j;
 }});
-estadoRed(); pintarCola();
-pintarSesion(sesion.getSnapshot());sesion.start();
+pintarSesion(sesion.getSnapshot());
+if (navigator.onLine) sesion.start();
 // Recheck once at the event boundaries; the server always enforces the actual window.
 setInterval(()=>{
   const s=sesion.getSnapshot();if(!navigator.onLine)return;
-  const partes=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Asuncion',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-  const hoy=['year','month','day'].map(k=>partes.find(p=>p.type===k).value).join('-');
+  const hoy = fechaParaguay();
   if(s.fechaLocal&&hoy!==s.fechaLocal){sesion.reloadEvents();return;}
   if(!s.user||!s.ocr?.desde)return;
   if((hoy>=s.ocr.desde&&hoy<=s.ocr.hasta)!==s.ocr.activo)sesion.refresh();
 },60000);
 </script>
+<script src="offline.js?v=1.18.0"></script>
 
 
 </body></html>
