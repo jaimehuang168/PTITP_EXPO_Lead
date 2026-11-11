@@ -2,6 +2,10 @@
 
 目前正式網站：https://jaimehuang168.github.io/PTITP_EXPO_Lead/
 
+## 1.18.1：參訪報名按鈕
+
+- 參訪海報的縮圖與放大畫面下方提供 **Inscribirme en la visita**，原海報上的 QR Code 也可繼續使用。
+
 ## 1.18.0：離線使用與客戶登錄
 
 - 出發前用 Google 登入、選好活動，再按 **Preparar sin conexión**。看到材料及登錄已備妥後，同一手機和瀏覽器可離線開啟 App、兩份 PDF、展示圖及地圖。

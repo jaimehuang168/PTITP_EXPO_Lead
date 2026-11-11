@@ -33,6 +33,26 @@ async function test(name,run){
     for(let i=0;i<8;i++)d.getElementById('presentation-next').click();assert.match(d.getElementById('presentation-counter').textContent,/7.*7/);assert(d.getElementById('presentation-next').disabled);
     d.getElementById('presentation-previous').click();assert.match(d.getElementById('presentation-counter').textContent,/6.*7/);
   });
+  await test('the guided-tour poster has the verified signup link in the gallery and viewer',async(w,d)=>{
+    const url = 'https://forms.gle/YpHKccuna9sJGA8e6';
+    const card = d.querySelector('button[aria-label="Mostrar: Visita guiada al parque"]');
+    const galleryLinks = d.querySelectorAll('#presentation-gallery a');
+    assert.equal(galleryLinks.length, 1);
+    assert.equal(card.nextElementSibling, galleryLinks[0]);
+    assert.equal(galleryLinks[0].href, url);
+    assert.equal(galleryLinks[0].target, '_blank');
+    card.click();
+    const link = d.getElementById('presentation-signup');
+    assert.equal(link.hidden, false);
+    assert.equal(link.href, url);
+    assert.equal(d.getElementById('presentation-image').getAttribute('src'), 'assets/presentation/visita-guiada.jpeg');
+    d.getElementById('presentation-next').click();
+    assert.equal(link.hidden, true);
+    assert.equal(link.hasAttribute('href'), false);
+    d.getElementById('presentation-previous').click();
+    assert.equal(link.hidden, false);
+    assert.equal(link.href, url);
+  });
   await test('keyboard navigation and closing return focus to the original poster button',async(w,d)=>{
     const card=d.querySelector('[data-presentation-index="2"]');assert(card);card.focus();card.click();
     const dialog=d.getElementById('presentation-dialog');dialog.dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));assert.match(d.getElementById('presentation-counter').textContent,/4.*7/);

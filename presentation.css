@@ -134,3 +134,41 @@ dialog.presentation-dialog[open]{display:grid;grid-template-rows:auto minmax(0,1
   background: #fbe4e4;
   color: #7a1f1f;
 }
+
+.presentation-card-with-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.presentation-card-with-link > .presentation-card {
+  flex: 1;
+}
+
+.presentation-signup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin-top: 0;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 16px;
+  line-height: 1.3;
+  text-align: center;
+  text-decoration: none;
+}
+
+.presentation-viewer-footer {
+  flex-wrap: wrap;
+}
+
+.presentation-viewer-footer > .presentation-signup {
+  flex-basis: 100%;
+}
+
+.presentation-viewer-footer > .presentation-signup:focus-visible {
+  outline: 3px solid #ffdf36;
+  outline-offset: 2px;
+}
