@@ -23,7 +23,7 @@ const CONFIG = {
   EVENTO_DEFAULT: 'EXPO PBW',
   EVENTO_DESDE: '2026-11-10',
   EVENTO_HASTA: '2026-11-14',
-  VERSION: '1.19.0',
+  VERSION: '1.19.1',
   ADMIN_EMAIL: 'jaimehuang168@gmail.com',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
@@ -336,7 +336,17 @@ function _respuestaReporte(e) {
   }
 
   if (action === 'reporteExpo') {
-    return _htmlReporte(_construirReporteExpo(e.parameter.evento).texto, 'Reporte acumulado del evento');
+    const evento = e.parameter.evento;
+    const reporte = _construirReporteExpo(evento);
+    if (evento?.id) {
+      try {
+        const panel = _cargarPanelVisitas(evento);
+        if (panel) return _htmlReporteVisitas(panel, reporte.texto);
+      } catch (error) {
+        Logger.log('No se pudo añadir el panel de visitas al reporte del evento.');
+      }
+    }
+    return _htmlReporte(reporte.texto, 'Reporte acumulado del evento');
   }
 
   // 日期範圍報告檢視：?action=reporteRango&desde=2026-07-06&hasta=2026-07-09
@@ -711,31 +721,35 @@ function _panelVisitasAdmin(solicitud) {
   try {
     const evento = _leerEventos().find(item => item.id === solicitud.eventoId);
     if (!evento) return _json({ok:false,error:'Actividad no encontrada'});
-
-    const config = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_CONFIG);
-    const origen = config?.getDataRange().getDisplayValues()
-      .find(row => row[0] === 'Panel de visitas · ' + evento.id);
-    if (!origen) return _json({ok:true,disponible:false});
-    const [ , spreadsheetId, , baseName, trackingName] = origen;
-    if (!/^[a-zA-Z0-9_-]{20,120}$/.test(spreadsheetId || '') || !baseName || !trackingName) {
-      throw new Error('Configuración de visitas incompleta');
-    }
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-    const base = spreadsheet.getSheetByName(baseName);
-    const tracking = spreadsheet.getSheetByName(trackingName);
-    if (!base || !tracking) throw new Error('Pestañas de visitas no disponibles');
-
-    const registros = _leerFilasPanelVisitas(base, 1, VISIT_PANEL_HEADERS);
-    const gestiones = _leerFilasPanelVisitas(tracking, 5, VISIT_TRACKING_HEADERS);
-    return _json({
-      ok:true, disponible:true, evento:evento.nombre,
-      actualizado:Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'dd/MM/yyyy HH:mm'),
-      urlSeguimiento:spreadsheet.getUrl() + '#gid=' + tracking.getSheetId(),
-      ..._datosPanelVisitas(registros, gestiones)
-    });
+    const panel = _cargarPanelVisitas(evento);
+    return _json(panel ? {ok:true,disponible:true,...panel} : {ok:true,disponible:false});
   } catch (error) {
     return _json({ok:false,error:'No se pudo leer la planilla de visitas. Revisá su configuración y acceso.'});
   }
+}
+
+function _cargarPanelVisitas(evento) {
+  const config = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_CONFIG);
+  const origen = config?.getDataRange().getDisplayValues()
+    .find(row => row[0] === 'Panel de visitas · ' + evento.id);
+  if (!origen) return null;
+  const [ , spreadsheetId, , baseName, trackingName] = origen;
+  if (!/^[a-zA-Z0-9_-]{20,120}$/.test(spreadsheetId || '') || !baseName || !trackingName) {
+    throw new Error('Configuración de visitas incompleta');
+  }
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  const base = spreadsheet.getSheetByName(baseName);
+  const tracking = spreadsheet.getSheetByName(trackingName);
+  if (!base || !tracking) throw new Error('Pestañas de visitas no disponibles');
+
+  const registros = _leerFilasPanelVisitas(base, 1, VISIT_PANEL_HEADERS);
+  const gestiones = _leerFilasPanelVisitas(tracking, 5, VISIT_TRACKING_HEADERS);
+  return {
+    evento:evento.nombre,
+    actualizado:Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'dd/MM/yyyy HH:mm'),
+    urlSeguimiento:spreadsheet.getUrl() + '#gid=' + tracking.getSheetId(),
+    ..._datosPanelVisitas(registros, gestiones)
+  };
 }
 
 function _leerFilasPanelVisitas(sheet, headerRow, headers) {
@@ -805,6 +819,78 @@ function _datosPanelVisitas(registros, gestiones) {
   }));
   const ultimo = registros.reduce((actual, fila) => !actual || fila[0] > actual[0] ? fila : actual, null);
   return {totales,demanda,prioridades,prospectos,ultimoRegistro:ultimo?.[1] || ''};
+}
+
+function _htmlReporteVisitas(panel, textoCaptacion) {
+  const totals = panel.totales;
+  const esc = _escHtml;
+  const metrics = [
+    ['Solicitudes de visita', totals.solicitudes], ['Personas inscriptas', totals.personas],
+    ['Oportunidades comerciales', totals.oportunidades], ['Con permiso y canal', totals.contactables]
+  ].map(([label, value]) => '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>').join('');
+  const max = Math.max(1, ...panel.demanda.map(item => item.cantidad));
+  const demand = panel.demanda.map(item => '<li><span>' + esc(item.nombre) +
+    '</span><span class="track" aria-hidden="true"><span style="width:' + (100 * item.cantidad / max) +
+    '%"></span></span><strong>' + item.cantidad + '</strong></li>').join('');
+  const priorityLabels = new Map(VISIT_PRIORITIES.map(([label, id]) => [id, label.replace(/^\d · /, '')]));
+  const priorities = panel.prioridades.map(item => '<span>' + esc(item.nombre) +
+    ' <strong>' + item.cantidad + '</strong></span>').join('');
+  const prospects = panel.prospectos.map(item => {
+    const details = [
+      ['Interés', item.interes], ['Superficie', item.superficie], ['Plazo', item.plazo],
+      ['Contacto', item.nombre], ['Correo', item.correo], ['Teléfono / WhatsApp', item.telefono],
+      ['ID de solicitud', item.id]
+    ].filter(([, value]) => value).map(([label, value]) => '<dt>' + label + '</dt><dd>' + esc(value) + '</dd>').join('');
+    const tracking = [item.responsable && 'Responsable: ' + item.responsable,
+      item.proximoContacto && 'Próximo contacto: ' + item.proximoContacto].filter(Boolean).join(' · ');
+    const badge = '<span class="priority">' + esc(priorityLabels.get(item.prioridad)) + '</span>';
+    return '<article' + (item.prioridad === 'prioritario' ? ' class="urgent"' : '') + '>' +
+      '<div class="state">' + badge + ' <span>' + esc(item.estado) + '</span></div>' +
+      '<h3>' + esc(item.empresa) + '</h3><p>' + esc(item.accion) + '</p>' +
+      (tracking ? '<p class="small">' + esc(tracking) + '</p>' : '') +
+      '<details><summary>Ver detalles del prospecto</summary><dl>' + details + '</dl></details></article>';
+  }).join('') || '<p class="small">No hay prospectos con permiso y canal de contacto.</p>';
+  const excluded = totals.noAutorizadas + totals.sinPermiso + totals.sinCanal;
+  const html = '<!doctype html><html lang="es-PY"><head><style>' +
+    'body{margin:0;background:#f2f6f8;color:#183446;font:16px/1.48 system-ui,sans-serif}' +
+    'main{max-width:830px;margin:auto;padding:clamp(12px,4vw,28px)}' +
+    'header{padding:clamp(16px,4vw,25px);background:#153654;color:white;border-radius:13px 13px 0 0}' +
+    'header p,h1,h2,h3{margin:0}header p{color:#d7e9f1}h1{font-size:clamp(1.5rem,4vw,2.05rem);line-height:1.16}' +
+    'h2{font-size:1.23rem}h3{font-size:1.07rem;color:#153654}section{margin-top:1.35rem}' +
+    '.content{padding:clamp(12px,4vw,22px);background:white;border:1px solid #d4e2e7;border-top:0;border-radius:0 0 13px 13px}' +
+    '.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin:0}' +
+    '.metrics div{padding:10px 12px;background:#eef4f7;border-radius:6px}.metrics div:nth-child(n+3){color:#00695e;background:#e6f5f1}' +
+    '.metrics dt{font-size:.87rem;font-weight:650}.metrics dd{margin:0;font-size:1.9rem;font-weight:750}' +
+    '.small{margin:.4rem 0;color:#4b6373;font-size:.88rem}' +
+    '.demand{margin:.65rem 0;padding:0;list-style:none;display:grid;gap:.45rem}' +
+    '.demand li{display:grid;grid-template-columns:minmax(7.5rem,1fr) minmax(1.75rem,1.6fr) 3ch;gap:.5rem;align-items:center;font-size:.9rem}' +
+    '.track,.track>span{display:block;height:.64rem;border-radius:8px}.track{background:#e4edef}.track>span{background:#007a70}' +
+    '.chips,.actions{display:flex;flex-wrap:wrap;gap:.45rem;margin:.65rem 0}' +
+    '.chips>span{border-radius:5px;background:#eaf3f6;padding:.3rem .5rem;font-size:.87rem}' +
+    '.actions a,.actions button{min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;border:1px solid #9fbbc3;' +
+      'border-radius:7px;background:white;color:#0a5c54;padding:.45rem .65rem;font:inherit;font-size:.9rem;text-decoration:none;cursor:pointer}' +
+    'article{margin:.55rem 0;padding:.65rem .8rem;border:1px solid #d5e2e7;border-left:4px solid #578b99;border-radius:8px;overflow-wrap:anywhere}' +
+    'article.urgent{border-left-color:#b37b2a}.state{color:#4b6373;font-size:.85rem}.priority{color:#153654;font-weight:700}' +
+    'article p{margin:.24rem 0}summary{min-height:40px;display:flex;align-items:center;color:#00695e;cursor:pointer;font-weight:650}' +
+    'details dl{margin:.35rem 0 0}details dt{font-weight:650}details dd{margin:0 0 .35rem}' +
+    'pre{font:13px/1.5 monospace;white-space:pre-wrap;overflow-wrap:anywhere}' +
+    '@media(max-width:610px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+    '@media print{body{background:white;print-color-adjust:exact}main{padding:0}.actions,details,.capture{display:none}article{break-inside:avoid}}' +
+    '</style></head><body><main><header><p>PTITP · ' + esc(panel.evento) + '</p>' +
+    '<h1>Visita guiada y oportunidades</h1></header><div class="content"><dl class="metrics">' + metrics + '</dl>' +
+    '<p class="small">' + totals.aprobadas + ' aprobadas · ' + totals.espera + ' en espera · ' +
+      totals.porRevisar + ' por revisar · ' + totals.noSeleccionadas + ' no seleccionadas</p>' +
+    '<p class="small">Consulta ' + esc(panel.actualizado) + ' · Hora de Paraguay</p>' +
+    '<section><h2>Demanda declarada</h2><p class="small">Una solicitud puede incluir varios intereses.</p><ul class="demand">' +
+      demand + '</ul></section><section><h2>Prospectos para seguimiento</h2><div class="chips">' + priorities + '</div>' +
+    '<p class="small">Priorizá solicitudes con espacio identificado y superficie o plazo concreto. Confirmá la unidad de superficie cuando haga falta.</p>' +
+    (excluded ? '<p class="small">Solicitudes fuera de la lista por falta de permiso o canal válido (' + excluded + ').</p>' : '') +
+    '<div class="actions"><a target="_blank" rel="noopener noreferrer" href="' + esc(panel.urlSeguimiento) +
+      '">Editar seguimiento en Sheets</a><button type="button" onclick="window.print()">Imprimir / guardar PDF</button></div>' +
+    prospects + '</section><section class="capture"><h2>Registro de captación en el evento</h2><pre>' + esc(textoCaptacion) +
+    '</pre></section></div></main></body></html>';
+  return HtmlService.createHtmlOutput(html).setTitle('PTITP — Visita guiada y oportunidades')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 function _enviarReporteAdmin(p) {

@@ -26,12 +26,13 @@ function fixture(email) {
     Date,
     Utilities:{formatDate:()=> '11/11/2026 17:06'},
     ContentService:{MimeType:{JSON:'json'},createTextOutput(text){return {text,setMimeType(){return this;}};}},
+    HtmlService:{createHtmlOutput(html){return {html,setTitle(){return this;},addMetaTag(){return this;}};}},
     SpreadsheetApp:{
       getActiveSpreadsheet(){
         activeReads++;
         return {getSheetByName:name=>name==='Config' ? {
           getDataRange:()=>({getDisplayValues:()=>[['Panel de visitas · pbw-2026',spreadsheetId,'','Base','Gestión']]})
-        } : null};
+        } : name==='Leads' ? {getDataRange:()=>({getValues:()=>[['Fecha']]})} : null};
       },
       openById(id){
         assert.equal(id, spreadsheetId);
@@ -61,10 +62,19 @@ function fixture(email) {
   const idToken = installGasAuth(context,{email});
   vm.createContext(context);
   vm.runInContext(backend, context);
-  return (eventId='pbw-2026', signed=true)=>JSON.parse(context.doPost({postData:{contents:JSON.stringify({
-    accion:'panelVisitas', eventoId:eventId, idToken:signed ? idToken : undefined,
-    spreadsheetId:'untrusted-sheet-ignored'
-  })}}).text);
+  function post(payload) {
+    return context.doPost({postData:{contents:JSON.stringify(payload)}});
+  }
+  function panel(eventId='pbw-2026', signed=true) {
+    return JSON.parse(post({
+      accion:'panelVisitas', eventoId:eventId, idToken:signed ? idToken : undefined,
+      spreadsheetId:'untrusted-sheet-ignored'
+    }).text);
+  }
+  panel.accumulated = () => post({
+    accion:'abrirReporte', action:'reporteExpo', eventoId:'pbw-2026', idToken
+  });
+  return panel;
 }
 
 async function run() {
@@ -92,6 +102,12 @@ async function run() {
   assert.equal(result.prospectos[0].accion,'Preparar ficha del lote.');
   assert.ok(!JSON.stringify(result).includes('sin-permiso@example.invalid'));
   assert.ok(!JSON.stringify(result).includes('Nota privada'));
+  const html = admin.accumulated().html;
+  assert.match(html,/Visita guiada y oportunidades/);
+  assert.match(html,/Demanda declarada/);
+  assert.match(html,/Preparar ficha del lote/);
+  assert.ok(!html.includes('sin-permiso@example.invalid'));
+  assert.equal(JSON.parse(staff.accumulated().text).ok,false);
   tracking[0][2] = 'No continuar';
   assert.equal(admin().prospectos[0].correo, '');
   tracking[0][2] = 'Reunión agendada';
