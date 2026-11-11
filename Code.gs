@@ -23,7 +23,7 @@ const CONFIG = {
   EVENTO_DEFAULT: 'EXPO PBW',
   EVENTO_DESDE: '2026-11-10',
   EVENTO_HASTA: '2026-11-14',
-  VERSION: '1.15.0',
+  VERSION: '1.19.0',
   ADMIN_EMAIL: 'jaimehuang168@gmail.com',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
@@ -120,6 +120,7 @@ function doPost(e) {
   // 名片辨識分支（不佔用問卷寫入的鎖）
   if (d.accion === 'ocrTarjeta') return _ocrTarjeta(d);
   if (d.accion === 'guardarEvento') return _guardarEvento(d);
+  if (d.accion === 'panelVisitas') return _panelVisitasAdmin(d);
   if (d.accion === 'enviarReporteA') {
     const auth = _autorizarAdministrador(d.idToken);
     if (!auth.ok) return _json(auth);
@@ -678,6 +679,132 @@ function _autorizarAdministrador(idToken){
   const auth=_autorizarOperador(idToken);
   if(!auth.ok) return auth;
   return auth.usuario.admin?auth:{ok:false,retryable:false,error:'Solo administración puede consultar, exportar o imprimir reportes'};
+}
+
+// Visit dashboards use the same calculated source as the administrative Google Sheet.
+const VISIT_PANEL_HEADERS = [
+  'ID', 'Registro', 'Empresa', 'Contacto', 'Tipo de visitante', 'Interés',
+  'Superficie', 'Plazo', 'Personas', 'Selección', 'Clase', 'Permiso / canal',
+  'Prioridad', 'Acción sugerida', 'Correo', 'WhatsApp', 'Nave', 'Terreno',
+  'Oficina', 'Zona Franca', 'Maquila', 'Alianzas'
+];
+const VISIT_TRACKING_HEADERS = [
+  'ID de prospecto', 'Empresa (automático)', 'Estado', 'Responsable',
+  'Acción acordada', 'Próximo contacto', 'Nota'
+];
+const VISIT_PRIORITIES = [
+  ['1 · Prioritario', 'prioritario', 'Prioritarios'],
+  ['2 · Por calificar', 'calificar', 'Por calificar'],
+  ['3 · En exploración', 'exploracion', 'En exploración']
+];
+const VISIT_INTERESTS = [
+  'Nave / galpón', 'Lote / terreno', 'Oficina / incubación',
+  'Zona Franca', 'Régimen de Maquila', 'Alianzas'
+];
+
+function _panelVisitasAdmin(solicitud) {
+  const auth = _autorizarAdministrador(solicitud.idToken);
+  if (!auth.ok) return _json(auth);
+  if (typeof solicitud.eventoId !== 'string' || !/^[a-zA-Z0-9_-]{3,80}$/.test(solicitud.eventoId)) {
+    return _json({ok:false,error:'Elegí una actividad para ver su panel'});
+  }
+  try {
+    const evento = _leerEventos().find(item => item.id === solicitud.eventoId);
+    if (!evento) return _json({ok:false,error:'Actividad no encontrada'});
+
+    const config = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_CONFIG);
+    const origen = config?.getDataRange().getDisplayValues()
+      .find(row => row[0] === 'Panel de visitas · ' + evento.id);
+    if (!origen) return _json({ok:true,disponible:false});
+    const [ , spreadsheetId, , baseName, trackingName] = origen;
+    if (!/^[a-zA-Z0-9_-]{20,120}$/.test(spreadsheetId || '') || !baseName || !trackingName) {
+      throw new Error('Configuración de visitas incompleta');
+    }
+    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    const base = spreadsheet.getSheetByName(baseName);
+    const tracking = spreadsheet.getSheetByName(trackingName);
+    if (!base || !tracking) throw new Error('Pestañas de visitas no disponibles');
+
+    const registros = _leerFilasPanelVisitas(base, 1, VISIT_PANEL_HEADERS);
+    const gestiones = _leerFilasPanelVisitas(tracking, 5, VISIT_TRACKING_HEADERS);
+    return _json({
+      ok:true, disponible:true, evento:evento.nombre,
+      actualizado:Utilities.formatDate(new Date(), CONFIG.ZONA_HORARIA, 'dd/MM/yyyy HH:mm'),
+      urlSeguimiento:spreadsheet.getUrl() + '#gid=' + tracking.getSheetId(),
+      ..._datosPanelVisitas(registros, gestiones)
+    });
+  } catch (error) {
+    return _json({ok:false,error:'No se pudo leer la planilla de visitas. Revisá su configuración y acceso.'});
+  }
+}
+
+function _leerFilasPanelVisitas(sheet, headerRow, headers) {
+  const size = Math.max(1, sheet.getLastRow() - headerRow + 1);
+  const [encabezados, ...rows] = sheet.getRange(headerRow, 1, size, headers.length).getDisplayValues();
+  if (!headers.every((header, index) => encabezados[index] === header)) {
+    throw new Error('Encabezados del panel de visitas inválidos');
+  }
+  return rows.filter(row => row[0]);
+}
+
+function _datosPanelVisitas(registros, gestiones) {
+  const idValido = /^V-\d{6}-\d{6}-\d{3}$/;
+  if (registros.some(row => !idValido.test(row[0]))) throw new Error('Datos de visitas no disponibles');
+  const orden = new Map(VISIT_PRIORITIES.map(([nombre, id], index) => [nombre, {id,index}]));
+  const seguimiento = new Map();
+  for (const fila of gestiones) {
+    if (!idValido.test(fila[0])) continue;
+    seguimiento.set(fila[0], seguimiento.has(fila[0]) ? null : fila);
+  }
+
+  const totales = {
+    solicitudes:registros.length, personas:0, aprobadas:0, espera:0, porRevisar:0, noSeleccionadas:0,
+    oportunidades:0, contactables:0, noAutorizadas:0, sinPermiso:0, sinCanal:0
+  };
+  const demanda = VISIT_INTERESTS.map(nombre => ({nombre,cantidad:0}));
+  const prospectos = [];
+  for (const fila of registros) {
+    totales.personas += Math.max(0, Number(fila[8]) || 0);
+    switch (fila[9]) {
+      case 'Aprobado': totales.aprobadas++; break;
+      case 'Lista de espera': totales.espera++; break;
+      case 'No seleccionado': totales.noSeleccionadas++; break;
+      default: totales.porRevisar++;
+    }
+    demanda.forEach((item, index) => { if (fila[16 + index] === '1') item.cantidad++; });
+    if (fila[10] !== 'Comercial') continue;
+    totales.oportunidades++;
+    if (fila[11] !== 'Contactable') {
+      if (fila[11] === 'No autorizado') totales.noAutorizadas++;
+      else if (fila[11] === 'Sin canal') totales.sinCanal++;
+      else totales.sinPermiso++;
+      continue;
+    }
+    const prioridad = orden.get(fila[12]);
+    if (!prioridad || !(fila[14] || fila[15])) throw new Error('Prospecto sin clasificación válida');
+    totales.contactables++;
+    const gestion = seguimiento.get(fila[0]);
+    const estado = gestion === null ? 'Revisar ID duplicado' : gestion?.[2] || 'Pendiente';
+    const contactoVisible = estado !== 'No continuar' && gestion !== null;
+    prospectos.push({
+      id:fila[0], prioridad:prioridad.id, empresa:fila[2],
+      interes:fila[5], superficie:fila[6], plazo:fila[7],
+      accion:gestion?.[4] || fila[13], estado, responsable:gestion?.[3] || '',
+      proximoContacto:gestion?.[5] || '',
+      nombre:contactoVisible ? fila[3] : '',
+      correo:contactoVisible ? fila[14] : '',
+      telefono:contactoVisible ? fila[15] : ''
+    });
+  }
+
+  const prioridadIndex = new Map(VISIT_PRIORITIES.map(([, id], index) => [id,index]));
+  prospectos.sort((a, b) => prioridadIndex.get(a.prioridad) - prioridadIndex.get(b.prioridad) ||
+    a.empresa.localeCompare(b.empresa, 'es') || a.id.localeCompare(b.id));
+  const prioridades = VISIT_PRIORITIES.map(([, id, nombre]) => ({
+    id,nombre,cantidad:prospectos.filter(item => item.prioridad === id).length
+  }));
+  const ultimo = registros.reduce((actual, fila) => !actual || fila[0] > actual[0] ? fila : actual, null);
+  return {totales,demanda,prioridades,prospectos,ultimoRegistro:ultimo?.[1] || ''};
 }
 
 function _enviarReporteAdmin(p) {

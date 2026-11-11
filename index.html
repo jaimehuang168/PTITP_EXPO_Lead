@@ -10,8 +10,9 @@
 <meta name="theme-color" content="#006B5E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="mobile.css?v=1.18.1">
-<link rel="stylesheet" href="presentation.css?v=1.18.1">
+<link rel="stylesheet" href="mobile.css?v=1.19.0">
+<link rel="stylesheet" href="presentation.css?v=1.19.0">
+<link rel="stylesheet" href="visit-reports.css?v=1.19.0">
 </head>
 <body>
 <a class="skip-link" href="#tab-registro">Ir al formulario</a>
@@ -737,6 +738,37 @@
 <select id="rep-evento">
 <option value="">Todas las actividades · histórico completo</option>
 </select>
+<section id="panel-visitas" class="visit-report" aria-labelledby="visit-report-title" hidden>
+  <header class="visit-report-header">
+    <div>
+      <h2 id="visit-report-title">Visita guiada y oportunidades</h2>
+      <p id="visit-report-period"></p>
+    </div>
+    <button type="button" id="visit-report-refresh" class="visit-report-refresh" data-visit-no-print>Actualizar</button>
+  </header>
+  <p id="visit-report-message" class="visit-report-message" role="status"></p>
+  <div id="visit-report-content" class="visit-report-content" hidden>
+    <dl id="visit-report-summary" class="visit-report-metrics"></dl>
+    <p id="visit-report-disposition" class="visit-report-disposition"></p>
+    <p id="visit-report-meta" class="visit-report-meta"></p>
+    <section class="visit-report-section" aria-labelledby="visit-report-demand-title">
+      <h3 id="visit-report-demand-title">Demanda declarada</h3>
+      <p class="visit-report-note">Una solicitud puede incluir varios intereses.</p>
+      <div id="visit-report-demand"></div>
+    </section>
+    <section class="visit-report-section" aria-labelledby="visit-report-queue-title">
+      <h3 id="visit-report-queue-title">Prospectos para seguimiento</h3>
+      <p class="visit-report-note">Priorizá solicitudes con espacio identificado y superficie o plazo concreto. Confirmá la unidad de superficie cuando haga falta.</p>
+      <p id="visit-report-exclusions" class="visit-report-note" hidden></p>
+      <div class="visit-report-tools" data-visit-no-print>
+        <a id="visit-report-link" class="secondary-button" target="_blank" rel="noopener noreferrer" hidden>Editar seguimiento en Sheets</a>
+        <button type="button" id="visit-report-print" class="secondary-button" hidden>Imprimir / guardar PDF</button>
+      </div>
+      <div id="visit-report-filters" class="visit-report-filters" role="group" aria-label="Prioridad de seguimiento" data-visit-no-print></div>
+      <div id="visit-report-queue" class="visit-report-queue" aria-live="polite"></div>
+    </section>
+  </div>
+</section>
 <div class="rep-botones">
 <button type="button" id="ver-hoy" class="secondary-button">📄 Ver reporte de hoy</button>
 <button type="button" id="ver-periodo" class="secondary-button" disabled>Ver período oficial</button>
@@ -854,11 +886,12 @@
 <div id="aviso" role="status">
 </div>
 
-<script src="mobile-ui.js?v=1.18.1"></script>
-<script src="google-session.js?v=1.18.1"></script>
-<script src="event-ui.js?v=1.18.1"></script>
-<script src="presentation.js?v=1.18.1"></script>
-<script src="pdf-sharing.js?v=1.18.1"></script>
+<script src="mobile-ui.js?v=1.19.0"></script>
+<script src="google-session.js?v=1.19.0"></script>
+<script src="event-ui.js?v=1.19.0"></script>
+<script src="presentation.js?v=1.19.0"></script>
+<script src="pdf-sharing.js?v=1.19.0"></script>
+<script src="visit-reports.js?v=1.19.0"></script>
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
@@ -876,6 +909,7 @@ let enviando=false,escaneando=false,cambiandoEvento=false,registroAdministracion
 f.addEventListener('input',()=>{revisionFormulario++;});
 const CLAVE_OFFLINE = 'ptitp_offline_registro_v1';
 let paqueteOffline = false;
+let panelVisitas;
 
 function fechaParaguay() {
   const partes = new Intl.DateTimeFormat('en-CA', {
@@ -1009,6 +1043,7 @@ function pintarSesion(s){
   $('scan-estado').textContent=s.offline?'Ingresá los datos manualmente. El escaneo requiere conexión.':window.PtitpEvents.ocrMessage(s);
   $('reportes').hidden=!s.user?.admin;
   window.PtitpEvents.render({...s,busy,administracion:registroAdministracion,registroDisponible});
+  panelVisitas?.sync();
   if (s.offline) $('evento-selector').disabled = true;
   window.PtitpMobile?.renderSession({...s,busy,registroDisponible,scanning:escaneando,switching:cambiandoEvento||s.eventLoading});
   pintarCola();
@@ -1338,6 +1373,7 @@ function mostrarPestana(id){
   });
   $('mobile-savebar').hidden=id!=='tab-registro';window.scrollTo({top:0});
   pestanas.find(b=>b.dataset.tab===id)?.scrollIntoView?.({block:'nearest',inline:'nearest'});
+  panelVisitas?.sync();
 }
 pestanas.forEach(b=>{
   b.id='boton-'+b.dataset.tab;b.setAttribute('role','tab');b.setAttribute('aria-controls',b.dataset.tab);
@@ -1474,7 +1510,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.18.1';
+const APP_VERSION = '1.19.0';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
@@ -1515,6 +1551,23 @@ document.addEventListener('visibilitychange', () => {
   pintarSesion(sesion.getSnapshot());
   reanudarConexion();
 });
+panelVisitas=window.PtitpVisitReports?.init({
+  getSnapshot:()=>sesion.getSnapshot(),
+  isOffline:sinConexion,
+  fetchReport:async eventoId=>{
+    const uid=sesion.getSnapshot().user?.uid;
+    const idToken=await sesion.getIdToken(uid);
+    const r=await fetchConTiempo(API_URL,{
+      method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({accion:'panelVisitas',eventoId,idToken})
+    });
+    if(r.ok===false)throw new Error('No se pudo cargar el panel. Volvé a intentar.');
+    const j=await r.json();
+    if(sesion.getSnapshot().user?.uid!==uid)throw new Error('La cuenta cambió. Volvé a abrir el reporte.');
+    if(!j.ok){if(j.authRequired)sesion.invalidate();throw new Error(j.error||'No se pudo cargar el panel');}
+    return j;
+  }
+});
 window.PtitpMobile?.init({switchTab:mostrarPestana});
 window.PtitpPresentation?.init();
 window.PtitpEvents.init({getSnapshot:()=>sesion.getSnapshot(),selectEvent:cambiarEvento,reload:()=>sesion.reloadEvents(),saveEvent:async eventoConfig=>{
@@ -1538,7 +1591,7 @@ setInterval(()=>{
   if((hoy>=s.ocr.desde&&hoy<=s.ocr.hasta)!==s.ocr.activo)sesion.refresh();
 },60000);
 </script>
-<script src="offline.js?v=1.18.1"></script>
+<script src="offline.js?v=1.19.0"></script>
 
 
 </body></html>
