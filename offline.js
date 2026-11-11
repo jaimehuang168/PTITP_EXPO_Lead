@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const version = '1.18.0';
+  const version = '1.18.1';
   const base = new URL('./', self.location.href);
   const cachePrefix = 'ptitp-expo-offline:' + base.pathname + ':';
   const cacheName = cachePrefix + version;

@@ -10,8 +10,8 @@
 <meta name="theme-color" content="#006B5E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="mobile.css?v=1.18.0">
-<link rel="stylesheet" href="presentation.css?v=1.18.0">
+<link rel="stylesheet" href="mobile.css?v=1.18.1">
+<link rel="stylesheet" href="presentation.css?v=1.18.1">
 </head>
 <body>
 <a class="skip-link" href="#tab-registro">Ir al formulario</a>
@@ -835,6 +835,7 @@
 <button type="button" id="presentation-retry" class="presentation-control" hidden>Reintentar</button>
 </div>
 <footer class="presentation-viewer-footer">
+<a id="presentation-signup" class="primary-button presentation-signup" target="_blank" rel="noopener noreferrer" hidden>Inscribirme en la visita</a>
 <button type="button" id="presentation-previous" class="presentation-control">Anterior</button>
 <span id="presentation-counter" role="status" aria-live="polite">1 de 7</span>
 <button type="button" id="presentation-next" class="presentation-control">Siguiente</button>
@@ -853,11 +854,11 @@
 <div id="aviso" role="status">
 </div>
 
-<script src="mobile-ui.js?v=1.18.0"></script>
-<script src="google-session.js?v=1.18.0"></script>
-<script src="event-ui.js?v=1.18.0"></script>
-<script src="presentation.js?v=1.18.0"></script>
-<script src="pdf-sharing.js?v=1.18.0"></script>
+<script src="mobile-ui.js?v=1.18.1"></script>
+<script src="google-session.js?v=1.18.1"></script>
+<script src="event-ui.js?v=1.18.1"></script>
+<script src="presentation.js?v=1.18.1"></script>
+<script src="pdf-sharing.js?v=1.18.1"></script>
 <script>
 /* ═══ 設定：貼上你的 Apps Script Web App URL（以 /exec 結尾） ═══ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyAiVlvKxMYGPqLd7lyBSvZi6Wu_0LQ9xKrMExT6l6Y50RXI9Qk-fP928JUkgNzEh7y/exec';
@@ -1473,7 +1474,7 @@ document.getElementById('enviar-reporte').addEventListener('click', async ()=>{
 });
 
 /* ═══ 版本檢查：發現線上新版就顯示更新橫幅（繞過 GitHub Pages 的 10 分鐘快取） ═══ */
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.18.1';
 document.getElementById('ver-num').textContent = 'v' + APP_VERSION;
 
 async function verificarVersion(){
@@ -1537,7 +1538,7 @@ setInterval(()=>{
   if((hoy>=s.ocr.desde&&hoy<=s.ocr.hasta)!==s.ocr.activo)sesion.refresh();
 },60000);
 </script>
-<script src="offline.js?v=1.18.0"></script>
+<script src="offline.js?v=1.18.1"></script>
 
 
 </body></html>

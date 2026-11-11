@@ -5,7 +5,13 @@
     {file:'tres-formas.jpeg',title:'Tres formas de conocer el parque',detail:'PBW 2026 · stand, presentación y visita',alt:'Agenda de las tres formas de conocer el parque: stand, presentación y visita guiada.'},
     {file:'ubicacion-stand.jpeg',title:'Ubicación del stand',detail:'PBW 2026',alt:'Plano para encontrar el stand del PTITP en PBW 2026.'},
     {file:'presentacion-parque.jpeg',title:'Presentación del parque',detail:'11 de noviembre · 17:00',alt:'Invitación a la presentación del parque el 11 de noviembre a las 17:00, con lugar, temas y contacto de confirmación.'},
-    {file:'visita-guiada.jpeg',title:'Visita guiada al parque',detail:'13 de noviembre · 14:00',alt:'Visita guiada al parque, con punto de encuentro, traslado e inscripción mediante QR.'},
+    {
+      file:'visita-guiada.jpeg',
+      title:'Visita guiada al parque',
+      detail:'13 de noviembre · 14:00',
+      alt:'Visita guiada al parque, con punto de encuentro, traslado e inscripción mediante QR.',
+      signupUrl:'https://forms.gle/YpHKccuna9sJGA8e6'
+    },
     {file:'consulta-empresas.jpeg',title:'Instalá tu empresa',detail:'Formulario de consulta',alt:'Información para empresas interesadas en instalarse en el parque, con código QR de consulta.'},
     {file:'condiciones-alquiler.jpeg',title:'Condiciones de alquiler',detail:'Formulario de interés',alt:'Información sobre condiciones de alquiler del parque, con código QR de registro.'}
   ];
@@ -29,6 +35,10 @@
     img.id='presentation-image';img.alt=slide.alt;img.width=1024;img.height=1280;img.draggable=false;
     $('presentation-image')?.remove();$('presentation-stage').prepend(img);
     $('presentation-dialog-title').textContent=slide.title;
+    const signup = $('presentation-signup');
+    signup.hidden = !slide.signupUrl;
+    if (slide.signupUrl) signup.href = slide.signupUrl;
+    else signup.removeAttribute('href');
     $('presentation-counter').textContent=(index+1)+' de '+slides.length;
     $('presentation-previous').disabled=index===0;$('presentation-next').disabled=index===slides.length-1;
     $('presentation-error').hidden=true;$('presentation-retry').hidden=true;
@@ -52,7 +62,20 @@
       card.type='button';card.className='presentation-card';card.dataset.presentationIndex=number;card.setAttribute('aria-label','Mostrar: '+slide.title);
       img.src=source(slide);img.alt='';img.width=1024;img.height=1280;img.loading='lazy';img.decoding='async';
       title.textContent=slide.title;detail.textContent=slide.detail;caption.append(title,detail);card.append(img,caption);
-      card.addEventListener('click',()=>show(number,card));$('presentation-gallery').append(card);
+      card.addEventListener('click',()=>show(number,card));
+      const gallery = $('presentation-gallery');
+      if (slide.signupUrl) {
+        const group = root.document.createElement('div');
+        const link = $('presentation-signup').cloneNode(true);
+        group.className = 'presentation-card-with-link';
+        link.removeAttribute('id');
+        link.href = slide.signupUrl;
+        link.hidden = false;
+        group.append(card, link);
+        gallery.append(group);
+      } else {
+        gallery.append(card);
+      }
     }
     $('presentation-start').addEventListener('click',event=>show(0,event.currentTarget));
     $('presentation-previous').addEventListener('click',()=>move(-1));$('presentation-next').addEventListener('click',()=>move(1));
