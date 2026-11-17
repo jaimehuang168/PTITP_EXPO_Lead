@@ -8,6 +8,14 @@
  */
 const fs = require('fs');
 
+// Keep this registration fixture inside the activity's registration window.
+const RealDate = Date;
+const fixtureTime = RealDate.parse('2026-11-11T15:00:00Z');
+global.Date = class extends RealDate {
+  constructor(...args) { super(...(args.length ? args : [fixtureTime])); }
+  static now() { return fixtureTime; }
+};
+
 // ── Mock GAS 服務 ──────────────────────────────
 class MockSheet {
   constructor(name){ this.name=name; this.rows=[]; }

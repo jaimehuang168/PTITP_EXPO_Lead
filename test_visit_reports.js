@@ -31,7 +31,10 @@ function fixture(email) {
       getActiveSpreadsheet(){
         activeReads++;
         return {getSheetByName:name=>name==='Config' ? {
-          getDataRange:()=>({getDisplayValues:()=>[['Panel de visitas · pbw-2026',spreadsheetId,'','Base','Gestión']]})
+          getDataRange:()=>({
+            getDisplayValues:()=>[['Panel de visitas · pbw-2026',spreadsheetId,'','Base','Gestión']],
+            getValues:()=>[['Panel de visitas · pbw-2026',spreadsheetId,'','Base','Gestión']]
+          })
         } : name==='Leads' ? {getDataRange:()=>({getValues:()=>[['Fecha']]})} : null};
       },
       openById(id){
