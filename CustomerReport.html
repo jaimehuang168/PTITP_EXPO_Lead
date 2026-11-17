@@ -198,7 +198,14 @@ function download(rows,filename,gantt){
  const encode=value=>gantt?csvField(text(value).replace(/"/g,'”')):csvField(value);
  const body='\uFEFF'+rows.map(row=>row.map(encode).join(',')).join('\r\n')+'\r\n';
  const href=URL.createObjectURL(new Blob([body],{type:'text/csv;charset=utf-8'})),a=create('a');
- a.href=href;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),1000);
+ a.href=href;
+ a.download=filename;
+ a.target='_blank';
+ a.rel='noopener noreferrer';
+ document.body.append(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(href),30000);
  $('status').textContent='Archivo preparado · '+(rows.length-1)+' clientes.';
 }
 function detailCsv(){

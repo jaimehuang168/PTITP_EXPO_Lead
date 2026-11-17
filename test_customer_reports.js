@@ -92,7 +92,10 @@ async function browser(){
    window.Blob=Blob;
    window.URL.createObjectURL=blob=>{downloads.push(blob);return 'blob:fixture';};
    window.URL.revokeObjectURL=()=>{};
-   window.HTMLAnchorElement.prototype.click=function(){};
+   window.HTMLAnchorElement.prototype.click=function(){
+     assert.equal(this.target,'_blank');
+     assert.equal(this.rel,'noopener noreferrer');
+   };
   }
  });
  const {window}=dom,document=window.document,$=id=>document.getElementById(id);
