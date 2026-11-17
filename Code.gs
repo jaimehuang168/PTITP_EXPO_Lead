@@ -23,7 +23,7 @@ const CONFIG = {
   EVENTO_DEFAULT: 'EXPO PBW',
   EVENTO_DESDE: '2026-11-10',
   EVENTO_HASTA: '2026-11-14',
-  VERSION: '1.20.0',
+  VERSION: '1.20.1',
   ADMIN_EMAIL: 'jaimehuang168@gmail.com',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
@@ -1686,8 +1686,12 @@ function _construirClientes(input) {
     const marked = _textoCliente(control['Preparar Gantt']);
     const ready = !customer.conflicto && marked === 'Listo para Gantt' && replyExists &&
       (confirmedArea || !!need || !!information);
+    const {controles, ...displayCustomer} = customer;
     return {
-      ...customer,
+      ...displayCustomer,
+      evidencias:customer.evidencias.map(row => Object.fromEntries(
+        Object.entries(row).map(([key,value]) => [key,_textoCliente(value)])
+      )),
       fuentes:customer.fuentes.filter((item,index,items) => items.findIndex(x => x.nombre===item.nombre && x.leadId===item.leadId)===index),
       primerCorreo:initial,respuesta:reply,declaraciones:declared,
       necesidadConfirmada:need,superficieConfirmada:confirmedArea ? surface + ' ' + unit : '',
