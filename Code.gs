@@ -23,7 +23,7 @@ const CONFIG = {
   EVENTO_DEFAULT: 'EXPO PBW',
   EVENTO_DESDE: '2026-11-10',
   EVENTO_HASTA: '2026-11-14',
-  VERSION: '1.19.1',
+  VERSION: '1.20.0',
   ADMIN_EMAIL: 'jaimehuang168@gmail.com',
   ZONA_HORARIA: 'America/Asuncion',
   // 名片掃描設定
@@ -309,7 +309,7 @@ function _carpetaTarjetas() {
 // Google credentials never appear in report URLs.
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
-  if (['reporte','reporteExpo','reporteRango','fichas','fichasPdf','reportePdf'].indexOf(action) !== -1)
+  if (['reporte','reporteExpo','reporteRango','fichas','fichasPdf','reportePdf','clientes'].indexOf(action) !== -1)
     return _json({ok:false,error:'Abra el reporte desde el formulario (POST)'});
   if (action === 'config') return _json({ok:true,zona:CONFIG.ZONA_HORARIA,version:CONFIG.VERSION,
     auth:_configuracionGoogle(),..._configuracionEventos(e.parameter.eventoId)});
@@ -319,7 +319,7 @@ function doGet(e) {
 function _respuestaReporte(e) {
   const action = e && e.parameter && e.parameter.action;
   const privadas = ['reporte', 'reporteExpo', 'reporteRango', 'fichas', 'fichasPdf',
-                    'reportePdf'];
+                    'reportePdf', 'clientes'];
   if (privadas.indexOf(action) !== -1) {
     const auth = _autorizarReporte(e);
     if (!auth.ok) return _json(auth);
@@ -327,6 +327,8 @@ function _respuestaReporte(e) {
     if(normal.error)return _json({ok:false,retryable:false,error:normal.error});
     e={parameter:normal.params};
   }
+
+  if (action === 'clientes') return _htmlReporteClientes(e.parameter.idToken);
 
   if (action === 'reporte') {
     const fecha = (e.parameter.fecha) ||
@@ -336,6 +338,7 @@ function _respuestaReporte(e) {
   }
 
   if (action === 'reporteExpo') {
+    if (_crmClientesId()) return _htmlReporteClientes(e.parameter.idToken);
     const evento = e.parameter.evento;
     const reporte = _construirReporteExpo(evento);
     if (evento?.id) {
@@ -1466,4 +1469,281 @@ function onOpen() {
 function _json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// Complete customer reporting reads CRM records and separately recorded mail evidence.
+const CUSTOMER_CONTROL_HEADERS = [
+  'LeadID','Empresa','Primer correo','Fecha primer correo','Evidencia primer correo',
+  'Respuesta comercial','Fecha respuesta','Evidencia respuesta','Necesidad confirmada',
+  'Superficie confirmada','Unidad','Plazo confirmado','Información solicitada',
+  'Resumen respuesta','Responsable','Próxima acción','Próximo contacto','Preparar Gantt',
+  'ID Gantt','Revisado el','Notas'
+];
+const CUSTOMER_MAIL_HEADERS = [
+  'Clave','LeadID','Tipo','Fecha','Remitente','Destinatario','Asunto','Evidencia',
+  'Resumen','Cuenta','MessageID','ThreadID','Revisado el'
+];
+
+function _crmClientesId() {
+  const config = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_CONFIG);
+  if (!config) return '';
+  const values = config.getDataRange().getValues();
+  return String(values.find(row => row[0] === 'CRM clientes')?.[1] || '').trim();
+}
+
+function _filasReporteClientes(sheet, required) {
+  if (!sheet) throw new Error('Falta una pestaña del reporte de clientes');
+  const last = sheet.getLastRow();
+  if (last === 0) return [];
+  const values = sheet.getRange(1, 1, last, sheet.getLastColumn()).getValues();
+  const headers = values[0].map(value => String(value).trim());
+  if (!required.every(name => headers.includes(name))) throw new Error('Encabezados de clientes inválidos');
+  return values.slice(1).map((row, index) => ({
+    fila:index + 2,
+    datos:Object.fromEntries(headers.map((header, column) => [header, row[column]]))
+  })).filter(row => String(row.datos[required[0]] || '').trim());
+}
+
+function _textoCliente(value) {
+  if (value instanceof Date) return Utilities.formatDate(value, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+  return String(value == null ? '' : value).trim();
+}
+
+function _normalizarCliente(value) {
+  return _textoCliente(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+function _emailsCliente(value) {
+  return _textoCliente(value).toLowerCase()
+    .match(/[a-z0-9.!#$%&'*+/=?^_{}|~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/g) || [];
+}
+
+function _enlaceCliente(value) {
+  const text = _textoCliente(value);
+  return /^https:\/\/(?:docs\.google\.com\/spreadsheets\/d\/|mail\.google\.com\/)/.test(text) ? text : '';
+}
+
+function _fechaCorreoCliente(value) {
+  const text = _textoCliente(value);
+  const date = value instanceof Date ? value : new Date(text);
+  return isNaN(date.getTime()) ? text.slice(0, 10) :
+    Utilities.formatDate(date, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
+}
+
+function _primeraEvidenciaCliente(rows, tipo, reciente) {
+  return rows.filter(row => row.Tipo === tipo && _enlaceCliente(row.Evidencia))
+    .sort((a,b) => (Date.parse(a.Fecha) - Date.parse(b.Fecha)) * (reciente ? -1 : 1))[0] || null;
+}
+
+function _correoCliente(control, evidencias, respuesta) {
+  const tipo = respuesta ? 'Respuesta comercial' : 'Seguimiento inicial';
+  const evidence = _primeraEvidenciaCliente(evidencias, tipo, respuesta);
+  if (evidence) return {
+    estado:'Verificado',fecha:_fechaCorreoCliente(evidence.Fecha),
+    evidencia:_enlaceCliente(evidence.Evidencia),resumen:_textoCliente(evidence.Resumen),
+    asunto:_textoCliente(evidence.Asunto),cuenta:_textoCliente(evidence.Cuenta)
+  };
+  const status = _textoCliente(control[respuesta ? 'Respuesta comercial' : 'Primer correo']);
+  const link = _enlaceCliente(control[respuesta ? 'Evidencia respuesta' : 'Evidencia primer correo']);
+  const date = _textoCliente(control[respuesta ? 'Fecha respuesta' : 'Fecha primer correo']);
+  if (link && date && /registrad|verificad/i.test(status)) return {
+    estado:'Registrado',fecha:date,evidencia:link,
+    resumen:respuesta ? _textoCliente(control['Resumen respuesta']) : '',asunto:'',cuenta:''
+  };
+  return {
+    estado:!respuesta && status === 'No enviado confirmado' ? 'No enviado confirmado' : 'Sin evidencia',
+    fecha:'',evidencia:'',resumen:'',asunto:'',cuenta:''
+  };
+}
+
+function _cargarReporteClientes() {
+  const id = _crmClientesId();
+  if (!/^[a-zA-Z0-9_-]{20,120}$/.test(id)) throw new Error('Configurá la hoja CRM clientes');
+  const expo = SpreadsheetApp.getActiveSpreadsheet();
+  const crm = SpreadsheetApp.openById(id);
+  const controles = _filasReporteClientes(crm.getSheetByName('Seguimiento comercial'), ['LeadID','Preparar Gantt']);
+  const correos = _filasReporteClientes(crm.getSheetByName('Correos clientes'), ['Clave','LeadID','Tipo','Fecha']);
+  const pipeline = _filasReporteClientes(crm.getSheetByName('Pipeline'), ['LeadID','Empresa','Evento','Etapa']);
+  const leads = _filasReporteClientes(expo.getSheetByName(CONFIG.SHEET_LEADS), ['LeadID','Empresa','Evento']);
+  const audit = crm.getSheetByName('Config').getDataRange().getValues();
+  const fechaRevision = audit.find(row => row[0] === 'Auditoría correo · consulta')?.[1] || '';
+  const cuentas = audit.find(row => row[0] === 'Auditoría correo · cuentas')?.[1] || '';
+  const controlSheet = crm.getSheetByName('Seguimiento comercial');
+  const configRows = expo.getSheetByName(CONFIG.SHEET_CONFIG).getDataRange().getValues();
+  const visitConfig = configRows.find(row => row[0] === 'Panel de visitas · pbw-2026');
+  let visitas = [];
+  if (visitConfig?.[1]) {
+    const form = SpreadsheetApp.openById(String(visitConfig[1])).getSheetByName('Form Responses 1');
+    if (form) visitas = _filasReporteClientes(form, ['Timestamp','Empresa / institución | Empresa / instituição']);
+  }
+  return _construirClientes({
+    pipeline,leads,controles,correos,visitas,
+    crmUrl:crm.getUrl(),pipelineGid:crm.getSheetByName('Pipeline').getSheetId(),
+    controlGid:controlSheet.getSheetId(),expoUrl:expo.getUrl(),
+    leadsGid:expo.getSheetByName(CONFIG.SHEET_LEADS).getSheetId(),
+    hoy:Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'yyyy-MM-dd'),
+    generado:Utilities.formatDate(new Date(),CONFIG.ZONA_HORARIA,'dd/MM/yyyy HH:mm'),
+    fechaRevision:_textoCliente(fechaRevision),cuentas:_textoCliente(cuentas)
+  });
+}
+
+function _construirClientes(input) {
+  const sourceById = new Map(input.leads.map(row => [_textoCliente(row.datos.LeadID),row]));
+  const controlById = new Map();
+  const conflicts = new Set();
+  for (const row of input.controles) {
+    const id = _textoCliente(row.datos.LeadID);
+    if (controlById.has(id)) conflicts.add(id);
+    else controlById.set(id,row);
+  }
+  const mailById = new Map();
+  for (const row of input.correos) {
+    const id = _textoCliente(row.datos.LeadID);
+    const entries = mailById.get(id) || [];
+    entries.push(row.datos);
+    mailById.set(id,entries);
+  }
+  const raw = input.pipeline.slice();
+  const existing = new Set(raw.map(row => _textoCliente(row.datos.LeadID)));
+  for (const row of input.leads) {
+    const id = _textoCliente(row.datos.LeadID);
+    if (!existing.has(id)) {
+      raw.push({fila:0,datos:{...row.datos,'Teléfono':row.datos['Teléfono/WhatsApp'],'Etapa':'Pendiente de sincronizar'}});
+      existing.add(id);
+    }
+  }
+  const groups = new Map();
+  raw.sort((a,b) => _textoCliente(a.datos.LeadID).localeCompare(_textoCliente(b.datos.LeadID)));
+  for (const record of raw) {
+    const p = record.datos;
+    const id = _textoCliente(p.LeadID);
+    const email = _emailsCliente(p.Email)[0] || '';
+    const company = _textoCliente(p.Empresa);
+    const key = email ? email + '|' + _normalizarCliente(company) : 'id:' + id;
+    let customer = groups.get(key);
+    if (!customer) {
+      customer = {
+        id,empresa:company || 'Sin empresa indicada',nombre:_textoCliente(p.Nombre),
+        email,telefono:_textoCliente(p['Teléfono']),pais:_textoCliente(p['País']),
+        sector:'',calificacion:_textoCliente(p['Calificación']),etapa:_textoCliente(p.Etapa) || 'Nuevo',
+        fuentes:[],registros:[],declaraciones:[],controles:[],evidencias:[],conflicto:false
+      };
+      groups.set(key,customer);
+    }
+    const source = sourceById.get(id);
+    const notes = _textoCliente(p.Notas);
+    const fromVisit = /Registro de Visitas/.test(notes);
+    const visitRow = fromVisit ? Number(notes.match(/fila:\s*(\d+)/i)?.[1] || 0) : 0;
+    const visit = input.visitas.find(item => item.fila === visitRow)?.datos || {};
+    const formDate = visit.Timestamp ? _fechaCorreoCliente(visit.Timestamp) : '';
+    const sourceUrl = fromVisit ? _enlaceCliente(notes.match(/Fuente:\s*(https:\S+)/i)?.[1] || '') :
+      source ? input.expoUrl + '#gid=' + input.leadsGid + '&range=A' + source.fila : '';
+    const origin = fromVisit ? 'Formulario de visita · ' + _textoCliente(p.Evento) :
+      source ? 'Registro de exposición · ' + _textoCliente(p.Evento) : 'CRM · ' + _textoCliente(p.Evento);
+    const channel = source ? _textoCliente(source.datos['Cómo nos conoció']) : '';
+    const registrationDate = source ? _fechaCorreoCliente(source.datos.Timestamp) : formDate;
+    customer.fuentes.push({
+      nombre:origin,evento:_textoCliente(p.Evento),canal:channel,fecha:registrationDate,
+      promotor:source ? _textoCliente(source.datos.Promotor) : '',url:sourceUrl,leadId:id
+    });
+    customer.registros.push({
+      id,etapa:_textoCliente(p.Etapa) || 'Nuevo',
+      url:record.fila ? input.crmUrl + '#gid=' + input.pipelineGid + '&range=A' + record.fila : sourceUrl
+    });
+    const surface = _textoCliente(p['Superficie (m²)']);
+    const visitSurface = _textoCliente(visit['Superficie estimada requerida (m² o ha) | Área estimada necessária (m² ou ha)']);
+    customer.declaraciones.push({
+      interes:_textoCliente(p.Intereses),
+      superficie:visitSurface || surface,
+      unidad:visitSurface ? 'Unidad por confirmar' : surface ? 'm²' : '',
+      plazo:source ? _textoCliente(source.datos.Plazo) :
+        _textoCliente(visit['Plazo previsto de instalación | Prazo previsto de instalação']).split('|')[0].trim()
+    });
+    if (source && !customer.sector) customer.sector = _textoCliente(source.datos['Sector/Rubro']);
+    const control = controlById.get(id);
+    if (control) customer.controles.push({
+      ...control.datos,
+      url:input.crmUrl + '#gid=' + input.controlGid + '&range=A' + control.fila
+    });
+    if (conflicts.has(id)) customer.conflicto = true;
+    customer.evidencias.push(...(mailById.get(id) || []));
+  }
+
+  const customers = [...groups.values()].map(customer => {
+    const control = customer.controles[0] || {};
+    const initial = _correoCliente(control,customer.evidencias,false);
+    const reply = _correoCliente(control,customer.evidencias,true);
+    const declared = customer.declaraciones.filter(item => item.superficie || item.interes);
+    const surface = _textoCliente(control['Superficie confirmada']);
+    const unit = _textoCliente(control.Unidad);
+    const need = _textoCliente(control['Necesidad confirmada']);
+    const information = _textoCliente(control['Información solicitada']);
+    const normalizedArea = /^[0-9]+(?:[.,][0-9]+)?$/.test(surface) ? Number(surface.replace(',','.')) : NaN;
+    const confirmedArea = normalizedArea > 0 && ['m²','ha'].includes(unit);
+    const replyExists = reply.estado !== 'Sin evidencia';
+    const marked = _textoCliente(control['Preparar Gantt']);
+    const ready = !customer.conflicto && marked === 'Listo para Gantt' && replyExists &&
+      (confirmedArea || !!need || !!information);
+    return {
+      ...customer,
+      fuentes:customer.fuentes.filter((item,index,items) => items.findIndex(x => x.nombre===item.nombre && x.leadId===item.leadId)===index),
+      primerCorreo:initial,respuesta:reply,declaraciones:declared,
+      necesidadConfirmada:need,superficieConfirmada:confirmedArea ? surface + ' ' + unit : '',
+      plazoConfirmado:_textoCliente(control['Plazo confirmado']),informacionSolicitada:information,
+      resumenRespuesta:_textoCliente(control['Resumen respuesta']) || reply.resumen,
+      responsable:_textoCliente(control.Responsable) ||
+        _textoCliente(raw.find(row => _textoCliente(row.datos.LeadID)===customer.id)?.datos.Responsable),
+      proximaAccion:_textoCliente(control['Próxima acción']) ||
+        _textoCliente(raw.find(row => _textoCliente(row.datos.LeadID)===customer.id)?.datos['Próxima acción']),
+      proximoContacto:_textoCliente(control['Próximo contacto']),
+      seguimientoUrl:control.url || input.crmUrl + '#gid=' + input.controlGid,
+      revision:_textoCliente(control['Revisado el']),notas:_textoCliente(control.Notas),
+      gantt:ready ? 'Listo para Gantt' : ['Vinculado','No continuar'].includes(marked) ? marked :
+        replyExists && (need || information || confirmedArea) ? 'Candidato por revisar' : 'Por calificar',
+      listoGantt:ready,idGantt:_textoCliente(control['ID Gantt']) || 'CRM-' + customer.id
+    };
+  }).sort((a,b) => a.empresa.localeCompare(b.empresa,'es') || a.id.localeCompare(b.id));
+  const countBy = (items,key) => [...new Set(items.map(key))].map(nombre => ({
+    nombre,cantidad:items.filter(item => key(item)===nombre).length
+  })).sort((a,b) => b.cantidad-a.cantidad || a.nombre.localeCompare(b.nombre,'es'));
+  return {
+    generado:input.generado,hoy:input.hoy,fechaRevision:input.fechaRevision,cuentas:input.cuentas,
+    crmUrl:input.crmUrl,seguimientoUrl:input.crmUrl + '#gid=' + input.controlGid,
+    totalRegistros:raw.length,clientes:customers,
+    estadisticas:{
+      clientes:customers.length,registros:raw.length,
+      primerCorreo:customers.filter(c => ['Verificado','Registrado'].includes(c.primerCorreo.estado)).length,
+      sinEvidencia:customers.filter(c => c.primerCorreo.estado==='Sin evidencia').length,
+      respuestas:customers.filter(c => c.respuesta.estado!=='Sin evidencia').length,
+      necesidades:customers.filter(c => c.respuesta.estado!=='Sin evidencia' &&
+        (c.necesidadConfirmada || c.superficieConfirmada || c.informacionSolicitada)).length,
+      listosGantt:customers.filter(c => c.listoGantt).length,
+      vencidos:customers.filter(c => c.proximoContacto && c.proximoContacto < input.hoy &&
+        !/Ganado|Perdido|En pausa/.test(c.etapa)).length
+    },
+    origenes:countBy(customers.flatMap(c => [...new Set(c.fuentes.map(f=>f.nombre))].map(nombre => ({nombre}))),c=>c.nombre),
+    etapas:countBy(customers,c=>c.etapa)
+  };
+}
+
+function _htmlReporteClientes(idToken) {
+  const report = _cargarReporteClientes();
+  const template = HtmlService.createTemplateFromFile('CustomerReport');
+  template.sessionJson = JSON.stringify({idToken});
+  template.reportJson = JSON.stringify(report).replace(/</g,'\\u003c')
+    .replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+  return template.evaluate().setTitle('PTITP — Clientes y seguimiento comercial')
+    .addMetaTag('viewport','width=device-width, initial-scale=1');
+}
+
+function actualizarReporteClientes(idToken) {
+  const auth = _autorizarAdministrador(idToken);
+  if (!auth.ok) return auth;
+  try {
+    return {ok:true,report:_cargarReporteClientes()};
+  } catch (error) {
+    return {ok:false,error:'No se pudo leer el reporte. Revisá la conexión y las hojas del CRM.'};
+  }
 }

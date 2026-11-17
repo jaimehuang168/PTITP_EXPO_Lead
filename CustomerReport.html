@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="es-PY">
+<head>
+<meta charset="utf-8">
+<title>PTITP · Clientes y seguimiento comercial</title>
+<style>
+:root{font-family:"IBM Plex Sans",system-ui,sans-serif;color:#213b4b;background:#eef3f6;--navy:#153654;--teal:#006b5e;--line:#d7e2e8;--muted:#526773}
+*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button,a,input,select,summary{touch-action:manipulation}
+button,.button{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;padding:.55rem .85rem;border:1px solid #9bb5bf;border-radius:7px;background:white;color:var(--navy);font-weight:600;text-decoration:none;cursor:pointer}
+button:hover,.button:hover{background:#eef6f5}button:disabled{opacity:.5;cursor:default}a{color:var(--teal);overflow-wrap:anywhere}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #2494ad;outline-offset:3px}
+main{max-width:1360px;margin:auto;padding:clamp(12px,2.6vw,32px)}h1,h2,h3,p{margin:0}h1{font-size:clamp(1.6rem,3vw,2.2rem);line-height:1.15}h2{font-size:1.18rem;color:var(--navy)}h3{font-size:1.05rem}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:1rem;background:var(--navy);color:white;padding:clamp(16px,2.8vw,30px);border-radius:12px 12px 0 0}.top p{margin-top:.5rem;color:#dce9ef;font-size:.9rem}.top .button,.top button{background:transparent;border-color:#9dc2cc;color:white}
+.toolbar{display:flex;flex-wrap:wrap;gap:.5rem}.sheet{padding:clamp(12px,2vw,24px);background:white;border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px}
+.notice{margin:.6rem 0;color:var(--muted);font-size:.86rem;line-height:1.4}.notice:empty{display:none}#status{padding:.7rem 0;color:var(--teal)}#status:empty{display:none}
+.metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin:0;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}.metrics>div{padding:.85rem .75rem;background:#f3f7f9}.metrics>div:nth-child(n+4){background:#e8f5f0}.metrics dt{font-size:.85rem;line-height:1.25;font-weight:600}.metrics dd{margin:.35rem 0 0;font-size:1.85rem;line-height:1;font-weight:750;font-variant-numeric:tabular-nums}
+.charts{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:1.5rem;margin:1.35rem 0}.chart{min-width:0}.bar-list{display:grid;gap:.55rem;list-style:none;margin:.75rem 0 0;padding:0}.bar-list li{display:grid;grid-template-columns:minmax(9rem,1.8fr) minmax(2rem,1fr) 3ch;align-items:center;gap:.55rem;font-size:.85rem}.bar{height:.6rem;background:#e4ecef;border-radius:8px;overflow:hidden}.bar>span{display:block;background:var(--teal);height:100%;border-radius:inherit}.bar-list strong{text-align:right}
+.filters{display:grid;grid-template-columns:minmax(220px,2fr) repeat(3,minmax(140px,1fr));gap:.65rem;margin:1rem 0;padding:1rem;background:#f1f6f8;border-radius:8px}.filters label{display:grid;gap:.3rem;min-width:0;font-size:.85rem;font-weight:600}.filters input,.filters select{min-height:44px;min-width:0;width:100%;padding:.45rem .55rem;background:white;border:1px solid #a9bec7;border-radius:6px;color:var(--navy)}.filters .extra{grid-column:span 1}
+.list-top{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center;justify-content:space-between;margin:.85rem 0}.list-top p{font-size:.9rem;color:var(--muted)}.list-top .toolbar button{font-size:.85rem}.primary{background:var(--teal);border-color:var(--teal);color:white}.primary:hover{background:#005b50}
+.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.85rem;table-layout:fixed}th{text-align:left;font-size:.8rem;color:white;background:var(--navy);padding:.65rem .55rem;font-weight:650}td{padding:.75rem .55rem;vertical-align:top;border-bottom:1px solid var(--line);overflow-wrap:anywhere}tbody tr:nth-child(even){background:#f5f8fa}th:nth-child(1){width:21%}th:nth-child(2){width:19%}th:nth-child(3){width:16%}th:nth-child(4){width:21%}th:nth-child(5){width:17%}th:nth-child(6){width:6%}td p+p{margin-top:.3rem}.company{font-size:.95rem;font-weight:700;color:var(--navy)}.muted{color:var(--muted);font-size:.82rem}.badge{display:inline-block;border-radius:4px;padding:.15rem .4rem;margin-bottom:.3rem;font-size:.78rem;font-weight:650;color:#395363;background:#e9eff3}.badge.verified{background:#def2e9;color:#075642}.badge.pending{background:#fff0d4;color:#7e500f}.detail-button{padding:.4rem;font-size:.8rem;width:100%}.pager{display:flex;align-items:center;justify-content:space-between;gap:.7rem;margin-top:1rem}.empty{padding:1.5rem;text-align:center;color:var(--muted)}
+dialog{width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:0;border-radius:12px;box-shadow:0 12px 70px #0f304940}dialog::backdrop{background:#0f263a70}.dialog-head{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem;background:var(--navy);color:white}.dialog-head h2{color:white}.dialog-head button{color:white;border-color:#9ac0c8;background:transparent}.dialog-body{padding:1rem 1.2rem}.detail-section{margin:.75rem 0 1.25rem}.detail-section h3{color:var(--teal);border-bottom:1px solid var(--line);padding-bottom:.4rem;margin-bottom:.6rem}.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.detail-grid>div{min-width:0}.detail-grid dt{font-size:.8rem;color:var(--muted);font-weight:650}.detail-grid dd{margin:.2rem 0 0;overflow-wrap:anywhere;font-size:.92rem}.source-list,.evidence-list{padding-left:1.1rem}.source-list li,.evidence-list li{margin:.6rem 0;font-size:.88rem}.source-list p,.evidence-list p{margin-top:.2rem}.dialog-foot{display:flex;flex-wrap:wrap;gap:.5rem;padding:0 1.2rem 1.2rem}#print-details{display:none}
+@media(max-width:1000px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.filters{grid-template-columns:repeat(2,minmax(0,1fr))}th:nth-child(6){width:9%}th:nth-child(1){width:20%}}
+@media(max-width:650px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:1fr;gap:1.15rem}.bar-list li{grid-template-columns:minmax(8rem,1.7fr) minmax(2rem,1fr) 3ch}.filters{padding:.75rem}.filters label:first-child{grid-column:1/-1}.filters label:last-child{grid-column:1/-1}.top .toolbar{width:100%}.top .toolbar>*{flex:1}.table-wrap{overflow:visible}table,tbody{display:block}thead{display:none}tbody tr{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-left:4px solid #7c9dab;border-radius:8px;margin:.65rem 0;padding:.6rem;gap:.55rem}td{display:block;border:0;padding:0}td::before{content:attr(data-label);display:block;color:var(--muted);font-size:.75rem;font-weight:650;margin-bottom:.25rem}td:first-child{grid-column:1/-1}td:first-child::before{display:none}td:nth-child(5){grid-column:1/-1}td:nth-child(6){grid-column:1/-1}.detail-button{width:auto;min-width:110px}.detail-grid{grid-template-columns:1fr}.pager{flex-wrap:wrap}}
+@media print{body{background:white}main{padding:0;max-width:none}.top{padding:14px;background:white;color:#153654;border-bottom:2px solid #153654}.top p{color:#526773}.no-print,.filters,dialog{display:none!important}.sheet{padding:10px 0;border:0}.metrics{grid-template-columns:repeat(6,minmax(0,1fr));print-color-adjust:exact}.metrics dd{font-size:1.35rem}.charts{display:grid;grid-template-columns:1fr 1fr;break-inside:avoid}table{font-size:9px;table-layout:fixed}th,td{padding:5px;print-color-adjust:exact}tr{break-inside:avoid}th:nth-child(6),td:nth-child(6){display:none}.table-wrap{overflow:visible}.pager{display:none}#print-details{display:block}#print-details article{break-inside:avoid;padding:.5rem 0;border-bottom:1px solid #ddd}h2,h3{break-after:avoid}a{color:inherit;text-decoration:none}}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <div><h1>Clientes y seguimiento comercial</h1><p id="generated"></p></div>
+  <nav class="toolbar no-print" aria-label="Acciones del reporte">
+    <button id="refresh" type="button">Actualizar</button>
+    <a id="tracking-link" class="button" target="_blank" rel="noopener noreferrer">Registrar seguimiento</a>
+    <button id="print" type="button">Imprimir / PDF</button>
+  </nav>
+</header>
+<div class="sheet">
+<p id="status" role="status" aria-live="polite"></p>
+<dl id="metrics" class="metrics"></dl>
+<p id="audit" class="notice"></p>
+<div class="charts">
+  <section class="chart"><h2>Origen de los clientes</h2><div id="source-chart"></div><p class="notice">Un cliente puede tener más de un origen.</p></section>
+  <section class="chart"><h2>Avance comercial</h2><div id="progress-chart"></div></section>
+</div>
+<form id="filters" class="filters no-print" aria-label="Filtrar clientes" onsubmit="return false">
+  <label>Buscar cliente<input id="search" type="search" placeholder="Empresa, persona, Email o LeadID" autocomplete="off"></label>
+  <label>Origen<select id="source"><option value="">Todos los orígenes</option></select></label>
+  <label>Primer seguimiento<select id="mail"><option value="">Todos</option><option value="sent">Envío con evidencia</option><option value="unknown">Sin evidencia</option><option value="not-sent">No enviado confirmado</option></select></label>
+  <label>Respuesta<select id="reply"><option value="">Todas</option><option value="replied">Respuesta comercial</option><option value="needs">Necesidad o información solicitada</option><option value="unknown">Sin evidencia de respuesta</option></select></label>
+  <label>Gantt<select id="gantt"><option value="">Todos</option><option>Listo para Gantt</option><option>Candidato por revisar</option><option>Vinculado</option><option>Por calificar</option><option>No continuar</option></select></label>
+  <label>Próximo contacto<select id="due"><option value="">Todos</option><option value="overdue">Vencidos</option><option value="month">Este mes</option><option value="unassigned">Sin fecha</option></select></label>
+</form>
+<div class="list-top">
+  <div><h2>Detalle de clientes</h2><p id="visible-count"></p></div>
+  <div class="toolbar no-print">
+    <button id="csv" type="button">Descargar detalle CSV</button>
+    <button id="gantt-csv" class="primary" type="button">Exportar para PTITP Gantt</button>
+  </div>
+</div>
+<p class="notice">El detalle conserva los LeadID y el origen de cada inscripción. El seguimiento se actualiza en la hoja y se recarga con Actualizar.</p>
+<p class="notice no-print">Para exportar a Gantt, registrá la respuesta y la necesidad o información solicitada en Seguimiento comercial, y elegí Listo para Gantt.</p>
+<div class="table-wrap">
+<table><thead><tr><th>Empresa / contacto</th><th>Origen</th><th>Primer seguimiento</th><th>Respuesta / necesidad</th><th>Próximo paso</th><th>Detalle</th></tr></thead><tbody id="customers"></tbody></table>
+</div>
+<p id="empty" class="empty" hidden>No hay clientes con estos filtros.</p>
+<div class="pager no-print"><button id="previous" type="button">Anterior</button><span id="page" aria-live="polite"></span><button id="next" type="button">Siguiente</button></div>
+<section id="print-details"></section>
+</div>
+</main>
+<dialog id="detail" aria-labelledby="detail-title">
+<header class="dialog-head"><h2 id="detail-title"></h2><button id="close" type="button">Cerrar</button></header>
+<div id="detail-body" class="dialog-body"></div>
+<footer class="dialog-foot"><a id="edit-client" class="button" target="_blank" rel="noopener noreferrer">Actualizar seguimiento</a></footer>
+</dialog>
+<script type="application/json" id="report-data"><?!= reportJson ?></script>
+<script type="application/json" id="report-session"><?!= sessionJson ?></script>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+let report=JSON.parse($('report-data').textContent);
+const session=JSON.parse($('report-session').textContent);
+$('report-session').remove();
+let page=0,visible=[],printing=false;
+const pageSize=25;
+const sent=client=>['Verificado','Registrado'].includes(client.primerCorreo.estado);
+const replied=client=>client.respuesta.estado!=='Sin evidencia';
+const hasNeed=client=>replied(client)&&!!(client.necesidadConfirmada||client.superficieConfirmada||client.informacionSolicitada);
+const text=value=>String(value??'');
+const unique=values=>[...new Set(values.filter(Boolean))];
+const create=(tag,content,className)=>{const el=document.createElement(tag);if(content!==undefined)el.textContent=content;if(className)el.className=className;return el;};
+const normalize=value=>text(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+function link(label,href){const a=create('a',label);if(/^https:\/\/(?:docs\.google\.com\/spreadsheets\/d\/|mail\.google\.com\/)/.test(href)){a.href=href;a.target='_blank';a.rel='noopener noreferrer';}return a;}
+function badge(status){return create('span',status,'badge '+(/Verificad|Registrad|Listo/.test(status)?'verified':'pending'));}
+function metric(label,value){const el=create('div');el.append(create('dt',label),create('dd',value));return el;}
+function bars(data){const ul=create('ul',undefined,'bar-list');const max=Math.max(1,...data.map(x=>x.cantidad));for(const item of data){const li=create('li'),track=create('span',undefined,'bar'),fill=create('span');track.setAttribute('aria-hidden','true');fill.style.width=100*item.cantidad/max+'%';track.append(fill);li.append(create('span',item.nombre),track,create('strong',item.cantidad));ul.append(li);}return ul;}
+function valuePair(list,label,value){if(!value)return;const el=create('div');el.append(create('dt',label),create('dd',value));list.append(el);}
+function section(label){const el=create('section',undefined,'detail-section');el.append(create('h3',label));return el;}
+function evidenceSection(label,evidence){const el=section(label),grid=create('dl',undefined,'detail-grid');valuePair(grid,'Estado',evidence.estado);valuePair(grid,'Fecha',evidence.fecha);valuePair(grid,'Asunto',evidence.asunto);valuePair(grid,'Resumen',evidence.resumen);el.append(grid);if(evidence.evidencia)el.append(link('Abrir evidencia en Gmail',evidence.evidencia));return el;}
+function showDetail(client){
+  $('detail-title').textContent=client.empresa;
+  const body=$('detail-body');body.replaceChildren();
+  const contact=section('Datos de contacto'),grid=create('dl',undefined,'detail-grid');
+  valuePair(grid,'Persona',client.nombre);valuePair(grid,'Email',client.email);valuePair(grid,'Teléfono',client.telefono);
+  valuePair(grid,'País',client.pais);valuePair(grid,'Sector',client.sector);valuePair(grid,'Etapa',client.etapa);
+  valuePair(grid,'LeadID',client.registros.map(x=>x.id).join(' / '));contact.append(grid);body.append(contact);
+  const sources=section('Origen e inscripciones'),sourceList=create('ul',undefined,'source-list');
+  for(const item of client.fuentes){const li=create('li');li.append(create('strong',item.nombre));
+    if(item.fecha)li.append(create('p','Fecha '+item.fecha));
+    if(item.canal)li.append(create('p','Cómo conoció el parque · '+item.canal));
+    if(item.promotor)li.append(create('p','Registró · '+item.promotor));
+    li.append(create('p',item.leadId));if(item.url)li.append(link('Abrir registro original',item.url));sourceList.append(li);}
+  sources.append(sourceList);body.append(sources,evidenceSection('Primer seguimiento comercial',client.primerCorreo),evidenceSection('Respuesta comercial',client.respuesta));
+  const needs=section('Necesidad y datos solicitados'),needGrid=create('dl',undefined,'detail-grid');
+  valuePair(needGrid,'Necesidad confirmada',client.necesidadConfirmada);valuePair(needGrid,'Superficie confirmada',client.superficieConfirmada);
+  valuePair(needGrid,'Plazo confirmado',client.plazoConfirmado);valuePair(needGrid,'Información solicitada',client.informacionSolicitada);
+  valuePair(needGrid,'Resumen de la respuesta',client.resumenRespuesta);needs.append(needGrid);
+  for(const d of client.declaraciones){const p=create('p',unique([d.interes,d.superficie&&'Superficie declarada '+d.superficie+' '+d.unidad,d.plazo]).join(' · '),'notice');needs.append(p);}
+  body.append(needs);
+  const follow=section('Seguimiento mensual'),followGrid=create('dl',undefined,'detail-grid');
+  valuePair(followGrid,'Responsable',client.responsable);valuePair(followGrid,'Próxima acción',client.proximaAccion);valuePair(followGrid,'Próximo contacto',client.proximoContacto);
+  valuePair(followGrid,'PTITP Gantt',client.gantt);valuePair(followGrid,'ID para Gantt',client.idGantt);valuePair(followGrid,'Revisión',client.revision);valuePair(followGrid,'Notas',client.notas);
+  follow.append(followGrid);body.append(follow);
+  const others=client.evidencias.filter(e=>e.Tipo!=='Seguimiento inicial'&&e.Tipo!=='Respuesta comercial');
+  if(others.length){const el=section('Otros correos registrados'),list=create('ul',undefined,'evidence-list');
+    for(const item of others){const li=create('li');li.append(create('strong',item.Tipo+' · '+text(item.Fecha).slice(0,10)),create('p',item.Resumen||item.Asunto));
+      if(item.Evidencia)li.append(link('Ver correo',item.Evidencia));list.append(li);}el.append(list);body.append(el);}
+  $('edit-client').href=client.seguimientoUrl;
+  $('detail').showModal();
+}
+function selected(){
+ const query=normalize($('search').value.trim()),source=$('source').value,mail=$('mail').value,reply=$('reply').value,gantt=$('gantt').value,due=$('due').value;
+ return report.clientes.filter(c=>{
+  const matchesText=!query||normalize([c.empresa,c.nombre,c.email,c.telefono,...c.registros.map(r=>r.id)].join(' ')).includes(query);
+  const matchesSource=!source||c.fuentes.some(f=>f.nombre===source);
+  const matchesMail=!mail||(mail==='sent'&&sent(c))||(mail==='unknown'&&c.primerCorreo.estado==='Sin evidencia')||(mail==='not-sent'&&c.primerCorreo.estado==='No enviado confirmado');
+  const matchesReply=!reply||(reply==='replied'&&replied(c))||(reply==='needs'&&hasNeed(c))||(reply==='unknown'&&!replied(c));
+  const matchesDue=!due||(due==='overdue'&&c.proximoContacto&&c.proximoContacto<report.hoy)||(due==='month'&&c.proximoContacto.slice(0,7)===report.hoy.slice(0,7))||(due==='unassigned'&&!c.proximoContacto);
+  return matchesText&&matchesSource&&matchesMail&&matchesReply&&(!gantt||c.gantt===gantt)&&matchesDue;
+ });
+}
+function cell(label){const td=create('td');td.dataset.label=label;return td;}
+function renderRows(){
+ const from=printing?0:page*pageSize,items=printing?visible:visible.slice(from,from+pageSize);
+ $('customers').replaceChildren();
+ for(const client of items){
+  const row=create('tr'),company=cell('Empresa / contacto'),origin=cell('Origen'),mail=cell('Primer seguimiento'),reply=cell('Respuesta / necesidad'),next=cell('Próximo paso'),detail=cell('Detalle');
+  company.append(create('p',client.empresa,'company'),create('p',client.nombre,'muted'),create('p',client.email,'muted'),create('p',client.etapa,'muted'));
+  origin.append(create('p',unique(client.fuentes.map(f=>f.nombre)).join(' / ')),create('p',client.registros.length+' inscripción'+(client.registros.length===1?'':'es'),'muted'));
+  mail.append(badge(client.primerCorreo.estado));if(client.primerCorreo.fecha)mail.append(create('p',client.primerCorreo.fecha));if(client.primerCorreo.evidencia)mail.append(link('Evidencia',client.primerCorreo.evidencia));
+  reply.append(badge(client.respuesta.estado));if(client.respuesta.fecha)reply.append(create('p',client.respuesta.fecha,'muted'));
+  if(client.superficieConfirmada)reply.append(create('p',client.superficieConfirmada));
+  if(client.necesidadConfirmada||client.informacionSolicitada)reply.append(create('p',client.necesidadConfirmada||client.informacionSolicitada));
+  else{const declared=unique(client.declaraciones.map(d=>d.superficie&&d.superficie+' '+d.unidad)).join(' / ');if(declared)reply.append(create('p','Declarada · '+declared,'muted'));}
+  next.append(create('p',client.proximaAccion||'Definir próxima acción'),create('p',client.responsable||'Asignar responsable','muted'));
+  if(client.proximoContacto)next.append(create('p',client.proximoContacto,'muted'));next.append(badge(client.gantt));
+  const button=create('button','Ver','detail-button');button.type='button';button.addEventListener('click',()=>showDetail(client));detail.append(button);
+  row.append(company,origin,mail,reply,next,detail);$('customers').append(row);
+ }
+ $('empty').hidden=visible.length>0;$('previous').disabled=page===0;$('next').disabled=(page+1)*pageSize>=visible.length;
+ $('page').textContent=visible.length?((from+1)+'–'+Math.min(from+pageSize,visible.length)+' de '+visible.length):'0 clientes';
+}
+function render(){
+ visible=selected();page=Math.min(page,Math.max(0,Math.ceil(visible.length/pageSize)-1));
+ $('metrics').replaceChildren(
+  metric('Clientes',visible.length),metric('Inscripciones',visible.reduce((sum,c)=>sum+c.registros.length,0)),
+  metric('Primer correo con evidencia',visible.filter(sent).length),metric('Respuesta comercial',visible.filter(replied).length),
+  metric('Necesidad o datos solicitados',visible.filter(hasNeed).length),metric('Listos para Gantt',visible.filter(c=>c.listoGantt).length)
+ );
+ const counts=new Map();for(const client of visible)for(const name of unique(client.fuentes.map(f=>f.nombre)))counts.set(name,(counts.get(name)||0)+1);
+ $('source-chart').replaceChildren(bars([...counts].map(([nombre,cantidad])=>({nombre,cantidad})).sort((a,b)=>b.cantidad-a.cantidad)));
+ $('progress-chart').replaceChildren(bars([
+  {nombre:'Primer correo con evidencia',cantidad:visible.filter(sent).length},
+  {nombre:'Sin evidencia de primer correo',cantidad:visible.filter(c=>c.primerCorreo.estado==='Sin evidencia').length},
+  {nombre:'Con respuesta comercial',cantidad:visible.filter(replied).length},
+  {nombre:'Con necesidad o datos solicitados',cantidad:visible.filter(hasNeed).length},
+  {nombre:'Listos para PTITP Gantt',cantidad:visible.filter(c=>c.listoGantt).length}
+ ]));
+ $('visible-count').textContent=visible.length+' de '+report.clientes.length+' clientes · '+report.totalRegistros+' inscripciones en total';
+ $('gantt-csv').disabled=!visible.some(c=>c.listoGantt);
+ renderRows();
+}
+function load(reportData){
+ report=reportData;page=0;
+ $('generated').textContent='Consulta '+report.generado+' · Hora de Paraguay';
+ $('tracking-link').href=report.seguimientoUrl;
+ $('audit').textContent='Correo revisado al '+report.fechaRevision+' en '+report.cuentas+'. “Sin evidencia” queda pendiente de verificación.';
+ const previous=$('source').value;$('source').replaceChildren(new Option('Todos los orígenes',''));
+ for(const item of report.origenes)$('source').append(new Option(item.nombre,item.nombre));
+ if([...$('source').options].some(o=>o.value===previous))$('source').value=previous;
+ render();
+}
+function csvField(value){
+ let s=text(value).replace(/\r?\n/g,' ').replace(/\s+/g,' ').trim();
+ if(/^[=+\-@]/.test(s))s="'"+s;
+ return '"'+s.replace(/"/g,'""')+'"';
+}
+function download(rows,filename,gantt){
+ const encode=value=>gantt?csvField(text(value).replace(/"/g,'”')):csvField(value);
+ const body='\uFEFF'+rows.map(row=>row.map(encode).join(',')).join('\r\n')+'\r\n';
+ const href=URL.createObjectURL(new Blob([body],{type:'text/csv;charset=utf-8'})),a=create('a');
+ a.href=href;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(href),1000);
+ $('status').textContent='Archivo preparado · '+(rows.length-1)+' clientes.';
+}
+function detailCsv(){
+ const header=['LeadID','Empresa','Contacto','Email','Teléfono','País','Origen','Primer correo','Fecha primer correo','Evidencia primer correo','Respuesta comercial','Fecha respuesta','Evidencia respuesta','Necesidad confirmada','Superficie confirmada','Superficie declarada','Información solicitada','Responsable','Próxima acción','Próximo contacto','PTITP Gantt','ID Gantt'];
+ const rows=visible.map(c=>[c.registros.map(r=>r.id).join(' / '),c.empresa,c.nombre,c.email,c.telefono,c.pais,unique(c.fuentes.map(f=>f.nombre)).join(' / '),c.primerCorreo.estado,c.primerCorreo.fecha,c.primerCorreo.evidencia,c.respuesta.estado,c.respuesta.fecha,c.respuesta.evidencia,c.necesidadConfirmada,c.superficieConfirmada,unique(c.declaraciones.map(d=>d.superficie&&d.superficie+' '+d.unidad)).join(' / '),c.informacionSolicitada,c.responsable,c.proximaAccion,c.proximoContacto,c.gantt,c.idGantt]);
+ download([header,...rows],'PTITP_clientes_'+report.hoy+'.csv',false);
+}
+function ganttCsv(){
+ const selected=visible.filter(c=>c.listoGantt);
+ if(!selected.length)return;
+ const slash=date=>text(date).replace(/-/g,'/');
+ const rows=selected.map(c=>[
+  c.idGantt,c.empresa,'eval',slash(c.primerCorreo.fecha||c.respuesta.fecha),c.pais,c.sector||'Por confirmar',
+  unique([c.necesidadConfirmada,c.superficieConfirmada,c.plazoConfirmado,c.informacionSolicitada]).join(' · '),
+  unique(['Origen '+unique(c.fuentes.map(f=>f.nombre)).join(' / '),'LeadID '+c.registros.map(r=>r.id).join(' / '),
+   c.nombre&&'Contacto '+c.nombre,c.email&&'Email '+c.email,c.telefono&&'Teléfono '+c.telefono,
+   c.resumenRespuesta,c.respuesta.fecha&&'Respuesta '+c.respuesta.fecha]).join(' · '),
+  c.proximaAccion||'Seguimiento mensual',slash(report.hoy)
+ ]);
+ download([['id','company','status','firstContact','country','industry','needs','progress','action','updated'],...rows],'PTITP_Gantt_candidatos_'+report.hoy+'.csv',true);
+}
+$('filters').addEventListener('input',()=>{page=0;render();});
+$('previous').addEventListener('click',()=>{if(page>0){page--;renderRows();}});
+$('next').addEventListener('click',()=>{if((page+1)*pageSize<visible.length){page++;renderRows();}});
+$('csv').addEventListener('click',detailCsv);$('gantt-csv').addEventListener('click',ganttCsv);
+$('close').addEventListener('click',()=>$('detail').close());
+function printRows(){printing=true;renderRows();}
+window.addEventListener('beforeprint',printRows);window.addEventListener('afterprint',()=>{printing=false;renderRows();});
+$('print').addEventListener('click',()=>{printRows();window.print();});
+$('refresh').addEventListener('click',()=>{
+ const button=$('refresh');button.disabled=true;$('status').textContent='Actualizando clientes y seguimiento…';
+ google.script.run.withSuccessHandler(result=>{
+  button.disabled=false;if(result.ok){load(result.report);$('status').textContent='Reporte actualizado.';}
+  else $('status').textContent=result.error||'Volvé a abrir el reporte desde la App.';
+ }).withFailureHandler(()=>{button.disabled=false;$('status').textContent='No se pudo actualizar. Volvé a intentar.';}).actualizarReporteClientes(session.idToken);
+});
+load(report);
+})();
+</script>
+</body>
+</html>
